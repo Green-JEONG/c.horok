@@ -6,6 +6,7 @@ import { Circle, CircleCheckBig, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
+import { useRouter } from "next/navigation";
 
 type Props = {
   open: boolean;
@@ -15,6 +16,7 @@ type Props = {
 export default function MyPageDrawer({ open, onClose }: Props) {
   const { data: session } = useSession();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const router = useRouter();
 
   // ESC 닫기
   useEffect(() => {
@@ -80,6 +82,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           <button
             type="button"
             className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
+            onClick={() => {
+              onClose();
+              router.push("/mypage?tab=posts");
+            }}
           >
             <p className="font-light text-white">글</p>
             <p className="font-extrabold text-white">3</p>
@@ -87,6 +93,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           <button
             type="button"
             className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
+            onClick={() => {
+              onClose();
+              router.push("/mypage?tab=comments");
+            }}
           >
             <p className="font-light text-white">댓글</p>
             <p className="font-extrabold text-white">3</p>
@@ -94,6 +104,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           <button
             type="button"
             className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
+            onClick={() => {
+              onClose();
+              router.push("/mypage?tab=friends");
+            }}
           >
             <p className="font-light text-white">친구</p>
             <p className="font-extrabold text-white">3</p>
