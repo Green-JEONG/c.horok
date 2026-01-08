@@ -1,9 +1,22 @@
+import { Suspense } from "react";
 import MyPageSection from "@/components/mypage/MyPageSection";
 
 export default function MyPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-12">
-      <MyPageSection />
+      <Suspense fallback={<MyPageLoading />}>
+        <MyPageSection />
+      </Suspense>
+    </div>
+  );
+}
+
+function MyPageLoading() {
+  return (
+    <div className="space-y-6">
+      <div className="h-6 w-32 rounded bg-muted animate-pulse" />
+      <div className="h-48 rounded bg-muted animate-pulse" />
+      <div className="h-48 rounded bg-muted animate-pulse" />
     </div>
   );
 }

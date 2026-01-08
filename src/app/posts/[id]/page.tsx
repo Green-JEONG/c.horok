@@ -1,26 +1,38 @@
-import { findPostById } from "@/lib/db";
-import PostDetail from "@/components/posts/PostDetail";
+import CommentForm from "@/components/posts/CommentForm";
+import CommentList from "@/components/posts/CommentList";
+import PostActions from "@/components/posts/PostActions";
+import PostContent from "@/components/posts/PostContent";
+import PostFooter from "@/components/posts/PostFooter";
+import PostHeader from "@/components/posts/PostHeader";
+import { getPostById } from "@/lib/posts";
 
 type Props = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export default async function PostPage({ params }: Props) {
-  const postId = Number(params.id);
+  const { id } = await params;
+  const postId = Number(id);
 
   if (Number.isNaN(postId)) {
-    return (
-      <div className="py-20 text-center text-sm text-muted-foreground">
-        잘못된 게시글 접근입니다.
-      </div>
-    );
+    return <p>잘못된 접근입니다.</p>;
   }
 
-  const post = await findPostById(postId);
-
+  const post = await getPostById(postId);
   if (!post) {
-    return <div className="py-20 text-center">게시글이 없습니다.</div>;
+    return <p>게시글이 없습니다.</p>;
   }
 
-  return <PostDetail post={post} />;
+  return (
+    <article className="mx-auto max-w-3xl px-4 py-10">
+      <PostHeader />
+      <PostActions />
+      <PostContent />
+      <PostFooter postId={postId} />
+
+      {/* 댓글 */}
+      <CommentList />
+      <CommentForm />
+    </article>
+  );
 }

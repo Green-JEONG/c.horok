@@ -1,26 +1,30 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { findUserContributions } from "@/lib/db";
+import { pool } from "@/lib/db";
+import type { RowDataPacket } from "mysql2/promise";
 
 export async function GET() {
   try {
     const session = await auth();
 
-    console.log("SESSION:", session);
-
-    if (!session?.user?.id) {
-      console.log("NO SESSION USER");
+    if (!session?.user?.email) {
       return NextResponse.json([], { status: 200 });
     }
 
-    const userId = Number(session.user.id);
+    // email → users.id(BIGINT) 변환
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id FROM users WHERE email = ? LIMIT 1`,
+      [session.user.email],
+    );
 
-    console.log("USER ID (raw):", session.user.id);
-    console.log("USER ID (number):", userId);
+    if (rows.length === 0) {
+      return NextResponse.json([], { status: 200 });
+    }
+
+    const userId = rows[0].id as number;
 
     const data = await findUserContributions(userId);
-
-    console.log("CONTRIBUTIONS FROM DB:", data);
 
     return NextResponse.json(data);
   } catch (err) {

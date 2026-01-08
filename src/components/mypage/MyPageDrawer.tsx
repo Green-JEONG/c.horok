@@ -7,16 +7,46 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Props = {
   open: boolean;
   onClose: () => void;
 };
 
+type Notification = {
+  id: number;
+  type: "FRIEND_REQUEST" | "POST_COMMENT" | "COMMENT_REPLY";
+  actor_name: string | null;
+  post_id: number | null;
+  comment_id: number | null;
+  is_read: number;
+  created_at: string;
+};
+
+function renderNotificationMessage(n: Notification) {
+  switch (n.type) {
+    case "FRIEND_REQUEST":
+      return `${n.actor_name ?? "누군가"}님이 친구 요청을 보냈습니다`;
+    case "POST_COMMENT":
+      return `${n.actor_name ?? "누군가"}님이 내 게시물에 댓글을 남겼습니다`;
+    case "COMMENT_REPLY":
+      return `${n.actor_name ?? "누군가"}님이 내 댓글에 답글을 남겼습니다`;
+    default:
+      return "새 알림이 있습니다";
+  }
+}
+
 export default function MyPageDrawer({ open, onClose }: Props) {
   const { data: session } = useSession();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const router = useRouter();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [stats, setStats] = useState({
+    posts: 0,
+    comments: 0,
+    friends: 0,
+  });
 
   // ESC 닫기
   useEffect(() => {
@@ -31,6 +61,59 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     if (!open) setSettingsOpen(false);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const loadNotifications = async () => {
+      try {
+        const res = await fetch("/api/notifications");
+
+        console.log("🔔 응답 상태:", res.status);
+
+        if (!res.ok) {
+          console.error("알림 API 실패", res.status);
+          setNotifications([]);
+          return;
+        }
+
+        const text = await res.text();
+
+        if (!text) {
+          console.warn("⚠️ 알림 응답 바디 비어있음");
+          setNotifications([]);
+          return;
+        }
+
+        const data = JSON.parse(text);
+        console.log("🔔 알림 데이터:", data);
+        setNotifications(data);
+      } catch (e) {
+        console.error("알림 로드 실패", e);
+        setNotifications([]);
+      }
+    };
+
+    loadNotifications();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const loadStats = async () => {
+      try {
+        const res = await fetch("/api/mypage/stats");
+        if (!res.ok) return;
+
+        const data = await res.json();
+        setStats(data);
+      } catch (e) {
+        console.error("stats 로드 실패", e);
+      }
+    };
+
+    loadStats();
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -43,10 +126,18 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         className="absolute inset-0 bg-black/50 cursor-default"
       />
 
-      {/* drawer */}
       <aside className="absolute left-0 top-0 h-full w-87.5 bg-background text-foreground shadow-xl flex flex-col">
-        {/* header */}
-        <div className="flex items-center justify-end p-4">
+        <div className="flex items-center justify-between p-4">
+          <nav className="flex items-center gap-4 text-sm">
+            {session?.user?.role === "ADMIN" && (
+              <Link
+                href="/admin"
+                className="text-red-500 font-semibold hover:underline"
+              >
+                관리자
+              </Link>
+            )}
+          </nav>
           <button
             type="button"
             aria-label="설정 열기"
@@ -58,7 +149,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         </div>
 
         {/* profile */}
-        <div className="px-4 pt-4 flex flex-col items-center gap-3">
+        <div className="px-4 flex flex-col items-center gap-3">
           <Image
             src={session?.user?.image ?? "/logo.svg"}
             alt="profile"
@@ -88,7 +179,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             }}
           >
             <p className="font-light text-white">글</p>
-            <p className="font-extrabold text-white">3</p>
+            <p className="font-extrabold text-white">{stats.posts}</p>
           </button>
           <button
             type="button"
@@ -99,7 +190,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             }}
           >
             <p className="font-light text-white">댓글</p>
-            <p className="font-extrabold text-white">3</p>
+            <p className="font-extrabold text-white">{stats.comments}</p>
           </button>
           <button
             type="button"
@@ -110,7 +201,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             }}
           >
             <p className="font-light text-white">친구</p>
-            <p className="font-extrabold text-white">3</p>
+            <p className="font-extrabold text-white">{stats.friends}</p>
           </button>
         </div>
 
@@ -118,17 +209,34 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         <div className="flex-1 overflow-y-auto p-6 mx-4 border border-border shadow-md rounded-3xl bg-muted text-foreground">
           <h3 className="mb-5 text-xl font-semibold">알림</h3>
 
-          <ul className="flex flex-col text-sm gap-2">
-            <li className="flex items-center gap-2">
-              <Circle color="#ccc" width={20} /> 회원가입이 완료되었습니다
-            </li>
-            <li className="flex items-center gap-2">
-              <CircleCheckBig color="#4CB975" width={20} /> 도롱이 팀 요청 승인
-            </li>
-            <li className="flex items-center gap-2">
-              <CircleCheckBig color="#4CB975" width={20} /> 새로운 댓글이
-              달렸어요
-            </li>
+          <ul className="flex flex-col text-sm gap-3">
+            {notifications.length === 0 && (
+              <li className="text-muted-foreground">알림이 없습니다.</li>
+            )}
+
+            <ul className="flex flex-col gap-2">
+              {notifications.map((n) => (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 text-left hover:underline"
+                    onClick={() => {
+                      onClose();
+                      if (n.post_id) {
+                        router.push(`/posts/${n.post_id}`);
+                      }
+                    }}
+                  >
+                    {n.is_read ? (
+                      <CircleCheckBig color="#4CB975" width={18} />
+                    ) : (
+                      <Circle color="#ccc" width={18} />
+                    )}
+                    {renderNotificationMessage(n)}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </ul>
         </div>
 

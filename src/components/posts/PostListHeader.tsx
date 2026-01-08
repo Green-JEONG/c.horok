@@ -3,6 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import HomeWriteButton from "../home/HomeWriteButton";
 
 type SortType = "latest" | "views" | "likes" | "comments";
 
@@ -20,13 +21,22 @@ export default function PostListHeader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const keyword = searchParams.get("keyword");
+  // const keyword = searchParams.get("keyword");
+  const category = searchParams.get("category");
 
   const isFeedPage = pathname === "/feed" || pathname.startsWith("/feed/");
   const isLikesPage = pathname === "/likes" || pathname.startsWith("/likes/");
 
-  const title = keyword
-    ? `#${keyword}`
+  // const title = keyword
+  //   ? `#${keyword}`
+  //   : isLikesPage
+  //     ? "좋아요"
+  //     : isFeedPage
+  //       ? "피드"
+  //       : "전체";
+
+  const title = category
+    ? `#${category}`
     : isLikesPage
       ? "좋아요"
       : isFeedPage
@@ -34,11 +44,11 @@ export default function PostListHeader() {
         : "전체";
 
   return (
-    <div className="flex items-center justify-between pb-3">
+    <div className="flex items-center justify-between">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
 
-      {/* 정렬 버튼 */}
-      <div className="relative">
+      <div className="relative flex items-center gap-2">
+        <HomeWriteButton />
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -57,7 +67,6 @@ export default function PostListHeader() {
                   onClick={() => {
                     setSort(key);
                     setOpen(false);
-                    // 👉 나중에 router.push로 sort 쿼리 연결
                   }}
                   className="w-full px-3 py-2 text-left hover:bg-muted"
                 >

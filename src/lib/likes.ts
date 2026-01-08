@@ -1,5 +1,6 @@
 import type mysql from "mysql2/promise";
 import { pool } from "@/lib/db";
+import type { RowDataPacket } from "mysql2/promise";
 
 /**
  * 사용자가 이미 좋아요를 눌렀는지 확인
@@ -60,25 +61,41 @@ export async function getLikeCount(postId: number) {
   return Number(rows[0]?.count ?? 0);
 }
 
-/**
- * 🔥 좋아요 토글 (추가 / 취소)
- * API route에서 사용하는 핵심 함수
- */
-export async function toggleLike(params: { postId: number; userId: number }) {
-  const { postId, userId } = params;
+export async function toggleLike({
+  postId,
+  userId,
+}: {
+  postId: number;
+  userId: number;
+}) {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT 1 FROM post_likes WHERE post_id = ? AND user_id = ?`,
+    [postId, userId],
+  );
 
-  const liked = await hasLiked(postId, userId);
+  let liked: boolean;
 
-  if (liked) {
-    await removeLike(postId, userId);
+  if (rows.length > 0) {
+    await pool.query(
+      `DELETE FROM post_likes WHERE post_id = ? AND user_id = ?`,
+      [postId, userId],
+    );
+    liked = false;
   } else {
-    await addLike(postId, userId);
+    await pool.query(
+      `INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)`,
+      [postId, userId],
+    );
+    liked = true;
   }
 
-  const likeCount = await getLikeCount(postId);
+  const [countRows] = await pool.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS count FROM post_likes WHERE post_id = ?`,
+    [postId],
+  );
 
   return {
-    liked: !liked,
-    likeCount,
+    liked,
+    likeCount: Number(countRows[0].count),
   };
 }

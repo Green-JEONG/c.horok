@@ -1,4 +1,3 @@
-// MyPostsSection.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -21,10 +20,21 @@ export default function MyPostsSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/mypage/posts")
-      .then((res) => res.json())
-      .then(setPosts)
-      .finally(() => setLoading(false));
+    const load = async () => {
+      try {
+        const res = await fetch("/api/mypage/posts");
+        if (!res.ok) throw new Error();
+
+        const data = await res.json();
+        setPosts(data);
+      } catch {
+        setPosts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, []);
 
   if (loading) {

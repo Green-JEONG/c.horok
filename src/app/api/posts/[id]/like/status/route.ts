@@ -2,25 +2,36 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { hasLiked, getLikeCount } from "@/lib/likes";
+import { pool } from "@/lib/db";
+import type { RowDataPacket } from "mysql2/promise";
 
 export async function GET(
   _req: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await context.params;
-
+  const { id } = await params;
   const postId = Number(id);
+
   if (Number.isNaN(postId)) {
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
   }
 
   const session = await auth();
-  const userId = session ? Number(session.user.id) : null;
 
-  const liked =
-    userId !== null && !Number.isNaN(userId)
-      ? await hasLiked(postId, userId)
-      : false;
+  let liked = false;
+
+  if (session?.user?.email) {
+    // 🔑 email → DB userId(BIGINT)
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id FROM users WHERE email = ? LIMIT 1`,
+      [session.user.email],
+    );
+
+    if (rows.length > 0) {
+      const userId = rows[0].id as number;
+      liked = await hasLiked(postId, userId);
+    }
+  }
 
   const likeCount = await getLikeCount(postId);
 

@@ -1,3 +1,4 @@
+// src/app/api/comments/[id]/route.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
@@ -6,6 +7,23 @@ import {
   updateComment,
   softDeleteComment,
 } from "@/lib/comments";
+import { pool } from "@/lib/db";
+import type { RowDataPacket } from "mysql2/promise";
+
+/**
+ * 공통: 세션 → DB userId(BIGINT) 변환
+ */
+async function getDbUserId() {
+  const session = await auth();
+  if (!session?.user?.email) return null;
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT id FROM users WHERE email = ? LIMIT 1`,
+    [session.user.email],
+  );
+
+  return rows.length > 0 ? (rows[0].id as number) : null;
+}
 
 /**
  * 댓글 수정 (작성자만 가능)
@@ -14,11 +32,6 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
   const { id } = await params;
   const commentId = Number(id);
 
@@ -29,20 +42,22 @@ export async function PUT(
     );
   }
 
+  const dbUserId = await getDbUserId();
+  if (!dbUserId) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   const comment = await getCommentById(commentId);
   if (!comment) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
-  const userId = Number(session.user.id);
-  const isOwner = comment.user_id === userId;
-
+  const isOwner = comment.user_id === dbUserId;
   if (!isOwner) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const { content } = await req.json();
-
   if (!content || typeof content !== "string") {
     return NextResponse.json({ message: "Content required" }, { status: 400 });
   }
@@ -61,14 +76,9 @@ export async function PUT(
  * - 관리자: 타인 댓글 삭제 가능 (soft delete)
  */
 export async function DELETE(
-  _: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
-
   const { id } = await params;
   const commentId = Number(id);
 
@@ -79,14 +89,21 @@ export async function DELETE(
     );
   }
 
+  const dbUserId = await getDbUserId();
+  if (!dbUserId) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   const comment = await getCommentById(commentId);
   if (!comment) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
-  const userId = Number(session.user.id);
-  const isOwner = comment.user_id === userId;
-  const isAdmin = session.user.role === "ADMIN";
+  const isOwner = comment.user_id === dbUserId;
+  const isAdmin =
+    comment && dbUserId && comment.user_id !== dbUserId
+      ? (await auth())?.user?.role === "ADMIN"
+      : false;
 
   if (!isOwner && !isAdmin) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });

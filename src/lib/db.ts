@@ -172,14 +172,15 @@ export type DbContribution = {
 };
 
 export async function findUserContributions(userId: number) {
-  const [rows] = await pool.query(
+  const [rows] = await pool.query<RowDataPacket[]>(
     `
     SELECT
       DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
       COUNT(*) AS count
     FROM posts
     WHERE user_id = ?
-    GROUP BY DATE(created_at)
+      AND is_deleted = 0
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
     ORDER BY date
     `,
     [userId],

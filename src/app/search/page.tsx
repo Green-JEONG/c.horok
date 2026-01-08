@@ -1,4 +1,3 @@
-// app/search/page.tsx
 import PostCard from "@/components/posts/PostCard";
 import { searchPosts } from "@/lib/queries";
 
@@ -28,7 +27,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-sm font-semibold">“{keyword}” 검색 결과</h2>
+      <h2 className="text-sm font-semibold">{keyword}</h2>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {posts.map((post) => (

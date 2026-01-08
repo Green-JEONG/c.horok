@@ -2,6 +2,20 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getPostById, updatePost, deletePost } from "@/lib/posts";
+import { pool } from "@/lib/db";
+import type { RowDataPacket } from "mysql2/promise";
+
+async function getDbUserId() {
+  const session = await auth();
+  if (!session?.user?.email) return null;
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT id FROM users WHERE email = ? LIMIT 1`,
+    [session.user.email],
+  );
+
+  return rows.length > 0 ? (rows[0].id as number) : null;
+}
 
 export async function GET(
   _req: NextRequest,
@@ -33,8 +47,8 @@ export async function PUT(
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
   }
 
-  const session = await auth();
-  if (!session) {
+  const dbUserId = await getDbUserId();
+  if (!dbUserId) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
@@ -43,10 +57,9 @@ export async function PUT(
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
-  const isOwner = post.user_id === Number(session.user.id);
-  const isAdmin = session.user.role === "ADMIN";
+  const isOwner = post.user_id === dbUserId;
 
-  if (!isOwner && !isAdmin) {
+  if (!isOwner) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
@@ -72,8 +85,8 @@ export async function DELETE(
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
   }
 
-  const session = await auth();
-  if (!session) {
+  const dbUserId = await getDbUserId();
+  if (!dbUserId) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
@@ -82,10 +95,9 @@ export async function DELETE(
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
-  const isOwner = post.user_id === Number(session.user.id);
-  const isAdmin = session.user.role === "ADMIN";
+  const isOwner = post.user_id === dbUserId;
 
-  if (!isOwner && !isAdmin) {
+  if (!isOwner) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 

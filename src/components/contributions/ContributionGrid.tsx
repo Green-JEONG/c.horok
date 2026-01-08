@@ -82,7 +82,7 @@ export default function ContributionGrid() {
             <div
               key={date}
               title={`${date}: ${count}회`}
-              className={`h-4 w-full ${getColor(count)}`}
+              className={`h-3 w-full rounded ${getColor(count)}`}
             />
           );
         })}

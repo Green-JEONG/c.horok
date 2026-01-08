@@ -1,6 +1,5 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { pool } from "@/lib/db";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
 
 export type DbPost = {
   id: number;
@@ -45,12 +44,7 @@ export async function searchPosts(
   return rows as DbPost[];
 }
 
-export async function getMyPosts(): Promise<DbPost[]> {
-  const session = await auth();
-  if (!session) return [];
-
-  const userId = Number(session.user.id);
-
+export async function getMyPosts(userId: number): Promise<DbPost[]> {
   const [rows] = await pool.query<RowDataPacket[]>(
     `
     SELECT

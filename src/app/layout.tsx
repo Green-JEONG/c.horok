@@ -1,9 +1,10 @@
 import BannerBar from "@/components/layout/BannerBar";
 import Header from "@/components/layout/Header";
 import PopularPosts from "@/components/sidebar/PopularPosts";
-import RecommendedKeywords from "@/components/sidebar/RecommendedKeywords";
+// import RecommendedKeywords from "@/components/sidebar/RecommendedKeywords";
 import "@/app/globals.css";
 import AuthSessionProvider from "@/components/providers/SessionProvider";
+import RecommendedCategories from "@/components/home/RecommendedCategories";
 
 export default function RootLayout({
   children,
@@ -44,7 +45,8 @@ export default function RootLayout({
               <div className="flex h-full px-6 flex-col border-r py-6">
                 <div className="space-y-8">
                   <PopularPosts />
-                  <RecommendedKeywords />
+                  {/* <RecommendedKeywords /> */}
+                  <RecommendedCategories />
                 </div>
 
                 {/* Footer */}
