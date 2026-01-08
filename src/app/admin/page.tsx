@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Admin | Horok Tech",
+  description: "관리자 페이지",
+};
+
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { pool } from "@/lib/db";

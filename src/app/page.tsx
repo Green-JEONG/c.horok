@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Horok Tech",
+  description: "홈 페이지",
+};
+
 import { Suspense } from "react";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
 import PostListHeader from "@/components/posts/PostListHeader";

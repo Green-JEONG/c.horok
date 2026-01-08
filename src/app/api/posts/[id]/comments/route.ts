@@ -1,4 +1,3 @@
-// src/app/api/comments/[id]/route.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";

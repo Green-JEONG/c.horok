@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Mypage | Horok Tech",
+  description: "마이 페이지",
+};
+
 import { Suspense } from "react";
 import MyPageSection from "@/components/mypage/MyPageSection";
 

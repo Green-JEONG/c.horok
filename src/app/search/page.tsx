@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "검색 결과 | Horok Tech",
+  description: "게시글 검색 결과 페이지",
+};
+
 import PostCard from "@/components/posts/PostCard";
 import { searchPosts } from "@/lib/queries";
 

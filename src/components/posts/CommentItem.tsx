@@ -8,7 +8,7 @@ export default function CommentItem() {
   const isOwner = true;
 
   return (
-    <li className="rounded-md border p-4">
+    <div className="rounded-md border p-4">
       <div className="flex justify-between text-sm">
         <span className="font-medium">정그린</span>
         <span className="text-muted-foreground">2026.01.08</span>
@@ -38,6 +38,6 @@ export default function CommentItem() {
           <CommentForm placeholder="답글을 작성하세요" />
         </div>
       )}
-    </li>
+    </div>
   );
 }

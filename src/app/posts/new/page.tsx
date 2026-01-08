@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "New Post | Horok Tech",
+  description: "글 작성 페이지",
+};
+
 import PostEditor from "@/components/posts/PostEditor";
 
 export default function WritePostPage() {

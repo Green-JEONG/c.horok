@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Like | Horok Tech",
+  description: "좋아요 페이지",
+};
+
 import { Suspense } from "react";
 import PostListHeader from "@/components/posts/PostListHeader";
 import LikedPostList from "@/components/posts/LikedPostList";

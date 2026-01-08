@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Feed | Horok Tech",
+  description: "피드 페이지",
+};
+
 import { Suspense } from "react";
 import PostList from "@/components/posts/PostList";
 import PostListHeader from "@/components/posts/PostListHeader";
