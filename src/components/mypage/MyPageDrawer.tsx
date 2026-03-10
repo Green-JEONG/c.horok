@@ -243,7 +243,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         <p className="text-center text-xs font-light my-4 text-muted-foreground">
           Developed by{" "}
           <a
-            href="https://github.com/Green-JEONG/hanaro"
+            href="https://github.com/Green-JEONG/horok-dev"
             target="_blank"
             rel="noopener noreferrer"
             className="underline hover:text-foreground"
