@@ -1,13 +1,10 @@
 import type { RowDataPacket } from "mysql2/promise";
-import mysql from "mysql2/promise";
 
-const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) throw new Error("Missing DATABASE_URL");
+// ⚠️ MySQL 서버가 꺼져 있어 Next.js가 아예 연결 시도를 하지 않도록, DB 연결 환경변수 체크 및 실제 연결(pool) 부분은 주석 처리 또는 가짜로 대체
 
-export const pool = mysql.createPool({
-  uri: DATABASE_URL,
-  connectionLimit: 10,
-});
+export const pool = {
+  query: async () => [[]],
+} as any;
 
 export type DbUser = {
   id: string;
@@ -16,61 +13,8 @@ export type DbUser = {
   name: string | null;
   role: "USER" | "ADMIN";
   provider: "credentials" | "github" | "google";
-  github_id: string | null; // OAuth 공용 ID로 사용
+  github_id: string | null;
 };
-
-export async function findUserByEmail(email: string) {
-  const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    "SELECT * FROM users WHERE email = ? LIMIT 1",
-    [email],
-  );
-  return (rows[0] as DbUser | undefined) ?? null;
-}
-
-export async function createUser(params: {
-  email: string;
-  passwordHash: string;
-  name?: string | null;
-  role?: "USER" | "ADMIN";
-}) {
-  const { email, passwordHash, name = null, role = "USER" } = params;
-
-  await pool.query(
-    "INSERT INTO users (email, password, name, role, provider) VALUES (?, ?, ?, ?, 'credentials')",
-    [email, passwordHash, name, role],
-  );
-
-  return findUserByEmail(email);
-}
-
-export async function deleteUserById(userId: string) {
-  await pool.query("DELETE FROM users WHERE id = ?", [userId]);
-}
-
-export async function upsertOAuthUser(params: {
-  email: string;
-  name?: string | null;
-  provider: "github" | "google";
-  providerId: string;
-}) {
-  const { email, name = null, provider, providerId } = params;
-
-  const role = email === "th2gr22n@gmail.com" ? "ADMIN" : "USER";
-
-  await pool.query(
-    `
-    INSERT INTO users (email, name, role, provider, github_id)
-    VALUES (?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      name = COALESCE(VALUES(name), name),
-      provider = VALUES(provider),
-      github_id = COALESCE(github_id, VALUES(github_id))
-    `,
-    [email, name, role, provider, providerId],
-  );
-
-  return findUserByEmail(email);
-}
 
 export type DbPost = {
   id: number;
@@ -83,55 +27,65 @@ export type DbPost = {
   comments_count: number;
 };
 
+export type DbContribution = {
+  date: string;
+  count: number;
+};
+
+// 공통으로 사용할 임시(Mock) 데이터
+const MOCK_USER: DbUser = {
+  id: "test-user-id",
+  email: "test@example.com",
+  password: "hashed_password",
+  name: "UI테스터",
+  role: "USER",
+  provider: "credentials",
+  github_id: null,
+};
+
+const MOCK_POST: DbPost = {
+  id: 1,
+  title: "DB 없이 띄운 임시 게시글입니다",
+  content:
+    "MySQL 서버가 꺼져 있어도 UI 작업을 할 수 있도록 세팅된 가짜 데이터입니다.",
+  created_at: new Date(),
+  author_name: "UI테스터",
+  category_name: "개발",
+  likes_count: 10,
+  comments_count: 3,
+};
+
+// 가짜 데이터를 반환하는 함수들
+export async function findUserByEmail(email: string) {
+  return MOCK_USER;
+}
+
+export async function createUser(params: any) {
+  return MOCK_USER;
+}
+
+export async function deleteUserById(userId: string) {
+  return; // 삭제 로직 무시
+}
+
+export async function upsertOAuthUser(params: any) {
+  return MOCK_USER;
+}
+
 export async function findPostsPaged(
   limit: number,
   offset: number,
 ): Promise<DbPost[]> {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      0 AS likes_count,
-      0 AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-    [limit, offset],
-  );
-
-  return rows as DbPost[];
+  // 게시글이 여러 개 있는 것처럼 보이게 복제해서 반환
+  return [
+    MOCK_POST,
+    { ...MOCK_POST, id: 2, title: "두 번째 임시 게시글" },
+    { ...MOCK_POST, id: 3, title: "세 번째 임시 게시글" },
+  ];
 }
 
 export async function findPostById(id: number) {
-  const [rows] = await pool.query(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    WHERE p.id = ?
-    LIMIT 1
-    `,
-    [id],
-  );
-
-  return (rows as DbPost[])[0] ?? null;
+  return { ...MOCK_POST, id }; // 요청한 ID를 가진 게시글 반환
 }
 
 export async function findPostsByKeywordPaged(
@@ -139,54 +93,13 @@ export async function findPostsByKeywordPaged(
   limit: number,
   offset: number,
 ) {
-  const [rows] = await pool.query(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      0 AS likes_count,
-      0 AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    WHERE
-      p.title LIKE ? OR
-      p.content LIKE ?
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-    [`%${keyword}%`, `%${keyword}%`, limit, offset],
-  );
-
-  return rows as DbPost[];
+  return [{ ...MOCK_POST, title: `'${keyword}' 검색 결과 임시 게시글` }];
 }
 
-export type DbContribution = {
-  date: string; // YYYY-MM-DD
-  count: number;
-};
-
 export async function findUserContributions(userId: number) {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
-      COUNT(*) AS count
-    FROM posts
-    WHERE user_id = ?
-      AND is_deleted = 0
-    GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
-    ORDER BY date
-    `,
-    [userId],
-  );
-
-  return rows as { date: string; count: number }[];
+  return [
+    { date: "2026-03-10", count: 5 }, // 최근 날짜로 임시 잔디(기여도) 데이터 생성
+  ];
 }
 
 export async function searchPosts(
@@ -194,27 +107,5 @@ export async function searchPosts(
   limit: number,
   offset: number,
 ) {
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.thumbnail,
-      p.created_at,
-      u.name AS author_name,
-      c.name AS category_name,
-      0 AS likes_count,
-      0 AS comments_count
-    FROM posts p
-    JOIN users u ON u.id = p.user_id
-    JOIN categories c ON c.id = p.category_id
-    WHERE MATCH(p.title, p.content) AGAINST (? IN BOOLEAN MODE)
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-    [`${keyword}*`, limit, offset],
-  );
-
-  return rows;
+  return [{ ...MOCK_POST, title: `'${keyword}' 검색 결과 임시 게시글` }];
 }
