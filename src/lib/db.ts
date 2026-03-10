@@ -1,10 +1,10 @@
-import type { RowDataPacket } from "mysql2/promise";
+import type { RowDataPacket, Pool } from "mysql2/promise";
 
 // ⚠️ MySQL 서버가 꺼져 있어 Next.js가 아예 연결 시도를 하지 않도록, DB 연결 환경변수 체크 및 실제 연결(pool) 부분은 주석 처리 또는 가짜로 대체
 
 export const pool = {
   query: async () => [[]],
-} as any;
+} as unknown as Pool;
 
 export type DbUser = {
   id: string;
