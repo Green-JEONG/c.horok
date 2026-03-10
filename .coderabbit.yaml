@@ -1,0 +1,16 @@
+language: "ko-KR"
+
+reviews:
+  profile: "chill" # 말투를 부드럽고 친근하게(기본값)
+  poem: false # 리뷰 끝에 가끔 써주는 오글거리는 영시(poem) 끄기
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "/*"
+chat:
+  auto_reply: true
