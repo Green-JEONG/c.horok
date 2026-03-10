@@ -1,13 +1,12 @@
 "use client";
 
-import { signOut } from "next-auth/react";
-import Image from "next/image";
 import { Circle, CircleCheckBig, Settings } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
 
 type Props = {
   open: boolean;
@@ -18,6 +17,7 @@ type Notification = {
   id: number;
   type: "FRIEND_REQUEST" | "POST_COMMENT" | "COMMENT_REPLY";
   actor_name: string | null;
+  message?: string | null;
   post_id: number | null;
   comment_id: number | null;
   is_read: number;
@@ -25,6 +25,8 @@ type Notification = {
 };
 
 function renderNotificationMessage(n: Notification) {
+  if (n.message) return n.message;
+
   switch (n.type) {
     case "FRIEND_REQUEST":
       return `${n.actor_name ?? "누군가"}님이 친구 요청을 보냈습니다`;
