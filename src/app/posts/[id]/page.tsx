@@ -4,6 +4,7 @@ import PostActions from "@/components/posts/PostActions";
 import PostContent from "@/components/posts/PostContent";
 import PostFooter from "@/components/posts/PostFooter";
 import PostHeader from "@/components/posts/PostHeader";
+import PostViewTracker from "@/components/posts/PostViewTracker";
 import { getPostById } from "@/lib/posts";
 
 type Props = {
@@ -25,6 +26,7 @@ export default async function PostPage({ params }: Props) {
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-10">
+      <PostViewTracker postId={postId} />
       <PostHeader />
       <PostActions />
       <PostContent />
