@@ -1,4 +1,4 @@
-## 1번째 작업
+## Ver 1.
 ### 기술 블로그 만들기
 
 ![Mar-10-2026 22-51-58](https://github.com/user-attachments/assets/8f302e44-9123-452c-8d03-2d1dec0ad9bd)
@@ -27,3 +27,13 @@
 4) 관리자/사용자 계정 구분
 - admin
 - user
+
+## Ver 2. (진행 중)
+### Horok 통합 페이지 만들기
+
+#### 1️⃣ 소개
+
+#### 2️⃣ 기술 블로그
+
+#### 3️⃣ ???
+Coming Soon..
