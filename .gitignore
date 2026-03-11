@@ -47,4 +47,3 @@ storybook-static
 docker/*.sql
 
 docker-compose.yml
-.env
