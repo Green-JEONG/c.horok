@@ -4,7 +4,10 @@ import { ArrowLeft, X } from "lucide-react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
+import { markLoginWelcomeToast } from "@/components/layout/LoginWelcomeToast";
+import { validatePassword } from "@/lib/password";
 import { cn } from "@/lib/utils";
+import { useEmailAvailability } from "./useEmailAvailability";
 import { useNicknameAvailability } from "./useNicknameAvailability";
 
 type Props = {
@@ -28,14 +31,48 @@ export default function LoginModal({ open, onClose }: Props) {
   const [signupName, setSignupName] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const signupEmailAvailability = useEmailAvailability({
+    email: signupEmail,
+    enabled: open && step === "signup",
+  });
   const signupNickname = useNicknameAvailability({
     nickname: signupName,
     enabled: open && step === "signup",
   });
+  const isSignupEmailUnavailable =
+    signupEmailAvailability.status === "taken" ||
+    signupEmailAvailability.status === "invalid" ||
+    signupEmailAvailability.status === "error";
   const isSignupNicknameUnavailable =
     signupNickname.status === "taken" ||
     signupNickname.status === "invalid" ||
     signupNickname.status === "error";
+  const signupPasswordValidationMessage = signupPassword
+    ? validatePassword(signupPassword)
+    : null;
+  const isSignupPasswordValid = !signupPasswordValidationMessage;
+  const isSignupPasswordMatched =
+    Boolean(signupPassword) &&
+    Boolean(signupPasswordConfirm) &&
+    isSignupPasswordValid &&
+    signupPassword === signupPasswordConfirm;
+  const isSignupPasswordMismatch =
+    Boolean(signupPasswordConfirm) &&
+    isSignupPasswordValid &&
+    signupPassword !== signupPasswordConfirm;
+  const isSignupDisabled =
+    loading ||
+    signupEmailAvailability.isChecking ||
+    signupNickname.isChecking ||
+    !signupEmailAvailability.isAvailable ||
+    isSignupNicknameUnavailable ||
+    !signupEmail ||
+    !signupName ||
+    !signupPassword ||
+    !signupPasswordConfirm ||
+    !isSignupPasswordValid ||
+    !isSignupPasswordMatched;
 
   const handleClose = useCallback(() => {
     onClose();
@@ -47,6 +84,7 @@ export default function LoginModal({ open, onClose }: Props) {
     setSignupPassword("");
     setSignupPasswordConfirm("");
     setError(null);
+    setNotice(null);
   }, [onClose]);
 
   // ESC 키로 닫기
@@ -71,6 +109,7 @@ export default function LoginModal({ open, onClose }: Props) {
 
     setLoading(true);
     setError(null);
+    setNotice(null);
 
     const res = await signIn("credentials", {
       email,
@@ -86,6 +125,7 @@ export default function LoginModal({ open, onClose }: Props) {
     }
 
     if (res?.ok) {
+      markLoginWelcomeToast();
       handleClose(); // 로그인 성공 → 모달 닫기
     }
   }
@@ -108,13 +148,27 @@ export default function LoginModal({ open, onClose }: Props) {
       return;
     }
 
+    const passwordValidationMessage = validatePassword(signupPassword);
+    if (passwordValidationMessage) {
+      setError(passwordValidationMessage);
+      return;
+    }
+
     if (!signupNickname.isAvailable) {
       setError(signupNickname.message ?? "사용 가능한 닉네임을 입력해주세요.");
       return;
     }
 
+    if (!signupEmailAvailability.isAvailable) {
+      setError(
+        signupEmailAvailability.message ?? "사용 가능한 이메일을 입력해주세요.",
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setNotice(null);
 
     const res = await fetch("/api/signup", {
       method: "POST",
@@ -134,18 +188,15 @@ export default function LoginModal({ open, onClose }: Props) {
       return;
     }
 
-    // 회원가입 성공 → 자동 로그인
-    const loginRes = await signIn("credentials", {
-      email: signupEmail,
-      password: signupPassword,
-      redirect: false,
-    });
-
-    if (loginRes?.ok) {
-      handleClose();
-    } else {
-      setError("회원가입 후 로그인 실패");
-    }
+    setStep("login");
+    setEmail(signupEmail);
+    setPassword("");
+    setSignupEmail("");
+    setSignupName("");
+    setSignupPassword("");
+    setSignupPasswordConfirm("");
+    setError(null);
+    setNotice("회원가입이 완료되었습니다. 로그인해주세요.");
   }
 
   return (
@@ -223,6 +274,7 @@ export default function LoginModal({ open, onClose }: Props) {
                 />
 
                 {error && <p className="text-xs text-red-500">{error}</p>}
+                {notice && <p className="text-xs text-green-600">{notice}</p>}
 
                 <button
                   type="submit"
@@ -240,7 +292,10 @@ export default function LoginModal({ open, onClose }: Props) {
                 <div className="flex justify-center gap-4">
                   <button
                     type="button"
-                    onClick={() => signIn("github")}
+                    onClick={() => {
+                      markLoginWelcomeToast();
+                      signIn("github");
+                    }}
                     className="flex h-10 w-10 items-center justify-center rounded-full border hover:bg-muted"
                   >
                     <Image
@@ -252,7 +307,10 @@ export default function LoginModal({ open, onClose }: Props) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => signIn("google")}
+                    onClick={() => {
+                      markLoginWelcomeToast();
+                      signIn("google");
+                    }}
                     className="flex h-10 w-10 items-center justify-center rounded-full border hover:bg-muted"
                   >
                     <Image
@@ -267,7 +325,11 @@ export default function LoginModal({ open, onClose }: Props) {
 
               <button
                 type="submit"
-                onClick={() => setStep("signup")}
+                onClick={() => {
+                  setStep("signup");
+                  setError(null);
+                  setNotice(null);
+                }}
                 className="mt-6 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-primary-foreground"
               >
                 회원가입
@@ -288,8 +350,31 @@ export default function LoginModal({ open, onClose }: Props) {
                 value={signupEmail}
                 onChange={(e) => setSignupEmail(e.target.value)}
                 placeholder="아이디 (이메일)"
-                className="w-full rounded-md border px-3 py-2 text-sm"
+                className={cn(
+                  "w-full rounded-md border px-3 py-2 text-sm outline-none",
+                  isSignupEmailUnavailable
+                    ? "border-red-500 focus-visible:border-red-500"
+                    : "",
+                  signupEmailAvailability.status === "available"
+                    ? "border-green-500 focus-visible:border-green-500"
+                    : "",
+                )}
               />
+              {signupEmailAvailability.message && (
+                <p
+                  className={cn(
+                    "text-xs",
+                    signupEmailAvailability.status === "available"
+                      ? "text-green-600"
+                      : "",
+                    isSignupEmailUnavailable
+                      ? "text-red-500"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {signupEmailAvailability.message}
+                </p>
+              )}
               <input
                 value={signupName}
                 onChange={(e) => setSignupName(e.target.value)}
@@ -328,6 +413,11 @@ export default function LoginModal({ open, onClose }: Props) {
                 placeholder="비밀번호"
                 className="w-full rounded-md border px-3 py-2 text-sm"
               />
+              {signupPasswordValidationMessage && (
+                <p className="text-xs text-red-500">
+                  {signupPasswordValidationMessage}
+                </p>
+              )}
               <input
                 type="password"
                 value={signupPasswordConfirm}
@@ -335,12 +425,28 @@ export default function LoginModal({ open, onClose }: Props) {
                 placeholder="비밀번호 확인"
                 className="w-full rounded-md border px-3 py-2 text-sm"
               />
+              {Boolean(signupPasswordConfirm) && !isSignupPasswordValid && (
+                <p className="text-xs text-red-500">
+                  비밀번호 길이를 먼저 맞춰주세요.
+                </p>
+              )}
+              {isSignupPasswordMismatch && (
+                <p className="text-xs text-red-500">
+                  비밀번호가 일치하지 않습니다.
+                </p>
+              )}
+              {isSignupPasswordMatched && (
+                <p className="text-xs text-green-600">
+                  비밀번호가 일치합니다.
+                </p>
+              )}
 
               {error && <p className="text-xs text-red-500">{error}</p>}
+              {notice && <p className="text-xs text-green-600">{notice}</p>}
 
               <button
                 type="submit"
-                disabled={loading || signupNickname.isChecking}
+                disabled={isSignupDisabled}
                 className="mt-4 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {loading ? "가입 중..." : "회원가입"}

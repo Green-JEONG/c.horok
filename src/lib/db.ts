@@ -8,7 +8,7 @@ export type DbUser = {
   name: string | null;
   role: "USER" | "ADMIN";
   provider: "credentials" | "github" | "google";
-  github_id: string | null;
+  sns_id: string | null;
 };
 
 export type DbPost = {
@@ -40,7 +40,7 @@ function mapUser(user: {
   name: string | null;
   role: "USER" | "ADMIN";
   provider: "credentials" | "github" | "google";
-  githubId: string | null;
+  snsId: string | null;
 }): DbUser {
   return {
     id: user.id.toString(),
@@ -49,7 +49,7 @@ function mapUser(user: {
     name: user.name,
     role: user.role,
     provider: user.provider,
-    github_id: user.githubId,
+    sns_id: user.snsId,
   };
 }
 
@@ -153,14 +153,14 @@ export async function upsertOAuthUser(params: {
     update: {
       name: name ?? undefined,
       provider,
-      githubId: providerId,
+      snsId: providerId,
     },
     create: {
       email,
       name,
       role,
       provider,
-      githubId: providerId,
+      snsId: providerId,
     },
   });
 

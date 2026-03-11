@@ -25,7 +25,7 @@ model User {
   name          String?     @db.VarChar(100)
   role          Role        @default(USER)
   provider      AuthProvider
-  githubId      String?     @unique @map("github_id") @db.VarChar(50)
+  snsId      String?     @unique @map("sns_id") @db.VarChar(50)
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
   isBlocked     Boolean     @default(false) @map("is_blocked")

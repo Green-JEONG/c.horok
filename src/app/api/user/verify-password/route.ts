@@ -2,6 +2,12 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { consumeRateLimit } from "@/lib/rate-limit";
+
+const VERIFY_PASSWORD_RATE_LIMIT = {
+  limit: 5,
+  windowMs: 60_000,
+};
 
 export async function POST(req: Request) {
   try {
@@ -10,6 +16,28 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { message: "인증이 필요합니다." },
         { status: 401 },
+      );
+    }
+
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
+    const rateLimit = consumeRateLimit({
+      key: `verify-password:${session.user.id}:${ip}`,
+      limit: VERIFY_PASSWORD_RATE_LIMIT.limit,
+      windowMs: VERIFY_PASSWORD_RATE_LIMIT.windowMs,
+    });
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+            "X-RateLimit-Limit": String(VERIFY_PASSWORD_RATE_LIMIT.limit),
+            "X-RateLimit-Remaining": String(rateLimit.remaining),
+          },
+        },
       );
     }
 
@@ -63,7 +91,13 @@ export async function POST(req: Request) {
             valid: false,
             message: "현재 비밀번호가 올바르지 않습니다.",
           },
-      { status: ok ? 200 : 400 },
+      {
+        status: ok ? 200 : 400,
+        headers: {
+          "X-RateLimit-Limit": String(VERIFY_PASSWORD_RATE_LIMIT.limit),
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+        },
+      },
     );
   } catch {
     return NextResponse.json(

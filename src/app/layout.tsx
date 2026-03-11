@@ -1,5 +1,6 @@
 import BannerBar from "@/components/layout/BannerBar";
 import Header from "@/components/layout/Header";
+import LoginWelcomeToast from "@/components/layout/LoginWelcomeToast";
 import PopularPosts from "@/components/sidebar/PopularPosts";
 // import RecommendedKeywords from "@/components/sidebar/RecommendedKeywords";
 import "@/app/globals.css";
@@ -16,6 +17,7 @@ export default function RootLayout({
       <body className="flex h-screen flex-col overflow-hidden">
         <AuthSessionProvider>
           <Header />
+          <LoginWelcomeToast />
 
           <BannerBar />
           {/* Main */}
