@@ -50,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name ?? undefined,
           role: user.role,
+          provider: user.provider,
         };
       },
     }),
@@ -77,6 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         user.dbUserId = String(dbUser.id);
         user.role = dbUser.role;
+        user.provider = dbUser.provider;
       }
 
       return true;
@@ -90,6 +92,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         if (user.role === "USER" || user.role === "ADMIN") {
           token.role = user.role;
+        }
+        if (
+          user.provider === "credentials" ||
+          user.provider === "github" ||
+          user.provider === "google"
+        ) {
+          token.provider = user.provider;
         }
         if (typeof user.name === "string") {
           token.name = user.name;
@@ -108,6 +117,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.sub as string;
         session.user.role = token.role as "USER" | "ADMIN";
+        session.user.provider = token.provider as
+          | "credentials"
+          | "github"
+          | "google"
+          | undefined;
       }
       return session;
     },

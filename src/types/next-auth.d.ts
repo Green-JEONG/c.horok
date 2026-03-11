@@ -5,12 +5,14 @@ declare module "next-auth" {
     /** DB users.id */
     dbUserId?: string;
     role?: "USER" | "ADMIN";
+    provider?: "credentials" | "github" | "google";
   }
 
   interface Session {
     user: {
       id: string;
       role: "USER" | "ADMIN";
+      provider?: "credentials" | "github" | "google";
     } & DefaultSession["user"];
   }
 }
@@ -19,5 +21,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId?: string;
     role?: "USER" | "ADMIN";
+    provider?: "credentials" | "github" | "google";
   }
 }

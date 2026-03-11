@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { createUser, findUserByEmail, findUserByName } from "@/lib/db";
 import { normalizeNickname, validateNickname } from "@/lib/nickname";
+import { validatePassword } from "@/lib/password";
 
 export async function POST(req: Request) {
   try {
@@ -23,6 +24,14 @@ export async function POST(req: Request) {
     if (nicknameValidationMessage) {
       return NextResponse.json(
         { message: nicknameValidationMessage },
+        { status: 400 },
+      );
+    }
+
+    const passwordValidationMessage = validatePassword(password);
+    if (passwordValidationMessage) {
+      return NextResponse.json(
+        { message: passwordValidationMessage },
         { status: 400 },
       );
     }

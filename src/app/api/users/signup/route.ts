@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { createUser, findUserByEmail } from "@/lib/db";
+import { validatePassword } from "@/lib/password";
 
 export async function POST(req: Request) {
   const body = (await req.json()) as {
@@ -11,8 +12,16 @@ export async function POST(req: Request) {
   const email = body.email?.trim();
   const password = body.password;
 
-  if (!email || !password || password.length < 4) {
+  if (!email || !password) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
+  }
+
+  const passwordValidationMessage = validatePassword(password);
+  if (passwordValidationMessage) {
+    return NextResponse.json(
+      { message: passwordValidationMessage },
+      { status: 400 },
+    );
   }
 
   const exists = await findUserByEmail(email);
