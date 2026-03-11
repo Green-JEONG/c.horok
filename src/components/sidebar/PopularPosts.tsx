@@ -1,13 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import Image from "next/image";
 
 type PopularPost = {
   id: number;
   title: string;
-  likeCount: number;
+  viewCount: number;
 };
 
 export default function PopularPosts() {
@@ -39,7 +39,7 @@ export default function PopularPosts() {
               className="flex justify-between text-muted-foreground hover:text-foreground"
             >
               <span className="truncate">{post.title}</span>
-              <span className="ml-2 text-xs">❤️ {post.likeCount}</span>
+              <span className="ml-2 text-xs">👁️ {post.viewCount}</span>
             </Link>
           </li>
         ))}
