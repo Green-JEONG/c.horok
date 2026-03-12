@@ -1,9 +1,8 @@
+import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
-
+import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
 import { findUserByEmail, upsertOAuthUser } from "@/lib/db";
 import { env } from "@/lib/env";
 
@@ -89,6 +88,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         if (typeof user.dbUserId === "string") {
           token.userId = user.dbUserId;
+        } else if (typeof user.id === "string") {
+          token.userId = user.id;
         }
         if (user.role === "USER" || user.role === "ADMIN") {
           token.role = user.role;
@@ -110,12 +111,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.name = session.name;
       }
 
+      if (!token.userId && typeof token.email === "string") {
+        const dbUser = await findUserByEmail(token.email);
+        if (dbUser) {
+          token.userId = dbUser.id;
+          token.role = dbUser.role;
+          token.provider = dbUser.provider;
+          token.name = dbUser.name ?? token.name;
+        }
+      }
+
       return token;
     },
 
     session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub as string;
+        session.user.id = (token.userId ?? token.sub) as string;
         session.user.role = token.role as "USER" | "ADMIN";
         session.user.provider = token.provider as
           | "credentials"

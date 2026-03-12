@@ -33,6 +33,18 @@ function bigintToNumber(value: bigint | number) {
   return typeof value === "bigint" ? Number(value) : value;
 }
 
+function parseBigIntId(value?: string) {
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  try {
+    return BigInt(value);
+  } catch {
+    return null;
+  }
+}
+
 function mapUser(user: {
   id: bigint;
   email: string;
@@ -87,13 +99,15 @@ export async function findUserByEmail(email: string) {
 }
 
 export async function findUserByName(name: string, excludeUserId?: string) {
+  const excludeId = parseBigIntId(excludeUserId);
+
   const user = await prisma.user.findFirst({
     where: {
       name: { equals: name, mode: "insensitive" },
-      ...(excludeUserId
+      ...(excludeId
         ? {
             NOT: {
-              id: BigInt(excludeUserId),
+              id: excludeId,
             },
           }
         : {}),
