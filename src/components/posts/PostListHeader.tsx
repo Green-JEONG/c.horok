@@ -1,8 +1,8 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import HomeWriteButton from "../home/HomeWriteButton";
 
 type SortType = "latest" | "views" | "likes" | "comments";
@@ -48,7 +48,7 @@ export default function PostListHeader() {
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
 
       <div className="relative flex items-center gap-2">
-        <HomeWriteButton />
+        {!isLikesPage ? <HomeWriteButton /> : null}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
