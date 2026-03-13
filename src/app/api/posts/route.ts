@@ -11,6 +11,14 @@ export async function GET() {
     include: {
       category: { select: { name: true } },
       user: { select: { email: true, name: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
     },
   });
 
@@ -18,9 +26,13 @@ export async function GET() {
     rows.map((post) => ({
       id: Number(post.id),
       title: post.title,
+      content: post.content,
+      thumbnail: post.thumbnail,
       created_at: post.createdAt.toISOString(),
-      category: post.category.name,
-      author: post.user.name ?? post.user.email,
+      category_name: post.category.name,
+      author_name: post.user.name ?? post.user.email,
+      likes_count: post._count.likes,
+      comments_count: post._count.comments,
     })),
   );
 }
@@ -38,7 +50,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { categoryName, title, content } = body;
+  const { categoryName, title, content, thumbnailUrl } = body;
 
   if (!categoryName || !title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
@@ -49,6 +61,10 @@ export async function POST(req: Request) {
     categoryName,
     title,
     content,
+    thumbnailUrl:
+      typeof thumbnailUrl === "string" && thumbnailUrl.trim()
+        ? thumbnailUrl.trim()
+        : null,
   });
 
   return NextResponse.json(post, { status: 201 });

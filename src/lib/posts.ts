@@ -89,8 +89,9 @@ export async function createPost(params: {
   categoryName: string;
   title: string;
   content: string;
+  thumbnailUrl?: string | null;
 }) {
-  const { userId, categoryName, title, content } = params;
+  const { userId, categoryName, title, content, thumbnailUrl = null } = params;
   const category = await ensureCategoryByName(categoryName);
 
   const post = await prisma.post.create({
@@ -99,6 +100,7 @@ export async function createPost(params: {
       categoryId: BigInt(category.id),
       title,
       content,
+      thumbnail: thumbnailUrl,
     },
   });
 
@@ -110,8 +112,9 @@ export async function updatePost(params: {
   categoryName?: string;
   title: string;
   content: string;
+  thumbnailUrl?: string | null;
 }) {
-  const { postId, categoryName, title, content } = params;
+  const { postId, categoryName, title, content, thumbnailUrl } = params;
   const category = categoryName
     ? await ensureCategoryByName(categoryName)
     : null;
@@ -122,6 +125,7 @@ export async function updatePost(params: {
       title,
       content,
       ...(category ? { categoryId: BigInt(category.id) } : {}),
+      ...(thumbnailUrl !== undefined ? { thumbnail: thumbnailUrl } : {}),
     },
   });
 

@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
-import {
-  getCommentById,
-  updateComment,
-  softDeleteComment,
-} from "@/lib/comments";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getDbUserIdFromSession } from "@/lib/auth-db";
+import {
+  getCommentById,
+  softDeleteComment,
+  updateComment,
+} from "@/lib/comments";
 
 /**
  * 댓글 수정 (작성자만 가능)

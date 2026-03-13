@@ -35,7 +35,10 @@ function mapComment(comment: {
 
 export async function getCommentsByPost(postId: number) {
   const comments = await prisma.comment.findMany({
-    where: { postId: BigInt(postId) },
+    where: {
+      postId: BigInt(postId),
+      isDeleted: false,
+    },
     orderBy: { createdAt: "asc" },
     include: {
       user: {

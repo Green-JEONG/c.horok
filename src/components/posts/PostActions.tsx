@@ -1,13 +1,21 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  createPostThumbnailPath,
+  getStorageObjectPathFromPublicUrl,
+  POST_THUMBNAIL_BUCKET,
+} from "@/lib/post-thumbnails";
+import { supabase } from "@/lib/supabase";
 
 type Props = {
   postId: number;
   initialTitle: string;
   initialContent: string;
   initialCategoryName: string;
+  initialThumbnail: string | null;
   isOwner: boolean;
 };
 
@@ -16,18 +24,94 @@ export default function PostActions({
   initialTitle,
   initialContent,
   initialCategoryName,
+  initialThumbnail,
   isOwner,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [savedTitle, setSavedTitle] = useState(initialTitle);
+  const [savedContent, setSavedContent] = useState(initialContent);
+  const [savedCategoryName, setSavedCategoryName] =
+    useState(initialCategoryName);
+  const [savedThumbnailUrl, setSavedThumbnailUrl] = useState(initialThumbnail);
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
   const [categoryName, setCategoryName] = useState(initialCategoryName);
+  const [thumbnailUrl, setThumbnailUrl] = useState(initialThumbnail);
+  const [thumbnailPath, setThumbnailPath] = useState(
+    getStorageObjectPathFromPublicUrl(initialThumbnail),
+  );
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOwner) return null;
+
+  async function removeThumbnailFromStorage(path?: string | null) {
+    if (!path) return;
+    await supabase.storage.from(POST_THUMBNAIL_BUCKET).remove([path]);
+  }
+
+  async function handleThumbnailChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingThumbnail(true);
+    setError(null);
+
+    try {
+      const nextPath = createPostThumbnailPath(file.name);
+      const { error: uploadError } = await supabase.storage
+        .from(POST_THUMBNAIL_BUCKET)
+        .upload(nextPath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        setError(uploadError.message);
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(POST_THUMBNAIL_BUCKET).getPublicUrl(nextPath);
+
+      const previousUnsavedPath =
+        thumbnailPath && thumbnailUrl !== savedThumbnailUrl
+          ? thumbnailPath
+          : null;
+
+      if (previousUnsavedPath && previousUnsavedPath !== nextPath) {
+        await removeThumbnailFromStorage(previousUnsavedPath);
+      }
+
+      setThumbnailPath(nextPath);
+      setThumbnailUrl(publicUrl);
+      event.target.value = "";
+    } catch {
+      setError("썸네일 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingThumbnail(false);
+    }
+  }
+
+  async function handleThumbnailRemove() {
+    try {
+      if (thumbnailPath && thumbnailUrl !== savedThumbnailUrl) {
+        await removeThumbnailFromStorage(thumbnailPath);
+      }
+
+      setThumbnailUrl(null);
+      setThumbnailPath(null);
+      setError(null);
+    } catch {
+      setError("썸네일 삭제 중 오류가 발생했습니다.");
+    }
+  }
 
   async function handleUpdate() {
     const trimmedTitle = title.trim();
@@ -52,6 +136,7 @@ export default function PostActions({
           title: trimmedTitle,
           content: trimmedContent,
           categoryName: trimmedCategoryName,
+          thumbnailUrl,
         }),
       });
 
@@ -62,6 +147,19 @@ export default function PostActions({
         return;
       }
 
+      const oldSavedThumbnailPath =
+        savedThumbnailUrl && savedThumbnailUrl !== thumbnailUrl
+          ? getStorageObjectPathFromPublicUrl(savedThumbnailUrl)
+          : null;
+
+      if (oldSavedThumbnailPath) {
+        await removeThumbnailFromStorage(oldSavedThumbnailPath);
+      }
+
+      setSavedTitle(trimmedTitle);
+      setSavedContent(trimmedContent);
+      setSavedCategoryName(trimmedCategoryName);
+      setSavedThumbnailUrl(thumbnailUrl);
       setTitle(trimmedTitle);
       setContent(trimmedContent);
       setCategoryName(trimmedCategoryName);
@@ -92,6 +190,11 @@ export default function PostActions({
         return;
       }
 
+      const storagePath = getStorageObjectPathFromPublicUrl(savedThumbnailUrl);
+      if (storagePath) {
+        await removeThumbnailFromStorage(storagePath);
+      }
+
       router.push("/");
       router.refresh();
     } catch {
@@ -106,7 +209,7 @@ export default function PostActions({
       <div className="flex justify-end gap-2 text-sm">
         <button
           type="button"
-          disabled={isSubmitting || isDeleting}
+          disabled={isSubmitting || isDeleting || isUploadingThumbnail}
           onClick={() => {
             setIsEditing((prev) => !prev);
             setError(null);
@@ -118,7 +221,7 @@ export default function PostActions({
 
         <button
           type="button"
-          disabled={isSubmitting || isDeleting}
+          disabled={isSubmitting || isDeleting || isUploadingThumbnail}
           onClick={handleDelete}
           className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -148,16 +251,68 @@ export default function PostActions({
             className="w-full rounded-md border px-3 py-2 text-sm"
           />
 
+          <div className="space-y-3 rounded-xl border border-dashed p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">썸네일 이미지</p>
+                <p className="text-xs text-muted-foreground">
+                  새 이미지를 올리거나 기존 이미지를 제거할 수 있습니다.
+                </p>
+              </div>
+              <label className="cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-muted">
+                {isUploadingThumbnail ? "업로드 중..." : "사진 업로드"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isSubmitting || isUploadingThumbnail}
+                  onChange={handleThumbnailChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {thumbnailUrl ? (
+              <div className="space-y-3">
+                <div className="relative h-52 overflow-hidden rounded-lg border bg-muted">
+                  <Image
+                    src={thumbnailUrl}
+                    alt="썸네일 미리보기"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    disabled={isSubmitting || isUploadingThumbnail}
+                    onClick={handleThumbnailRemove}
+                    className="rounded-md border px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    사진 삭제
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              disabled={isSubmitting}
-              onClick={() => {
-                setTitle(initialTitle);
-                setContent(initialContent);
-                setCategoryName(initialCategoryName);
+              disabled={isSubmitting || isUploadingThumbnail}
+              onClick={async () => {
+                if (thumbnailPath && thumbnailUrl !== savedThumbnailUrl) {
+                  await removeThumbnailFromStorage(thumbnailPath);
+                }
+                setTitle(savedTitle);
+                setContent(savedContent);
+                setCategoryName(savedCategoryName);
+                setThumbnailUrl(savedThumbnailUrl);
+                setThumbnailPath(
+                  getStorageObjectPathFromPublicUrl(savedThumbnailUrl),
+                );
                 setIsEditing(false);
                 setError(null);
               }}
@@ -167,11 +322,15 @@ export default function PostActions({
             </button>
             <button
               type="button"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploadingThumbnail}
               onClick={handleUpdate}
               className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? "저장 중..." : "수정 저장"}
+              {isSubmitting
+                ? "저장 중..."
+                : isUploadingThumbnail
+                  ? "업로드 중..."
+                  : "수정 저장"}
             </button>
           </div>
         </div>
