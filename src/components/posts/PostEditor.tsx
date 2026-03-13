@@ -1,7 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  createPostThumbnailPath,
+  getStorageObjectPathFromPublicUrl,
+} from "@/lib/post-thumbnails";
+import { supabase } from "@/lib/supabase";
 
 export default function PostEditor() {
   const router = useRouter();
@@ -9,8 +15,71 @@ export default function PostEditor() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [thumbnailPath, setThumbnailPath] = useState<string | null>(null);
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function removeThumbnailFromStorage(path?: string | null) {
+    if (!path) return;
+    await supabase.storage.from("post-thumbnails").remove([path]);
+  }
+
+  async function handleThumbnailChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingThumbnail(true);
+    setError(null);
+
+    try {
+      if (thumbnailPath) {
+        await removeThumbnailFromStorage(thumbnailPath);
+      }
+
+      const nextPath = createPostThumbnailPath(file.name);
+      const { error: uploadError } = await supabase.storage
+        .from("post-thumbnails")
+        .upload(nextPath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        setError(uploadError.message);
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("post-thumbnails").getPublicUrl(nextPath);
+
+      setThumbnailPath(nextPath);
+      setThumbnailUrl(publicUrl);
+      event.target.value = "";
+    } catch {
+      setError("썸네일 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingThumbnail(false);
+    }
+  }
+
+  async function handleThumbnailRemove() {
+    const path =
+      thumbnailPath ?? getStorageObjectPathFromPublicUrl(thumbnailUrl);
+
+    try {
+      await removeThumbnailFromStorage(path);
+      setThumbnailPath(null);
+      setThumbnailUrl(null);
+      setError(null);
+    } catch {
+      setError("썸네일 삭제 중 오류가 발생했습니다.");
+    }
+  }
 
   async function handleSubmit() {
     const trimmedTitle = title.trim();
@@ -38,6 +107,7 @@ export default function PostEditor() {
           title: trimmedTitle,
           content: trimmedContent,
           categoryName,
+          thumbnailUrl,
         }),
       });
 
@@ -79,6 +149,51 @@ export default function PostEditor() {
         className="w-full rounded-md border px-3 py-2 text-sm"
       />
 
+      <div className="space-y-3 rounded-xl border border-dashed p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">썸네일 이미지</p>
+            <p className="text-xs text-muted-foreground">
+              업로드한 이미지는 카드와 본문 상단에 함께 표시됩니다.
+            </p>
+          </div>
+          <label className="cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-muted">
+            {isUploadingThumbnail ? "업로드 중..." : "사진 업로드"}
+            <input
+              type="file"
+              accept="image/*"
+              disabled={isUploadingThumbnail || isSubmitting}
+              onChange={handleThumbnailChange}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {thumbnailUrl ? (
+          <div className="space-y-3">
+            <div className="relative h-52 overflow-hidden rounded-lg border bg-muted">
+              <Image
+                src={thumbnailUrl}
+                alt="썸네일 미리보기"
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                disabled={isUploadingThumbnail || isSubmitting}
+                onClick={handleThumbnailRemove}
+                className="rounded-md border px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                사진 삭제
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -92,7 +207,7 @@ export default function PostEditor() {
       <div className="flex justify-end gap-2 pt-4">
         <button
           type="button"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingThumbnail}
           onClick={() => router.back()}
           className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -101,11 +216,15 @@ export default function PostEditor() {
 
         <button
           type="button"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingThumbnail}
           onClick={handleSubmit}
           className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "게시 중..." : "게시하기"}
+          {isSubmitting
+            ? "게시 중..."
+            : isUploadingThumbnail
+              ? "업로드 중..."
+              : "게시하기"}
         </button>
       </div>
     </section>

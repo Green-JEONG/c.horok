@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { requireDbUserId } from "@/lib/auth-db";
 import { createComment, getCommentById } from "@/lib/comments";
 import { getPostById } from "@/lib/posts";
-import { requireDbUserId } from "@/lib/auth-db";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
@@ -13,6 +13,24 @@ export async function POST(req: Request) {
 
     if (!postId || !content) {
       return NextResponse.json({ message: "Invalid input" }, { status: 400 });
+    }
+
+    if (parentId) {
+      const parentComment = await getCommentById(Number(parentId));
+
+      if (!parentComment) {
+        return NextResponse.json(
+          { message: "Parent comment not found" },
+          { status: 404 },
+        );
+      }
+
+      if (parentComment.parent_id !== null) {
+        return NextResponse.json(
+          { message: "Reply depth cannot exceed 1" },
+          { status: 400 },
+        );
+      }
     }
 
     // 1) 댓글 생성

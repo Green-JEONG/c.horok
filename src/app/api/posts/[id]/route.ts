@@ -49,7 +49,7 @@ export async function PUT(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const { title, content, categoryName } = await req.json();
+  const { title, content, categoryName, thumbnailUrl } = await req.json();
 
   if (!title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
@@ -60,6 +60,12 @@ export async function PUT(
     title,
     content,
     categoryName,
+    thumbnailUrl:
+      typeof thumbnailUrl === "string"
+        ? thumbnailUrl.trim() || null
+        : thumbnailUrl === null
+          ? null
+          : undefined,
   });
 
   return NextResponse.json(updated);
