@@ -39,6 +39,7 @@ export default async function PostPage({ params }: Props) {
         initialTitle={post.title}
         initialContent={post.content}
         initialCategoryName={post.category_name}
+        initialThumbnail={post.thumbnail}
         isOwner={isOwner}
       />
       <PostContent post={post} />

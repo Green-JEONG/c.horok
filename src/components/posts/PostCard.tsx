@@ -29,12 +29,13 @@ export default function PostCard({
       href={`/posts/${id}`}
       className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
     >
-      <div className="flex h-28 items-center justify-center bg-zinc-900">
+      <div className="relative flex h-30 items-center justify-center bg-zinc-900">
         <Image
           src={thumbnail ?? "/thumbnails/default.png"}
           alt={title}
-          width={48}
-          height={48}
+          fill
+          unoptimized={Boolean(thumbnail)}
+          className={`object-contain ${!thumbnail ? "p-8" : ""}`}
         />
       </div>
 
