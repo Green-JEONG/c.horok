@@ -6,19 +6,21 @@ type Props = {
   postId: number;
   initialLiked: boolean;
   initialCount: number;
+  disabled?: boolean;
 };
 
 export default function LikeButton({
   postId,
   initialLiked,
   initialCount,
+  disabled = false,
 }: Props) {
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   const [loading, setLoading] = useState(false);
 
   const onToggle = async () => {
-    if (loading) return;
+    if (loading || disabled) return;
     setLoading(true);
 
     setLiked((v) => !v);
@@ -39,8 +41,8 @@ export default function LikeButton({
     <button
       type="button"
       onClick={onToggle}
-      disabled={loading}
-      className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
+      disabled={loading || disabled}
+      className="text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
     >
       👍 좋아요 {count}
     </button>

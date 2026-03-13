@@ -5,11 +5,11 @@ import CommentItem, { type CommentNode } from "./CommentItem";
 export default async function CommentList({ postId }: { postId: number }) {
   const comments = await getCommentsByPost(postId);
   const session = await auth();
+  const isLoggedIn = Boolean(session?.user?.email);
   const currentUserId =
     typeof session?.user?.id === "string" && /^\d+$/.test(session.user.id)
       ? Number(session.user.id)
       : null;
-  const isAdmin = session?.user?.role === "ADMIN";
   const commentMap = new Map<number, CommentNode>();
   const rootComments: CommentNode[] = [];
 
@@ -33,8 +33,8 @@ export default async function CommentList({ postId }: { postId: number }) {
   }
 
   return (
-    <section className="mt-16">
-      <h3 className="mb-4 text-lg font-semibold">댓글 {comments.length}</h3>
+    <section className="mt-10">
+      <h3 className="mb-6 text-lg font-semibold">댓글 {comments.length}</h3>
 
       {rootComments.length === 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -48,7 +48,7 @@ export default async function CommentList({ postId }: { postId: number }) {
                 comment={comment}
                 postId={postId}
                 currentUserId={currentUserId}
-                isAdmin={Boolean(isAdmin)}
+                isLoggedIn={isLoggedIn}
               />
             </li>
           ))}

@@ -1,9 +1,10 @@
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import PostCard from "@/components/posts/PostCard";
 import { getUserIdByEmail } from "@/lib/db";
+import { parseSortType } from "@/lib/post-sort";
 import { getMyPosts } from "@/lib/queries";
 
-export default async function MyPostList() {
+export default async function MyPostList({ sort }: { sort?: string }) {
   const session = await auth();
 
   if (!session?.user?.email) {
@@ -24,7 +25,7 @@ export default async function MyPostList() {
     );
   }
 
-  const posts = await getMyPosts(userId);
+  const posts = await getMyPosts(userId, parseSortType(sort));
 
   if (posts.length === 0) {
     return (

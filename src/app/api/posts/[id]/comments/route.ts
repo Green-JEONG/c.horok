@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getDbUserIdFromSession } from "@/lib/auth-db";
 import {
   getCommentById,
@@ -54,9 +53,7 @@ export async function PUT(
 }
 
 /**
- * 댓글 삭제
- * - 작성자: 삭제 가능
- * - 관리자: 타인 댓글 삭제 가능
+ * 댓글 삭제 (작성자만 가능)
  */
 export async function DELETE(
   _req: NextRequest,
@@ -83,12 +80,8 @@ export async function DELETE(
   }
 
   const isOwner = comment.user_id === dbUserId;
-  const isAdmin =
-    comment && dbUserId && comment.user_id !== dbUserId
-      ? (await auth())?.user?.role === "ADMIN"
-      : false;
 
-  if (!isOwner && !isAdmin) {
+  if (!isOwner) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 

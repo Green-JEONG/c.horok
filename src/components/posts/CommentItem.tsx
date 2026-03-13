@@ -18,12 +18,12 @@ export default function CommentItem({
   comment,
   postId,
   currentUserId,
-  isAdmin,
+  isLoggedIn,
 }: {
   comment: CommentNode;
   postId: number;
   currentUserId: number | null;
-  isAdmin: boolean;
+  isLoggedIn: boolean;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -32,8 +32,8 @@ export default function CommentItem({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const canManage = comment.user_id === currentUserId || isAdmin;
-  const canReply = comment.parent_id === null;
+  const canManage = comment.user_id === currentUserId;
+  const canReply = isLoggedIn && comment.parent_id === null;
 
   async function handleUpdate() {
     const trimmedContent = content.trim();
@@ -199,7 +199,7 @@ export default function CommentItem({
                 comment={reply}
                 postId={postId}
                 currentUserId={currentUserId}
-                isAdmin={isAdmin}
+                isLoggedIn={isLoggedIn}
               />
             </li>
           ))}

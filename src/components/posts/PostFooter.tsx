@@ -34,12 +34,15 @@ export default async function PostFooter({ postId }: Props) {
   }
 
   return (
-    <footer className="mt-16 flex items-center justify-between border-t pt-6">
-      <LikeButton
-        postId={postId}
-        initialLiked={liked}
-        initialCount={likeCount}
-      />
+    <footer className="mt-6 flex items-center justify-between border-t pt-4">
+      <div className="space-y-1">
+        <LikeButton
+          postId={postId}
+          initialLiked={liked}
+          initialCount={likeCount}
+          disabled={!session?.user?.email}
+        />
+      </div>
 
       <Link href="/" className="text-sm text-muted-foreground hover:underline">
         ← 목록으로

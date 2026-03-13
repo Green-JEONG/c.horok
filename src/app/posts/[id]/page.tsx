@@ -31,7 +31,7 @@ export default async function PostPage({ params }: Props) {
     Number(session.user.id) === post.user_id;
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-10">
+    <article className="mx-auto max-w-3xl">
       <PostViewTracker postId={postId} />
       <PostHeader post={post} />
       <PostActions
@@ -47,7 +47,13 @@ export default async function PostPage({ params }: Props) {
 
       {/* 댓글 */}
       <CommentList postId={postId} />
-      <CommentForm postId={postId} />
+      {session?.user?.email ? (
+        <CommentForm postId={postId} />
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">
+          좋아요와 댓글 작성은 로그인 후 이용할 수 있습니다.
+        </p>
+      )}
     </article>
   );
 }

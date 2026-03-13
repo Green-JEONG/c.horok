@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { auth } from "@/app/api/auth/[...nextauth]/route";
+
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -9,7 +11,7 @@ export const metadata: Metadata = {
 
 import { Suspense } from "react";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
-import PostList from "@/components/posts/PostList";
+import MyPostList from "@/components/posts/MyPostList";
 import PostListHeader from "@/components/posts/PostListHeader";
 
 export default async function Page({
@@ -17,6 +19,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ sort?: string }>;
 }) {
+  const session = await auth();
   const { sort } = await searchParams;
 
   return (
@@ -27,7 +30,13 @@ export default async function Page({
         <ContributionGrid />
         <PostListHeader />
       </Suspense>
-      <PostList sort={sort} />
+      {session?.user?.email ? (
+        <MyPostList sort={sort} />
+      ) : (
+        <div className="text-sm text-muted-foreground">
+          로그인 후 게시글을 볼 수 있습니다.
+        </div>
+      )}
     </div>
   );
 }
