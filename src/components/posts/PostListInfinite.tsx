@@ -1,23 +1,36 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { DbPost } from "@/lib/db";
+import { parseSortType, type SortType } from "@/lib/post-sort";
 import PostCard from "./PostCard";
 
 const PAGE_SIZE = 12;
 
 export default function PostListInfinite({
   initialPosts,
+  initialSort,
 }: {
   initialPosts: DbPost[];
+  initialSort: SortType;
 }) {
   const [posts, setPosts] = useState<DbPost[]>(initialPosts);
   const [page, setPage] = useState(2);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const searchParams = useSearchParams();
+  const sort = parseSortType(searchParams.get("sort") ?? initialSort);
 
   const loaderRef = useRef<HTMLDivElement | null>(null);
   const fetchingRef = useRef(false);
+
+  useEffect(() => {
+    setPosts(initialPosts);
+    setPage(2);
+    setHasMore(initialPosts.length >= PAGE_SIZE);
+    fetchingRef.current = false;
+  }, [initialPosts]);
 
   useEffect(() => {
     if (!loaderRef.current) return;
@@ -30,7 +43,7 @@ export default function PostListInfinite({
         fetchingRef.current = true;
         setLoading(true);
 
-        const res = await fetch(`/api/posts?page=${page}`);
+        const res = await fetch(`/api/posts?page=${page}&sort=${sort}`);
         const data: DbPost[] = await res.json();
 
         setPosts((prev) => {
@@ -53,11 +66,11 @@ export default function PostListInfinite({
 
     observer.observe(loaderRef.current);
     return () => observer.disconnect();
-  }, [page, loading, hasMore]);
+  }, [page, loading, hasMore, sort]);
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4">
         {posts.map((post) => (
           <PostCard
             key={post.id}

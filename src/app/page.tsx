@@ -4,15 +4,21 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Horok Tech",
-  description: "홈 페이지",
+  description: "홈페이지",
 };
 
 import { Suspense } from "react";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
-import MyPostList from "@/components/posts/MyPostList";
+import PostList from "@/components/posts/PostList";
 import PostListHeader from "@/components/posts/PostListHeader";
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string }>;
+}) {
+  const { sort } = await searchParams;
+
   return (
     <div className="space-y-6">
       <Suspense
@@ -21,7 +27,7 @@ export default async function Page() {
         <ContributionGrid />
         <PostListHeader />
       </Suspense>
-      <MyPostList />
+      <PostList sort={sort} />
     </div>
   );
 }

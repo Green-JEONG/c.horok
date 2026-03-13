@@ -1,11 +1,10 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { parseSortType, type SortType } from "@/lib/post-sort";
 import HomeWriteButton from "../home/HomeWriteButton";
-
-type SortType = "latest" | "views" | "likes" | "comments";
 
 const SORT_LABEL: Record<SortType, string> = {
   latest: "최신순",
@@ -15,25 +14,15 @@ const SORT_LABEL: Record<SortType, string> = {
 };
 
 export default function PostListHeader() {
-  const [sort, setSort] = useState<SortType>("latest");
   const [open, setOpen] = useState(false);
-
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  // const keyword = searchParams.get("keyword");
+  const sort = parseSortType(searchParams.get("sort"));
   const category = searchParams.get("category");
 
   const isFeedPage = pathname === "/feed" || pathname.startsWith("/feed/");
   const isLikesPage = pathname === "/likes" || pathname.startsWith("/likes/");
-
-  // const title = keyword
-  //   ? `#${keyword}`
-  //   : isLikesPage
-  //     ? "좋아요"
-  //     : isFeedPage
-  //       ? "피드"
-  //       : "전체";
 
   const title = category
     ? `#${category}`
@@ -59,13 +48,15 @@ export default function PostListHeader() {
         </button>
 
         {open && (
-          <ul className="absolute right-0 mt-2 w-24 rounded-md border bg-background shadow-md text-sm">
+          <ul className="absolute right-0 mt-2 w-24 rounded-md border bg-background shadow-md text-sm z-70">
             {(Object.keys(SORT_LABEL) as SortType[]).map((key) => (
               <li key={key}>
                 <button
                   type="button"
                   onClick={() => {
-                    setSort(key);
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("sort", key);
+                    router.push(`${pathname}?${params.toString()}`);
                     setOpen(false);
                   }}
                   className="w-full px-3 py-2 text-left hover:bg-muted"

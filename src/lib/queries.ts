@@ -1,3 +1,8 @@
+import {
+  comparePostMetrics,
+  DEFAULT_SORT,
+  type SortType,
+} from "@/lib/post-sort";
 import { prisma } from "@/lib/prisma";
 
 export type DbPost = {
@@ -39,6 +44,7 @@ export async function searchPosts(
   keyword: string,
   limit: number,
   offset: number,
+  sort: SortType = DEFAULT_SORT,
 ): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
     where: {
@@ -48,12 +54,10 @@ export async function searchPosts(
         { content: { contains: keyword, mode: "insensitive" } },
       ],
     },
-    orderBy: { createdAt: "desc" },
-    skip: offset,
-    take: limit,
     include: {
       user: { select: { name: true } },
       category: { select: { name: true } },
+      views: { select: { viewCount: true } },
       _count: {
         select: {
           likes: true,
@@ -65,19 +69,43 @@ export async function searchPosts(
     },
   });
 
-  return posts.map(mapPost);
+  return posts
+    .sort((a, b) => {
+      return comparePostMetrics(
+        sort,
+        {
+          id: a.id,
+          createdAt: a.createdAt,
+          likeCount: a._count.likes,
+          commentsCount: a._count.comments,
+          viewCount: Number(a.views?.viewCount ?? 0),
+        },
+        {
+          id: b.id,
+          createdAt: b.createdAt,
+          likeCount: b._count.likes,
+          commentsCount: b._count.comments,
+          viewCount: Number(b.views?.viewCount ?? 0),
+        },
+      );
+    })
+    .slice(offset, offset + limit)
+    .map(mapPost);
 }
 
-export async function getMyPosts(userId: number): Promise<DbPost[]> {
+export async function getMyPosts(
+  userId: number,
+  sort: SortType = DEFAULT_SORT,
+): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
     where: {
       userId: BigInt(userId),
       isDeleted: false,
     },
-    orderBy: { createdAt: "desc" },
     include: {
       user: { select: { name: true } },
       category: { select: { name: true } },
+      views: { select: { viewCount: true } },
       _count: {
         select: {
           likes: true,
@@ -89,10 +117,33 @@ export async function getMyPosts(userId: number): Promise<DbPost[]> {
     },
   });
 
-  return posts.map(mapPost);
+  return posts
+    .sort((a, b) => {
+      return comparePostMetrics(
+        sort,
+        {
+          id: a.id,
+          createdAt: a.createdAt,
+          likeCount: a._count.likes,
+          commentsCount: a._count.comments,
+          viewCount: Number(a.views?.viewCount ?? 0),
+        },
+        {
+          id: b.id,
+          createdAt: b.createdAt,
+          likeCount: b._count.likes,
+          commentsCount: b._count.comments,
+          viewCount: Number(b.views?.viewCount ?? 0),
+        },
+      );
+    })
+    .map(mapPost);
 }
 
-export async function getLikedPosts(userId: number): Promise<DbPost[]> {
+export async function getLikedPosts(
+  userId: number,
+  sort: SortType = DEFAULT_SORT,
+): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
     where: {
       isDeleted: false,
@@ -102,12 +153,10 @@ export async function getLikedPosts(userId: number): Promise<DbPost[]> {
         },
       },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
     include: {
       user: { select: { name: true } },
       category: { select: { name: true } },
+      views: { select: { viewCount: true } },
       _count: {
         select: {
           likes: true,
@@ -119,5 +168,25 @@ export async function getLikedPosts(userId: number): Promise<DbPost[]> {
     },
   });
 
-  return posts.map(mapPost);
+  return posts
+    .sort((a, b) => {
+      return comparePostMetrics(
+        sort,
+        {
+          id: a.id,
+          createdAt: a.createdAt,
+          likeCount: a._count.likes,
+          commentsCount: a._count.comments,
+          viewCount: Number(a.views?.viewCount ?? 0),
+        },
+        {
+          id: b.id,
+          createdAt: b.createdAt,
+          likeCount: b._count.likes,
+          commentsCount: b._count.comments,
+          viewCount: Number(b.views?.viewCount ?? 0),
+        },
+      );
+    })
+    .map(mapPost);
 }

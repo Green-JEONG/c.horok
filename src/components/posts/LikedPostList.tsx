@@ -1,9 +1,10 @@
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import PostCard from "@/components/posts/PostCard";
 import { getUserIdByEmail } from "@/lib/db";
+import { parseSortType } from "@/lib/post-sort";
 import { getLikedPosts } from "@/lib/queries";
 
-export default async function LikedPostList() {
+export default async function LikedPostList({ sort }: { sort?: string }) {
   const session = await auth();
 
   if (!session?.user?.email) {
@@ -24,7 +25,7 @@ export default async function LikedPostList() {
     );
   }
 
-  const posts = await getLikedPosts(userId);
+  const posts = await getLikedPosts(userId, parseSortType(sort));
 
   if (posts.length === 0) {
     return (

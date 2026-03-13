@@ -11,7 +11,13 @@ import { Suspense } from "react";
 import PostList from "@/components/posts/PostList";
 import PostListHeader from "@/components/posts/PostListHeader";
 
-export default function FeedPage() {
+export default async function FeedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string }>;
+}) {
+  const { sort } = await searchParams;
+
   return (
     <div className="space-y-6">
       <Suspense
@@ -19,7 +25,7 @@ export default function FeedPage() {
       >
         <PostListHeader />
       </Suspense>
-      <PostList />
+      <PostList sort={sort} />
     </div>
   );
 }

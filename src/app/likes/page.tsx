@@ -9,7 +9,13 @@ import { Suspense } from "react";
 import LikedPostList from "@/components/posts/LikedPostList";
 import PostListHeader from "@/components/posts/PostListHeader";
 
-export default function LikesPage() {
+export default async function LikesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string }>;
+}) {
+  const { sort } = await searchParams;
+
   return (
     <div className="space-y-4">
       <Suspense
@@ -18,7 +24,7 @@ export default function LikesPage() {
         <PostListHeader />
       </Suspense>
 
-      <LikedPostList />
+      <LikedPostList sort={sort} />
     </div>
   );
 }

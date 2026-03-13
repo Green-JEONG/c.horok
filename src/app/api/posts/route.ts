@@ -1,40 +1,19 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-import { getUserIdByEmail } from "@/lib/db";
+import { findPostsPaged, getUserIdByEmail } from "@/lib/db";
+import { parseSortType } from "@/lib/post-sort";
 import { createPost } from "@/lib/posts";
-import { prisma } from "@/lib/prisma";
 
-export async function GET() {
-  const rows = await prisma.post.findMany({
-    where: { isDeleted: false },
-    orderBy: { createdAt: "desc" },
-    include: {
-      category: { select: { name: true } },
-      user: { select: { email: true, name: true } },
-      _count: {
-        select: {
-          likes: true,
-          comments: {
-            where: { isDeleted: false },
-          },
-        },
-      },
-    },
-  });
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const page = Number(url.searchParams.get("page") ?? "1");
+  const sort = parseSortType(url.searchParams.get("sort"));
+  const limit = 12;
+  const offset = Math.max(page - 1, 0) * limit;
 
-  return NextResponse.json(
-    rows.map((post) => ({
-      id: Number(post.id),
-      title: post.title,
-      content: post.content,
-      thumbnail: post.thumbnail,
-      created_at: post.createdAt.toISOString(),
-      category_name: post.category.name,
-      author_name: post.user.name ?? post.user.email,
-      likes_count: post._count.likes,
-      comments_count: post._count.comments,
-    })),
-  );
+  const posts = await findPostsPaged(limit, offset, sort);
+
+  return NextResponse.json(posts);
 }
 
 export async function POST(req: Request) {
