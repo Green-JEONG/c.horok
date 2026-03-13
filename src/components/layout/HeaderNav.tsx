@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
 const navItems = [
-  { href: "/", label: "홈", match: (p: string) => p === "/" },
   {
     href: "/feed",
     label: "피드",

@@ -30,7 +30,7 @@ export default function PostListHeader() {
       ? "좋아요"
       : isFeedPage
         ? "피드"
-        : "전체";
+        : "내 글";
 
   return (
     <div className="flex items-center justify-between">
