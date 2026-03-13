@@ -6,8 +6,8 @@ export const metadata: Metadata = {
 };
 
 import { Suspense } from "react";
-import PostListHeader from "@/components/posts/PostListHeader";
 import LikedPostList from "@/components/posts/LikedPostList";
+import PostListHeader from "@/components/posts/PostListHeader";
 
 export default function LikesPage() {
   return (

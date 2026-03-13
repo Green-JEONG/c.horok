@@ -91,3 +91,33 @@ export async function getMyPosts(userId: number): Promise<DbPost[]> {
 
   return posts.map(mapPost);
 }
+
+export async function getLikedPosts(userId: number): Promise<DbPost[]> {
+  const posts = await prisma.post.findMany({
+    where: {
+      isDeleted: false,
+      likes: {
+        some: {
+          userId: BigInt(userId),
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    include: {
+      user: { select: { name: true } },
+      category: { select: { name: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
+    },
+  });
+
+  return posts.map(mapPost);
+}
