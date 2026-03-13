@@ -2,27 +2,38 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import CommentForm from "./CommentForm";
 
-type Comment = {
+export type CommentNode = {
   id: number;
+  user_id: number;
+  parent_id: number | null;
   content: string;
   created_at: string;
   author: string;
+  replies: CommentNode[];
 };
 
 export default function CommentItem({
   comment,
-  canManage,
+  postId,
+  currentUserId,
+  isAdmin,
 }: {
-  comment: Comment;
-  canManage: boolean;
+  comment: CommentNode;
+  postId: number;
+  currentUserId: number | null;
+  isAdmin: boolean;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [isReplying, setIsReplying] = useState(false);
   const [content, setContent] = useState(comment.content);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const canManage = comment.user_id === currentUserId || isAdmin;
+  const canReply = comment.parent_id === null;
 
   async function handleUpdate() {
     const trimmedContent = content.trim();
@@ -131,28 +142,68 @@ export default function CommentItem({
         <p className="mt-2 whitespace-pre-wrap text-sm">{comment.content}</p>
       )}
 
-      {canManage ? (
-        <div className="mt-3 flex justify-end gap-2 text-xs text-muted-foreground">
+      <div className="mt-3 flex flex-wrap justify-end gap-2 text-xs text-muted-foreground">
+        {canReply ? (
           <button
             type="button"
-            disabled={isDeleting}
             onClick={() => {
-              setIsEditing((prev) => !prev);
+              setIsReplying((prev) => !prev);
               setError(null);
             }}
-            className="rounded-md border px-3 py-1.5 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md border px-3 py-1.5 hover:bg-muted"
           >
-            {isEditing ? "닫기" : "수정"}
+            {isReplying ? "답글 닫기" : "답글 달기"}
           </button>
-          <button
-            type="button"
-            disabled={isDeleting}
-            onClick={handleDelete}
-            className="rounded-md border px-3 py-1.5 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isDeleting ? "삭제 중..." : "삭제"}
-          </button>
+        ) : null}
+
+        {canManage ? (
+          <>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => {
+                setIsEditing((prev) => !prev);
+                setError(null);
+              }}
+              className="rounded-md border px-3 py-1.5 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isEditing ? "닫기" : "수정"}
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={handleDelete}
+              className="rounded-md border px-3 py-1.5 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeleting ? "삭제 중..." : "삭제"}
+            </button>
+          </>
+        ) : null}
+      </div>
+
+      {isReplying ? (
+        <div className="ml-4 mt-4">
+          <CommentForm
+            postId={postId}
+            parentId={comment.id}
+            placeholder="대댓글을 작성하세요"
+          />
         </div>
+      ) : null}
+
+      {comment.replies.length > 0 ? (
+        <ul className="ml-4 mt-4 space-y-3">
+          {comment.replies.map((reply) => (
+            <li key={reply.id}>
+              <CommentItem
+                comment={reply}
+                postId={postId}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+              />
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {!isEditing && error ? (
