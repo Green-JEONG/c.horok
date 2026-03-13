@@ -11,7 +11,11 @@ export default async function Header() {
       <div className="mx-full flex h-14 max-w-6xl items-center px-4">
         {/* LEFT */}
         <div className="flex items-center gap-6 shrink-0">
-          <Link href="/" className="flex items-center gap-1 font-bold">
+          <Link
+            href="/"
+            aria-label="홈으로 이동"
+            className="flex items-center gap-1 font-bold"
+          >
             <Image src="/logo.svg" alt="Horok Tech" width={36} height={24} />
             <span className="sm:inline text-sm">Horok Tech</span>
           </Link>

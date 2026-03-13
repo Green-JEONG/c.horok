@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 import { Suspense } from "react";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
+import MyPostList from "@/components/posts/MyPostList";
 import PostListHeader from "@/components/posts/PostListHeader";
-import PostList from "@/components/posts/PostList";
 
 export default async function Page() {
   return (
@@ -21,7 +21,7 @@ export default async function Page() {
         <ContributionGrid />
         <PostListHeader />
       </Suspense>
-      <PostList />
+      <MyPostList />
     </div>
   );
 }
