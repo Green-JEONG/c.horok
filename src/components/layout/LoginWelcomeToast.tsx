@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
@@ -15,17 +14,12 @@ export function markLoginWelcomeToast() {
 }
 
 export default function LoginWelcomeToast() {
-  const pathname = usePathname();
   const { data: session, status } = useSession();
   const [visible, setVisible] = useState(false);
   const userName = session?.user?.name?.trim() || "회원";
 
   useEffect(() => {
-    if (
-      status !== "authenticated" ||
-      pathname !== "/" ||
-      typeof window === "undefined"
-    ) {
+    if (status !== "authenticated" || typeof window === "undefined") {
       return;
     }
 
@@ -44,7 +38,7 @@ export default function LoginWelcomeToast() {
     }, 2500);
 
     return () => window.clearTimeout(timeoutId);
-  }, [pathname, status]);
+  }, [status]);
 
   if (!visible) {
     return null;
