@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import {
   createPostThumbnailPath,
   getStorageObjectPathFromPublicUrl,
@@ -197,10 +198,32 @@ export default function PostEditor() {
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="글을 작성해보세요..."
+        placeholder={
+          "글을 작성해보세요...\n\n# 제목\n## 소제목\n- 목록\n```ts\nconst hello = 'markdown';\n```"
+        }
         rows={14}
         className="w-full resize-none rounded-md border px-3 py-3 text-sm leading-relaxed"
       />
+      <p className="text-xs text-muted-foreground">
+        마크다운 문법을 사용할 수 있습니다. 예: <code># 제목</code>,{" "}
+        <code>**굵게**</code>, <code>- 목록</code>, <code>```코드```</code>
+      </p>
+
+      <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">미리보기</h2>
+          <span className="text-xs text-muted-foreground">
+            게시글 상세 페이지와 같은 방식으로 렌더링됩니다.
+          </span>
+        </div>
+        {content.trim() ? (
+          <MarkdownRenderer content={content} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            본문을 입력하면 여기에 마크다운 결과가 표시됩니다.
+          </p>
+        )}
+      </div>
 
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
 

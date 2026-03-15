@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import {
   createPostThumbnailPath,
   getStorageObjectPathFromPublicUrl,
@@ -247,9 +248,31 @@ export default function PostActions({
             value={content}
             onChange={(event) => setContent(event.target.value)}
             rows={10}
-            placeholder="내용"
+            placeholder={
+              "내용\n\n# 제목\n## 소제목\n- 목록\n```ts\nconst hello = 'markdown';\n```"
+            }
             className="w-full rounded-md border px-3 py-2 text-sm"
           />
+          <p className="text-xs text-muted-foreground">
+            마크다운 문법을 사용할 수 있습니다. 예: <code># 제목</code>,{" "}
+            <code>**굵게**</code>, <code>- 목록</code>, <code>```코드```</code>
+          </p>
+
+          <div className="space-y-3 rounded-xl border bg-background p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">미리보기</h3>
+              <span className="text-xs text-muted-foreground">
+                저장 후 본문에 표시될 결과입니다.
+              </span>
+            </div>
+            {content.trim() ? (
+              <MarkdownRenderer content={content} />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                본문을 입력하면 여기에 마크다운 결과가 표시됩니다.
+              </p>
+            )}
+          </div>
 
           <div className="space-y-3 rounded-xl border border-dashed p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">

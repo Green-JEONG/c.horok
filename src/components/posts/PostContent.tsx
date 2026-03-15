@@ -1,13 +1,10 @@
 import Image from "next/image";
-import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
+import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import type { DbPost } from "@/lib/db";
 
 export default function PostContent({ post }: { post: DbPost }) {
   return (
-    <section className="prose prose-neutral dark:prose-invert max-w-none">
+    <section>
       {post.thumbnail ? (
         <div className="relative mb-6 aspect-[16/9] overflow-hidden rounded-xl">
           <Image
@@ -19,12 +16,7 @@ export default function PostContent({ post }: { post: DbPost }) {
           />
         </div>
       ) : null}
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize, rehypeHighlight]}
-      >
-        {post.content}
-      </ReactMarkdown>
+      <MarkdownRenderer content={post.content} />
     </section>
   );
 }
