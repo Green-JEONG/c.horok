@@ -4,11 +4,6 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Horok Tech",
-  description: "홈페이지",
-};
-
 import { Suspense } from "react";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
 import MyPostList from "@/components/posts/MyPostList";

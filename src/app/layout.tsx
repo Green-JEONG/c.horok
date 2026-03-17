@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import BannerBar from "@/components/layout/BannerBar";
 import Header from "@/components/layout/Header";
 import LoginWelcomeToast from "@/components/layout/LoginWelcomeToast";
@@ -6,6 +8,25 @@ import PopularPosts from "@/components/sidebar/PopularPosts";
 import "@/app/globals.css";
 import AuthSessionProvider from "@/components/providers/SessionProvider";
 import RecommendedCategories from "@/components/home/RecommendedCategories";
+
+export const metadata: Metadata = {
+  title: "호록(Horok) - 나만의 포스트",
+  description: "호록이와 다양한 이야기를 나누고 기록해 보세요.",
+  openGraph: {
+    title: "호록(Horok) - 나만의 포스트",
+    description: "호록이와 다양한 이야기를 나누고 기록해 보세요.",
+    url: "https://www.horok.co.kr",
+    siteName: "Horok-dev",
+    images: [
+      {
+        url: "/logo.svg",
+        alt: "Horok Logo",
+      },
+    ],
+    locale: "ko_KR",
+    type: "website",
+  },
+};
 
 export default function RootLayout({
   children,
