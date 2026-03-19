@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Like | Horok Tech",
+  title: "Like | c.horok",
   description: "좋아요 페이지",
 };
 

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Feed | Horok Tech",
+  title: "Feed | c.horok",
   description: "피드 페이지",
 };
 

@@ -689,10 +689,6 @@ export default function LoginModal({ open, onClose }: Props) {
                   새 비밀번호가 일치합니다.
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                소셜 로그인 계정도 여기서 비밀번호를 새로 설정한 뒤 일반
-                로그인에 사용할 수 있습니다.
-              </p>
 
               {error && <p className="text-xs text-red-500">{error}</p>}
               {notice && <p className="text-xs text-green-600">{notice}</p>}
