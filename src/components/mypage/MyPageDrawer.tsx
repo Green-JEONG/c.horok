@@ -20,6 +20,7 @@ type Notification = {
   message?: string | null;
   post_id: number | null;
   comment_id: number | null;
+  is_post_deleted: boolean;
   is_read: number;
   created_at: string;
 };
@@ -27,6 +28,7 @@ type Notification = {
 const NOTIFICATIONS_UPDATED_EVENT = "notifications-updated";
 
 function renderNotificationMessage(n: Notification) {
+  if (n.is_post_deleted) return "삭제된 게시물입니다";
   if (n.message) return n.message;
 
   switch (n.type) {
@@ -229,7 +231,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                 <li key={n.id}>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-2 text-left hover:underline"
+                    className="flex w-full items-center gap-2 text-left hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70"
                     onClick={async () => {
                       if (!n.is_read) {
                         try {
@@ -256,10 +258,11 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                       }
 
                       onClose();
-                      if (n.post_id) {
+                      if (n.post_id && !n.is_post_deleted) {
                         router.push(`/posts/${n.post_id}`);
                       }
                     }}
+                    disabled={n.is_post_deleted}
                   >
                     {n.is_read ? (
                       <CircleCheckBig color="#4CB975" width={18} />

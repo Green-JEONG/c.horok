@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
 import { hasLiked, getLikeCount } from "@/lib/likes";
+import { getPostById } from "@/lib/posts";
 
 export async function GET(
   _req: NextRequest,
@@ -13,6 +14,11 @@ export async function GET(
 
   if (Number.isNaN(postId)) {
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
+  }
+
+  const post = await getPostById(postId);
+  if (!post) {
+    return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 
   const session = await auth();

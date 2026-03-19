@@ -8,6 +8,7 @@ type MyComment = {
   content: string;
   post_id: number;
   post_title: string;
+  is_post_deleted: boolean;
 };
 
 export default function MyCommentsSection() {
@@ -35,17 +36,24 @@ export default function MyCommentsSection() {
       <h2 className="mb-4 text-xl font-semibold">내가 쓴 댓글</h2>
 
       <ul className="space-y-3">
-        {comments.map(({ id, content, post_id, post_title }) => (
+        {comments.map(({ id, content, post_id, post_title, is_post_deleted }) => (
           <li key={id}>
-            <Link
-              href={`/posts/${post_id}`}
-              className="block rounded-lg border p-4 text-sm transition-colors hover:bg-muted"
-            >
-              <p className="line-clamp-2">{content}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {post_title}에 달린 댓글
-              </p>
-            </Link>
+            {is_post_deleted ? (
+              <div className="block rounded-lg border p-4 text-sm opacity-70">
+                <p className="line-clamp-2">{content}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{post_title}</p>
+              </div>
+            ) : (
+              <Link
+                href={`/posts/${post_id}`}
+                className="block rounded-lg border p-4 text-sm transition-colors hover:bg-muted"
+              >
+                <p className="line-clamp-2">{content}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {post_title}에 달린 댓글
+                </p>
+              </Link>
+            )}
           </li>
         ))}
       </ul>

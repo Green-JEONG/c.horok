@@ -13,7 +13,7 @@ export async function POST(
   }
 
   const post = await getPostById(postId);
-  if (!post || post.is_deleted) {
+  if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
 

@@ -27,12 +27,15 @@ export async function POST(
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
+  const post = await getPostById(postId);
+  if (!post) {
+    return NextResponse.json({ message: "Not found" }, { status: 404 });
+  }
+
   const result = await toggleLike({ postId, userId });
 
   if (result.liked) {
     try {
-      const post = await getPostById(postId);
-
       if (post && post.user_id !== userId) {
         await prisma.notification.create({
           data: {

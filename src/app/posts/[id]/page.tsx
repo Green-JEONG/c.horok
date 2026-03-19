@@ -7,6 +7,7 @@ import PostFooter from "@/components/posts/PostFooter";
 import PostHeader from "@/components/posts/PostHeader";
 import PostViewTracker from "@/components/posts/PostViewTracker";
 import { findPostById } from "@/lib/db";
+import { notFound } from "next/navigation";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -17,12 +18,12 @@ export default async function PostPage({ params }: Props) {
   const postId = Number(id);
 
   if (Number.isNaN(postId)) {
-    return <p>잘못된 접근입니다.</p>;
+    notFound();
   }
 
   const post = await findPostById(postId);
   if (!post) {
-    return <p>게시글이 없습니다.</p>;
+    notFound();
   }
 
   const session = await auth();

@@ -233,8 +233,11 @@ export async function findPostsPaged(
 }
 
 export async function findPostById(id: number) {
-  const post = await prisma.post.findUnique({
-    where: { id: BigInt(id) },
+  const post = await prisma.post.findFirst({
+    where: {
+      id: BigInt(id),
+      isDeleted: false,
+    },
     include: {
       user: { select: { name: true } },
       category: { select: { name: true } },
