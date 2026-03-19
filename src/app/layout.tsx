@@ -74,7 +74,7 @@ export default function RootLayout({
 
                 {/* Footer */}
                 <footer className="mt-auto text-center text-xs text-muted-foreground">
-                  © 2026 | Horok Tech | All rights reserved.
+                  © 2026 | c.Horok | All rights reserved.
                 </footer>
               </div>
             </aside>

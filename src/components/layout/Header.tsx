@@ -16,8 +16,8 @@ export default async function Header() {
             aria-label="홈으로 이동"
             className="flex items-center gap-1 font-bold"
           >
-            <Image src="/logo.svg" alt="Horok Tech" width={36} height={24} />
-            <span className="sm:inline text-sm">Horok Tech</span>
+            <Image src="/logo.svg" alt="c.horok" width={36} height={24} />
+            <span className="sm:inline text-sm">c.horok</span>
           </Link>
 
           <HeaderNav />
