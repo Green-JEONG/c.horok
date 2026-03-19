@@ -387,7 +387,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
         type="button"
         aria-label="설정 닫기"
         onClick={onClose}
-        className="absolute inset-0 bg-black/50 cursor-default"
+        className="absolute inset-0 cursor-pointer bg-black/50"
       />
 
       {/* modal */}
@@ -417,7 +417,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
                   className="h-18 w-18 rounded-full border object-cover"
                 />
                 <div className="flex flex-wrap gap-2">
-                  <label className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted">
+                  <label className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted cursor-pointer">
                     사진 업로드
                     <input
                       type="file"
@@ -431,7 +431,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
                     type="button"
                     onClick={handleImageRemove}
                     disabled={loading || isUploadingImage || !imageUrl}
-                    className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                    className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     삭제
                   </button>
@@ -440,7 +440,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
                       type="button"
                       onClick={handleImageReset}
                       disabled={loading || isUploadingImage}
-                      className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                      className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50disabled:cursor-not-allowed"
                     >
                       초기화
                     </button>
@@ -608,7 +608,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
                 "rounded-md px-4 py-2 text-sm font-semibold",
                 isDuplicateNickname
                   ? "cursor-not-allowed bg-gray-200 text-gray-500 hover:bg-gray-200"
-                  : "bg-primary text-primary-foreground disabled:opacity-50",
+                  : "bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed",
               )}
             >
               {loading ? "저장 중..." : "저장"}

@@ -206,7 +206,7 @@ export default function LoginModal({ open, onClose }: Props) {
         type="button"
         aria-label="로그인 모달 닫기"
         onClick={handleClose}
-        className="absolute inset-0 bg-black/50 cursor-default"
+        className="absolute inset-0 cursor-pointer bg-black/50"
       >
         <span className="sr-only">모달 닫기</span>
       </button>
@@ -436,9 +436,7 @@ export default function LoginModal({ open, onClose }: Props) {
                 </p>
               )}
               {isSignupPasswordMatched && (
-                <p className="text-xs text-green-600">
-                  비밀번호가 일치합니다.
-                </p>
+                <p className="text-xs text-green-600">비밀번호가 일치합니다.</p>
               )}
 
               {error && <p className="text-xs text-red-500">{error}</p>}

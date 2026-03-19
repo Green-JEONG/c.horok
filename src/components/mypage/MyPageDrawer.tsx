@@ -135,7 +135,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         type="button"
         aria-label="마이페이지 닫기"
         onClick={onClose}
-        className="absolute inset-0 bg-black/50 cursor-default"
+        className="absolute inset-0 cursor-pointer bg-black/50"
       />
 
       <aside className="absolute left-0 top-0 h-full w-87.5 bg-background text-foreground shadow-xl flex flex-col">
