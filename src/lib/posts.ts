@@ -41,8 +41,11 @@ function mapPost(post: {
 }
 
 export async function getPostById(id: number) {
-  const post = await prisma.post.findUnique({
-    where: { id: BigInt(id) },
+  const post = await prisma.post.findFirst({
+    where: {
+      id: BigInt(id),
+      isDeleted: false,
+    },
   });
 
   return post ? mapPost(post) : null;

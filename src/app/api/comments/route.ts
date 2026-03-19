@@ -15,6 +15,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid input" }, { status: 400 });
     }
 
+    const post = await getPostById(Number(postId));
+    if (!post) {
+      return NextResponse.json({ message: "Post not found" }, { status: 404 });
+    }
+
     if (parentId) {
       const parentComment = await getCommentById(Number(parentId));
 
@@ -61,8 +66,6 @@ export async function POST(req: Request) {
         }
       } else {
         // 새 댓글 → 게시글 작성자에게
-        const post = await getPostById(Number(postId));
-
         // post.user_id도 number여야 함
         if (post && post.user_id !== userId) {
           await prisma.notification.create({
