@@ -3,7 +3,7 @@ import Image from "next/image";
 export default function MyFriendsSection() {
   return (
     <section>
-      <h2 className="mb-4 text-xl font-semibold">친구</h2>
+      <h2 className="mb-4 text-xl font-semibold">구독</h2>
 
       <ul className="space-y-3">
         {[1, 2, 3].map((id) => (
@@ -13,13 +13,13 @@ export default function MyFriendsSection() {
           >
             <Image
               src="/logo.svg"
-              alt="friend"
+              alt="subscription"
               width={40}
               height={40}
               className="rounded-full"
             />
             <div>
-              <p className="font-medium">친구 {id}</p>
+              <p className="font-medium">구독 {id}</p>
             </div>
           </li>
         ))}

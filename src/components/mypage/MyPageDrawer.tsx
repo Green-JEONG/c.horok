@@ -178,7 +178,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           </div>
         </div>
 
-        {/* 글, 댓글, 친구 갯수 */}
+        {/* 글, 댓글, 구독 갯수 */}
         <div className="flex justify-around mx-4 gap-2 items-center">
           <button
             type="button"
@@ -210,7 +210,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
               router.push("/mypage?tab=friends");
             }}
           >
-            <p className="font-light text-white">친구</p>
+            <p className="font-light text-white">구독</p>
             <p className="font-extrabold text-white">{stats.friends}</p>
           </button>
         </div>

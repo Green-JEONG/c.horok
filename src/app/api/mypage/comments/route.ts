@@ -31,6 +31,7 @@ export async function GET() {
     rows.map((comment) => ({
       id: Number(comment.id),
       content: comment.content,
+      post_id: Number(comment.postId),
       post_title: comment.post.title,
     })),
   );
