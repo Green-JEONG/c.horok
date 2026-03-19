@@ -15,7 +15,7 @@ type Props = {
   onClose: () => void;
 };
 
-type AuthStep = "login" | "signup";
+type AuthStep = "login" | "signup" | "findId" | "resetPassword";
 
 export default function LoginModal({ open, onClose }: Props) {
   const [step, setStep] = useState<AuthStep>("login");
@@ -32,6 +32,10 @@ export default function LoginModal({ open, onClose }: Props) {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [recoveryName, setRecoveryName] = useState("");
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveryPassword, setRecoveryPassword] = useState("");
+  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState("");
   const signupEmailAvailability = useEmailAvailability({
     email: signupEmail,
     enabled: open && step === "signup",
@@ -73,6 +77,19 @@ export default function LoginModal({ open, onClose }: Props) {
     !signupPasswordConfirm ||
     !isSignupPasswordValid ||
     !isSignupPasswordMatched;
+  const recoveryPasswordValidationMessage = recoveryPassword
+    ? validatePassword(recoveryPassword)
+    : null;
+  const isRecoveryPasswordValid = !recoveryPasswordValidationMessage;
+  const isRecoveryPasswordMatched =
+    Boolean(recoveryPassword) &&
+    Boolean(recoveryPasswordConfirm) &&
+    isRecoveryPasswordValid &&
+    recoveryPassword === recoveryPasswordConfirm;
+  const isRecoveryPasswordMismatch =
+    Boolean(recoveryPasswordConfirm) &&
+    isRecoveryPasswordValid &&
+    recoveryPassword !== recoveryPasswordConfirm;
 
   const handleClose = useCallback(() => {
     onClose();
@@ -83,6 +100,10 @@ export default function LoginModal({ open, onClose }: Props) {
     setSignupName("");
     setSignupPassword("");
     setSignupPasswordConfirm("");
+    setRecoveryName("");
+    setRecoveryEmail("");
+    setRecoveryPassword("");
+    setRecoveryPasswordConfirm("");
     setError(null);
     setNotice(null);
   }, [onClose]);
@@ -199,6 +220,99 @@ export default function LoginModal({ open, onClose }: Props) {
     setNotice("회원가입이 완료되었습니다. 로그인해주세요.");
   }
 
+  async function handleFindId() {
+    if (!recoveryName.trim()) {
+      setError("닉네임을 입력해주세요.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const params = new URLSearchParams({ name: recoveryName.trim() });
+      const res = await fetch(`/api/users/find-email?${params.toString()}`);
+      const data = (await res.json().catch(() => ({}))) as {
+        email?: string;
+        message?: string;
+      };
+
+      if (!res.ok) {
+        setError(data.message ?? "아이디 찾기에 실패했습니다.");
+        return;
+      }
+
+      setNotice(
+        data.email
+          ? `가입한 아이디는 ${data.email} 입니다.`
+          : (data.message ?? "가입한 아이디를 찾았습니다."),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!recoveryEmail.trim() || !recoveryName.trim()) {
+      setError("아이디와 닉네임을 입력해주세요.");
+      return;
+    }
+
+    if (!recoveryPassword || !recoveryPasswordConfirm) {
+      setError("새 비밀번호를 모두 입력해주세요.");
+      return;
+    }
+
+    if (recoveryPassword !== recoveryPasswordConfirm) {
+      setError("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    const passwordValidationMessage = validatePassword(recoveryPassword);
+    if (passwordValidationMessage) {
+      setError(passwordValidationMessage);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/users/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: recoveryEmail.trim(),
+          name: recoveryName.trim(),
+          newPassword: recoveryPassword,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+      };
+
+      if (!res.ok) {
+        setError(data.message ?? "비밀번호 재설정에 실패했습니다.");
+        return;
+      }
+
+      setStep("login");
+      setEmail(recoveryEmail.trim());
+      setPassword("");
+      setRecoveryName("");
+      setRecoveryEmail("");
+      setRecoveryPassword("");
+      setRecoveryPasswordConfirm("");
+      setNotice(
+        data.message ?? "비밀번호가 재설정되었습니다. 다시 로그인해주세요.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50">
       {/* dim overlay */}
@@ -216,10 +330,14 @@ export default function LoginModal({ open, onClose }: Props) {
         <div className="relative w-full max-w-sm rounded-xl bg-background p-6 shadow-lg">
           {/* 상단 네비 */}
           <div className="absolute left-5 top-5 flex items-center gap-2">
-            {step === "signup" && (
+            {step !== "login" && (
               <button
                 type="button"
-                onClick={() => setStep("login")}
+                onClick={() => {
+                  setStep("login");
+                  setError(null);
+                  setNotice(null);
+                }}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft size={20} />
@@ -245,7 +363,13 @@ export default function LoginModal({ open, onClose }: Props) {
               style={{ width: "auto", height: "auto" }}
             />
             <h2 className="text-lg font-bold mt-2">
-              {step === "login" ? "Horok Tech" : "회원가입"}
+              {step === "login"
+                ? "Horok Tech"
+                : step === "signup"
+                  ? "회원가입"
+                  : step === "findId"
+                    ? "아이디 찾기"
+                    : "비밀번호 재설정"}
             </h2>
           </div>
 
@@ -284,6 +408,33 @@ export default function LoginModal({ open, onClose }: Props) {
                   {loading ? "로그인 중..." : "로그인"}
                 </button>
               </form>
+
+              <div className="mt-3 flex justify-center gap-3 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("findId");
+                    setError(null);
+                    setNotice(null);
+                  }}
+                  className="hover:text-foreground"
+                >
+                  아이디 찾기
+                </button>
+                <span>/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("resetPassword");
+                    setRecoveryEmail(email);
+                    setError(null);
+                    setNotice(null);
+                  }}
+                  className="hover:text-foreground"
+                >
+                  비밀번호 찾기
+                </button>
+              </div>
 
               <div className="mt-6 space-y-3">
                 <p className="text-center text-xs text-muted-foreground">
@@ -448,6 +599,110 @@ export default function LoginModal({ open, onClose }: Props) {
                 className="mt-4 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {loading ? "가입 중..." : "회원가입"}
+              </button>
+            </form>
+          )}
+
+          {step === "findId" && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleFindId();
+              }}
+              className="space-y-3"
+            >
+              <input
+                value={recoveryName}
+                onChange={(e) => setRecoveryName(e.target.value)}
+                placeholder="가입한 닉네임"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                입력한 닉네임과 일치하는 계정의 아이디를 일부 마스킹해
+                보여줍니다.
+              </p>
+
+              {error && <p className="text-xs text-red-500">{error}</p>}
+              {notice && <p className="text-xs text-green-600">{notice}</p>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {loading ? "확인 중..." : "아이디 찾기"}
+              </button>
+            </form>
+          )}
+
+          {step === "resetPassword" && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleResetPassword();
+              }}
+              className="space-y-3"
+            >
+              <input
+                value={recoveryEmail}
+                onChange={(e) => setRecoveryEmail(e.target.value)}
+                placeholder="아이디 (이메일)"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+              <input
+                value={recoveryName}
+                onChange={(e) => setRecoveryName(e.target.value)}
+                placeholder="가입한 닉네임"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+              <input
+                type="password"
+                value={recoveryPassword}
+                onChange={(e) => setRecoveryPassword(e.target.value)}
+                placeholder="새 비밀번호"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+              {recoveryPasswordValidationMessage && (
+                <p className="text-xs text-red-500">
+                  {recoveryPasswordValidationMessage}
+                </p>
+              )}
+              <input
+                type="password"
+                value={recoveryPasswordConfirm}
+                onChange={(e) => setRecoveryPasswordConfirm(e.target.value)}
+                placeholder="새 비밀번호 확인"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+              {Boolean(recoveryPasswordConfirm) && !isRecoveryPasswordValid && (
+                <p className="text-xs text-red-500">
+                  비밀번호 길이를 먼저 맞춰주세요.
+                </p>
+              )}
+              {isRecoveryPasswordMismatch && (
+                <p className="text-xs text-red-500">
+                  새 비밀번호가 일치하지 않습니다.
+                </p>
+              )}
+              {isRecoveryPasswordMatched && (
+                <p className="text-xs text-green-600">
+                  새 비밀번호가 일치합니다.
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                소셜 로그인 계정도 여기서 비밀번호를 새로 설정한 뒤 일반
+                로그인에 사용할 수 있습니다.
+              </p>
+
+              {error && <p className="text-xs text-red-500">{error}</p>}
+              {notice && <p className="text-xs text-green-600">{notice}</p>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {loading ? "재설정 중..." : "비밀번호 재설정"}
               </button>
             </form>
           )}
