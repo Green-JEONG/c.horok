@@ -1,10 +1,17 @@
 "use client";
 
 import { X } from "lucide-react";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNicknameAvailability } from "@/components/auth/useNicknameAvailability";
 import { validatePassword } from "@/lib/password";
+import {
+  createProfileImagePath,
+  getProfileImageStoragePathFromPublicUrl,
+  PROFILE_IMAGE_BUCKET,
+} from "@/lib/profile-images";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -15,18 +22,36 @@ type Props = {
 export default function AccountSettingsModal({ open, onClose }: Props) {
   const { data: session, update } = useSession();
   const isSocialAccount =
-    session?.user?.provider === "github" || session?.user?.provider === "google";
+    session?.user?.provider === "github" ||
+    session?.user?.provider === "google";
 
   const initialName = useMemo(
     () => session?.user?.name ?? "",
     [session?.user?.name],
   );
+  const initialImage = useMemo(
+    () => session?.user?.image ?? null,
+    [session?.user?.image],
+  );
+  const initialOauthImage = useMemo(
+    () => session?.user?.oauthImage ?? null,
+    [session?.user?.oauthImage],
+  );
 
   const [name, setName] = useState(initialName);
+  const [imageUrl, setImageUrl] = useState<string | null>(initialImage);
+  const [savedImageUrl, setSavedImageUrl] = useState<string | null>(
+    initialImage,
+  );
+  const [imagePath, setImagePath] = useState<string | null>(
+    getProfileImageStoragePathFromPublicUrl(initialImage),
+  );
+  const [resetImageRequested, setResetImageRequested] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [passwordCheckStatus, setPasswordCheckStatus] = useState<
     "idle" | "checking" | "valid" | "invalid" | "error"
@@ -71,9 +96,15 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
     currentPassword === newPassword;
   const isCurrentPasswordVerified =
     !isPasswordChangeRequested || passwordCheckStatus === "valid";
-  const hasNoChanges = !isNicknameChanged && !isPasswordChangeRequested;
+  const isImageChanged = imageUrl !== initialImage;
+  const hasNoChanges =
+    !isNicknameChanged &&
+    !isPasswordChangeRequested &&
+    !isImageChanged &&
+    !resetImageRequested;
   const isSaveDisabled =
     loading ||
+    isUploadingImage ||
     hasNoChanges ||
     nickname.isChecking ||
     isDuplicateNickname ||
@@ -89,13 +120,17 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     setName(initialName);
+    setImageUrl(initialImage);
+    setSavedImageUrl(initialImage);
+    setImagePath(getProfileImageStoragePathFromPublicUrl(initialImage));
+    setResetImageRequested(false);
     setCurrentPassword("");
     setNewPassword("");
     setNewPasswordConfirm("");
     setMessage(null);
     setPasswordCheckStatus("idle");
     setPasswordCheckMessage(null);
-  }, [open, initialName]);
+  }, [open, initialName, initialImage]);
 
   useEffect(() => {
     if (!isSocialAccount) return;
@@ -176,6 +211,84 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
 
   if (!open) return null;
 
+  async function removeProfileImageFromStorage(path?: string | null) {
+    if (!path) return;
+    await supabase.storage.from(PROFILE_IMAGE_BUCKET).remove([path]);
+  }
+
+  async function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !session?.user?.id) return;
+
+    setIsUploadingImage(true);
+    setMessage(null);
+
+    try {
+      const nextPath = createProfileImagePath(session.user.id, file.name);
+      const { error: uploadError } = await supabase.storage
+        .from(PROFILE_IMAGE_BUCKET)
+        .upload(nextPath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        setMessage(uploadError.message);
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(PROFILE_IMAGE_BUCKET).getPublicUrl(nextPath);
+
+      const previousUnsavedPath =
+        imagePath && imageUrl !== savedImageUrl ? imagePath : null;
+
+      if (previousUnsavedPath && previousUnsavedPath !== nextPath) {
+        await removeProfileImageFromStorage(previousUnsavedPath);
+      }
+
+      setImagePath(nextPath);
+      setImageUrl(publicUrl);
+      setResetImageRequested(false);
+      event.target.value = "";
+    } catch {
+      setMessage("프로필 사진 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  }
+
+  async function handleImageRemove() {
+    try {
+      if (imagePath && imageUrl !== savedImageUrl) {
+        await removeProfileImageFromStorage(imagePath);
+      }
+
+      setImageUrl(null);
+      setImagePath(null);
+      setResetImageRequested(false);
+      setMessage(null);
+    } catch {
+      setMessage("프로필 사진 삭제 중 오류가 발생했습니다.");
+    }
+  }
+
+  async function handleImageReset() {
+    setMessage(null);
+    if (!initialOauthImage) {
+      setMessage(
+        "SNS 기본 프로필 사진 정보가 없습니다. 로그아웃 후 다시 SNS 로그인한 뒤 초기화를 시도해주세요.",
+      );
+      return;
+    }
+
+    setResetImageRequested(true);
+    setImagePath(null);
+    setImageUrl(initialOauthImage);
+    setMessage("저장 시 SNS 기본 프로필 사진으로 초기화됩니다.");
+  }
+
   async function handleSave() {
     setMessage(null);
 
@@ -184,7 +297,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
       return;
     }
 
-    if (!nickname.isAvailable) {
+    if (isNicknameChanged && !nickname.isAvailable) {
       setMessage(nickname.message ?? "사용 가능한 닉네임을 입력해주세요.");
       return;
     }
@@ -217,6 +330,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
     setLoading(true);
     try {
       type UpdateUserResponse = {
+        image?: string | null;
         message?: string;
       };
 
@@ -225,6 +339,9 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          image: imageUrl ?? undefined,
+          removeImage: !resetImageRequested && !imageUrl,
+          resetImage: resetImageRequested,
           currentPassword: currentPassword || undefined,
           newPassword: newPassword || undefined,
         }),
@@ -237,8 +354,24 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
         return;
       }
 
+      const previousSavedImagePath =
+        savedImageUrl && savedImageUrl !== imageUrl
+          ? getProfileImageStoragePathFromPublicUrl(savedImageUrl)
+          : null;
+
+      if (previousSavedImagePath) {
+        await removeProfileImageFromStorage(previousSavedImagePath);
+      }
+
       // 세션 UI 즉시 반영 (NextAuth useSession().update)
-      await update?.({ name });
+      const nextImageUrl =
+        data.image !== undefined ? (data.image ?? null) : imageUrl;
+
+      await update?.({ name, image: nextImageUrl });
+      setImageUrl(nextImageUrl);
+      setSavedImageUrl(nextImageUrl);
+      setImagePath(getProfileImageStoragePathFromPublicUrl(nextImageUrl));
+      setResetImageRequested(false);
 
       setMessage("저장되었습니다.");
       onClose();
@@ -273,6 +406,54 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
           </div>
 
           <div className="p-5 space-y-6">
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">프로필 사진</p>
+              <div className="flex items-center gap-4">
+                <Image
+                  src={imageUrl ?? "/logo.svg"}
+                  alt="프로필 사진"
+                  width={72}
+                  height={72}
+                  className="h-18 w-18 rounded-full border object-cover"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <label className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted">
+                    사진 업로드
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageChange}
+                      disabled={loading || isUploadingImage}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleImageRemove}
+                    disabled={loading || isUploadingImage || !imageUrl}
+                    className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                  >
+                    삭제
+                  </button>
+                  {isSocialAccount ? (
+                    <button
+                      type="button"
+                      onClick={handleImageReset}
+                      disabled={loading || isUploadingImage}
+                      className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                    >
+                      초기화
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {isUploadingImage && (
+                <p className="text-xs text-muted-foreground">
+                  프로필 사진 업로드 중입니다.
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm text-muted-foreground">
                 닉네임

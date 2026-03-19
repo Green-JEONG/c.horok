@@ -24,9 +24,15 @@ export async function PATCH(req: Request) {
       typeof body?.currentPassword === "string" ? body.currentPassword : null;
     const newPassword =
       typeof body?.newPassword === "string" ? body.newPassword : null;
+    const image =
+      typeof body?.image === "string" && body.image.trim()
+        ? body.image.trim()
+        : null;
+    const removeImage = body?.removeImage === true;
+    const resetImage = body?.resetImage === true;
 
     // 이름만 바꾸는 것도 허용
-    if (!name && !newPassword) {
+    if (!name && !newPassword && !image && !removeImage && !resetImage) {
       return NextResponse.json(
         { message: "수정할 값이 없습니다." },
         { status: 400 },
@@ -55,8 +61,10 @@ export async function PATCH(req: Request) {
       where: { id: BigInt(session.user.id) },
       select: {
         id: true,
+        image: true,
         password: true,
         provider: true,
+        oauthImage: true,
       },
     });
 
@@ -117,25 +125,54 @@ export async function PATCH(req: Request) {
       passwordToSave = await bcrypt.hash(newPassword, 10);
     }
 
-    // 업데이트
-    if (passwordToSave && name) {
-      await prisma.user.update({
-        where: { id: BigInt(session.user.id) },
-        data: { name, password: passwordToSave },
-      });
-    } else if (passwordToSave) {
-      await prisma.user.update({
-        where: { id: BigInt(session.user.id) },
-        data: { password: passwordToSave },
-      });
-    } else {
-      await prisma.user.update({
-        where: { id: BigInt(session.user.id) },
-        data: { name },
-      });
+    const data: {
+      name?: string;
+      password?: string;
+      image?: string | null;
+    } = {};
+
+    if (name) {
+      data.name = name;
     }
 
-    return NextResponse.json({ ok: true });
+    if (passwordToSave) {
+      data.password = passwordToSave;
+    }
+
+    if (resetImage) {
+      if (user.provider !== "github" && user.provider !== "google") {
+        return NextResponse.json(
+          { message: "SNS 로그인 계정만 기본 사진으로 초기화할 수 있습니다." },
+          { status: 400 },
+        );
+      }
+
+      if (!user.oauthImage) {
+        return NextResponse.json(
+          {
+            message:
+              "SNS 기본 프로필 사진 정보가 없습니다. 로그아웃 후 다시 SNS 로그인한 뒤 초기화를 시도해주세요.",
+          },
+          { status: 409 },
+        );
+      }
+
+      data.image = user.oauthImage;
+    } else if (removeImage) {
+      data.image = null;
+    } else if (image) {
+      data.image = image;
+    }
+
+    await prisma.user.update({
+      where: { id: BigInt(session.user.id) },
+      data,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      image: data.image !== undefined ? data.image : user.image,
+    });
   } catch {
     return NextResponse.json({ message: "계정 수정 실패" }, { status: 500 });
   }

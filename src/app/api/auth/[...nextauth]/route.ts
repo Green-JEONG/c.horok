@@ -69,6 +69,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const dbUser = await upsertOAuthUser({
           email,
           name: user.name ?? null,
+          image: user.image ?? null,
           provider: account.provider,
           providerId,
         });
@@ -76,6 +77,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!dbUser) return false;
 
         user.dbUserId = String(dbUser.id);
+        user.image = dbUser.image ?? user.image;
+        user.oauthImage = dbUser.oauth_image;
         user.role = dbUser.role;
         user.provider = dbUser.provider;
       }
@@ -104,11 +107,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (typeof user.name === "string") {
           token.name = user.name;
         }
+        if (typeof user.image === "string") {
+          token.picture = user.image;
+        }
+        if (typeof user.oauthImage === "string" || user.oauthImage === null) {
+          token.oauthImage = user.oauthImage;
+        }
       }
 
       // useSession().update() 호출 시
-      if (trigger === "update" && session?.name) {
-        token.name = session.name;
+      if (trigger === "update") {
+        if (typeof session?.name === "string") {
+          token.name = session.name;
+        }
+        if ("image" in (session ?? {})) {
+          token.picture =
+            typeof session?.image === "string" ? session.image : null;
+        }
       }
 
       if (!token.userId && typeof token.email === "string") {
@@ -118,6 +133,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.role = dbUser.role;
           token.provider = dbUser.provider;
           token.name = dbUser.name ?? token.name;
+          token.picture = dbUser.image ?? token.picture;
+          token.oauthImage = dbUser.oauth_image;
         }
       }
 
@@ -133,6 +150,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           | "github"
           | "google"
           | undefined;
+        session.user.image =
+          typeof token.picture === "string" ? token.picture : null;
+        session.user.oauthImage =
+          typeof token.oauthImage === "string" || token.oauthImage === null
+            ? token.oauthImage
+            : null;
       }
       return session;
     },

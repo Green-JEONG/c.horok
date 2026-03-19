@@ -11,6 +11,8 @@ export type DbUser = {
   email: string;
   password: string | null;
   name: string | null;
+  image: string | null;
+  oauth_image: string | null;
   role: "USER" | "ADMIN";
   provider: "credentials" | "github" | "google";
   sns_id: string | null;
@@ -55,6 +57,8 @@ function mapUser(user: {
   email: string;
   password: string | null;
   name: string | null;
+  image: string | null;
+  oauthImage: string | null;
   role: "USER" | "ADMIN";
   provider: "credentials" | "github" | "google";
   snsId: string | null;
@@ -64,6 +68,8 @@ function mapUser(user: {
     email: user.email,
     password: user.password,
     name: user.name,
+    image: user.image,
+    oauth_image: user.oauthImage,
     role: user.role,
     provider: user.provider,
     sns_id: user.snsId,
@@ -135,15 +141,26 @@ export async function createUser(params: {
   email: string;
   passwordHash: string;
   name?: string | null;
+  image?: string | null;
+  oauthImage?: string | null;
   role?: "USER" | "ADMIN";
 }) {
-  const { email, passwordHash, name = null, role = "USER" } = params;
+  const {
+    email,
+    passwordHash,
+    name = null,
+    image = null,
+    oauthImage = null,
+    role = "USER",
+  } = params;
 
   const user = await prisma.user.create({
     data: {
       email,
       password: passwordHash,
       name,
+      image,
+      oauthImage,
       role,
       provider: "credentials",
     },
@@ -161,22 +178,26 @@ export async function deleteUserById(userId: string) {
 export async function upsertOAuthUser(params: {
   email: string;
   name?: string | null;
+  image?: string | null;
   provider: "github" | "google";
   providerId: string;
 }) {
-  const { email, name = null, provider, providerId } = params;
+  const { email, name = null, image = null, provider, providerId } = params;
   const role = email === "th2gr22n@gmail.com" ? "ADMIN" : "USER";
 
   const user = await prisma.user.upsert({
     where: { email },
     update: {
       name: name ?? undefined,
+      oauthImage: image ?? undefined,
       provider,
       snsId: providerId,
     },
     create: {
       email,
       name,
+      image,
+      oauthImage: image,
       role,
       provider,
       snsId: providerId,

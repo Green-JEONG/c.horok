@@ -6,6 +6,7 @@ declare module "next-auth" {
     dbUserId?: string;
     role?: "USER" | "ADMIN";
     provider?: "credentials" | "github" | "google";
+    oauthImage?: string | null;
   }
 
   interface Session {
@@ -13,6 +14,7 @@ declare module "next-auth" {
       id: string;
       role: "USER" | "ADMIN";
       provider?: "credentials" | "github" | "google";
+      oauthImage?: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -22,5 +24,6 @@ declare module "next-auth/jwt" {
     userId?: string;
     role?: "USER" | "ADMIN";
     provider?: "credentials" | "github" | "google";
+    oauthImage?: string | null;
   }
 }

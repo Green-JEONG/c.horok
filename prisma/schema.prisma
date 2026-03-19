@@ -23,6 +23,8 @@ model User {
   email         String      @unique @db.VarChar(255)
   password      String?     @db.VarChar(255)
   name          String?     @db.VarChar(100)
+  image         String?     @db.VarChar(512)
+  oauthImage    String?     @map("oauth_image") @db.VarChar(512)
   role          Role        @default(USER)
   provider      AuthProvider
   snsId      String?     @unique @map("sns_id") @db.VarChar(50)
