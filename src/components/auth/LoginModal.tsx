@@ -202,7 +202,9 @@ export default function LoginModal({ open, onClose }: Props) {
   }
 
   async function handleSendMagicLink() {
-    if (!recoveryEmail.trim()) {
+    const normalizedEmail = recoveryEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
       setError("이메일을 입력해주세요.");
       return;
     }
@@ -212,25 +214,37 @@ export default function LoginModal({ open, onClose }: Props) {
     setNotice(null);
 
     try {
-      const res = await fetch("/api/auth/magic-link/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: recoveryEmail.trim(),
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
+      const emailCheckRes = await fetch(
+        `/api/users/check-email?email=${encodeURIComponent(normalizedEmail)}`,
+      );
+      const emailCheckData = (await emailCheckRes.json().catch(() => ({}))) as {
+        available?: boolean;
         message?: string;
       };
 
-      if (!res.ok) {
-        setError(data.message ?? "로그인 링크 전송에 실패했습니다.");
+      if (!emailCheckRes.ok) {
+        setError(emailCheckData.message ?? "이메일을 확인하지 못했습니다.");
+        return;
+      }
+
+      if (emailCheckData.available) {
+        setError("가입한 이메일을 먼저 확인해주세요.");
+        return;
+      }
+
+      const res = await signIn("nodemailer", {
+        email: normalizedEmail,
+        redirect: false,
+        callbackUrl: "/",
+      });
+
+      if (res?.error) {
+        setError("로그인 링크 전송에 실패했습니다.");
         return;
       }
 
       setNotice(
-        data.message ??
-          "로그인 링크를 메일로 보내드렸습니다. 받은 메일에서 링크를 클릭해주세요.",
+        "로그인 링크를 메일로 보내드렸습니다. 받은 메일에서 링크를 클릭해주세요.",
       );
     } finally {
       setLoading(false);
