@@ -15,7 +15,7 @@ type Props = {
   onClose: () => void;
 };
 
-type AuthStep = "login" | "signup";
+type AuthStep = "login" | "signup" | "magicLink";
 
 export default function LoginModal({ open, onClose }: Props) {
   const [step, setStep] = useState<AuthStep>("login");
@@ -32,6 +32,7 @@ export default function LoginModal({ open, onClose }: Props) {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
   const signupEmailAvailability = useEmailAvailability({
     email: signupEmail,
     enabled: open && step === "signup",
@@ -83,6 +84,7 @@ export default function LoginModal({ open, onClose }: Props) {
     setSignupName("");
     setSignupPassword("");
     setSignupPasswordConfirm("");
+    setRecoveryEmail("");
     setError(null);
     setNotice(null);
   }, [onClose]);
@@ -199,6 +201,42 @@ export default function LoginModal({ open, onClose }: Props) {
     setNotice("회원가입이 완료되었습니다. 로그인해주세요.");
   }
 
+  async function handleSendMagicLink() {
+    if (!recoveryEmail.trim()) {
+      setError("이메일을 입력해주세요.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const res = await fetch("/api/auth/magic-link/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: recoveryEmail.trim(),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+      };
+
+      if (!res.ok) {
+        setError(data.message ?? "로그인 링크 전송에 실패했습니다.");
+        return;
+      }
+
+      setNotice(
+        data.message ??
+          "로그인 링크를 메일로 보내드렸습니다. 받은 메일에서 링크를 클릭해주세요.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50">
       {/* dim overlay */}
@@ -216,10 +254,14 @@ export default function LoginModal({ open, onClose }: Props) {
         <div className="relative w-full max-w-sm rounded-xl bg-background p-6 shadow-lg">
           {/* 상단 네비 */}
           <div className="absolute left-5 top-5 flex items-center gap-2">
-            {step === "signup" && (
+            {step !== "login" && (
               <button
                 type="button"
-                onClick={() => setStep("login")}
+                onClick={() => {
+                  setStep("login");
+                  setError(null);
+                  setNotice(null);
+                }}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft size={20} />
@@ -239,13 +281,17 @@ export default function LoginModal({ open, onClose }: Props) {
           <div className="my-6 flex flex-col items-center">
             <Image
               src="/logo.svg"
-              alt="Horok Tech"
+              alt="c.horok"
               width={60}
               height={60}
               style={{ width: "auto", height: "auto" }}
             />
             <h2 className="text-lg font-bold mt-2">
-              {step === "login" ? "Horok Tech" : "회원가입"}
+              {step === "login"
+                ? "c.horok"
+                : step === "signup"
+                  ? "회원가입"
+                  : "비밀번호를 잊으셨나요?"}
             </h2>
           </div>
 
@@ -284,6 +330,21 @@ export default function LoginModal({ open, onClose }: Props) {
                   {loading ? "로그인 중..." : "로그인"}
                 </button>
               </form>
+
+              <div className="mt-3 flex justify-center text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("magicLink");
+                    setRecoveryEmail(email);
+                    setError(null);
+                    setNotice(null);
+                  }}
+                  className="hover:text-foreground"
+                >
+                  비밀번호를 잊으셨나요?
+                </button>
+              </div>
 
               <div className="mt-6 space-y-3">
                 <p className="text-center text-xs text-muted-foreground">
@@ -448,6 +509,38 @@ export default function LoginModal({ open, onClose }: Props) {
                 className="mt-4 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {loading ? "가입 중..." : "회원가입"}
+              </button>
+            </form>
+          )}
+
+          {step === "magicLink" && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMagicLink();
+              }}
+              className="space-y-3"
+            >
+              <input
+                value={recoveryEmail}
+                onChange={(e) => setRecoveryEmail(e.target.value)}
+                placeholder="가입한 이메일"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                입력한 이메일로 로그인 링크를 보내드립니다. 메일의 링크를
+                클릭하면 바로 로그인됩니다.
+              </p>
+
+              {error && <p className="text-xs text-red-500">{error}</p>}
+              {notice && <p className="text-xs text-green-600">{notice}</p>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {loading ? "전송 중..." : "로그인 링크 보내기"}
               </button>
             </form>
           )}

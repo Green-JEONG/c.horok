@@ -48,6 +48,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: String(user.id),
           email: user.email,
           name: user.name ?? undefined,
+          image: user.image ?? undefined,
+          oauthImage: user.oauth_image ?? undefined,
           role: user.role,
           provider: user.provider,
         };
@@ -126,7 +128,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
-      if (!token.userId && typeof token.email === "string") {
+      if (
+        typeof token.email === "string" &&
+        (!token.userId ||
+          token.picture === undefined ||
+          token.oauthImage === undefined)
+      ) {
         const dbUser = await findUserByEmail(token.email);
         if (dbUser) {
           token.userId = dbUser.id;

@@ -128,6 +128,17 @@ export async function findUserByName(name: string, excludeUserId?: string) {
   return user ? mapUser(user) : null;
 }
 
+export async function findUserByEmailAndName(email: string, name: string) {
+  const user = await prisma.user.findFirst({
+    where: {
+      email,
+      name: { equals: name, mode: "insensitive" },
+    },
+  });
+
+  return user ? mapUser(user) : null;
+}
+
 export async function getUserIdByEmail(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
@@ -164,6 +175,18 @@ export async function createUser(params: {
       role,
       provider: "credentials",
     },
+  });
+
+  return mapUser(user);
+}
+
+export async function updateUserPasswordById(
+  userId: string,
+  passwordHash: string,
+) {
+  const user = await prisma.user.update({
+    where: { id: BigInt(userId) },
+    data: { password: passwordHash },
   });
 
   return mapUser(user);
