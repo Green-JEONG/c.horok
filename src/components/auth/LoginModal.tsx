@@ -15,7 +15,7 @@ type Props = {
   onClose: () => void;
 };
 
-type AuthStep = "login" | "signup" | "findId" | "resetPassword";
+type AuthStep = "login" | "signup" | "magicLink";
 
 export default function LoginModal({ open, onClose }: Props) {
   const [step, setStep] = useState<AuthStep>("login");
@@ -32,10 +32,7 @@ export default function LoginModal({ open, onClose }: Props) {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
-  const [recoveryName, setRecoveryName] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
-  const [recoveryPassword, setRecoveryPassword] = useState("");
-  const [recoveryPasswordConfirm, setRecoveryPasswordConfirm] = useState("");
   const signupEmailAvailability = useEmailAvailability({
     email: signupEmail,
     enabled: open && step === "signup",
@@ -77,19 +74,6 @@ export default function LoginModal({ open, onClose }: Props) {
     !signupPasswordConfirm ||
     !isSignupPasswordValid ||
     !isSignupPasswordMatched;
-  const recoveryPasswordValidationMessage = recoveryPassword
-    ? validatePassword(recoveryPassword)
-    : null;
-  const isRecoveryPasswordValid = !recoveryPasswordValidationMessage;
-  const isRecoveryPasswordMatched =
-    Boolean(recoveryPassword) &&
-    Boolean(recoveryPasswordConfirm) &&
-    isRecoveryPasswordValid &&
-    recoveryPassword === recoveryPasswordConfirm;
-  const isRecoveryPasswordMismatch =
-    Boolean(recoveryPasswordConfirm) &&
-    isRecoveryPasswordValid &&
-    recoveryPassword !== recoveryPasswordConfirm;
 
   const handleClose = useCallback(() => {
     onClose();
@@ -100,10 +84,7 @@ export default function LoginModal({ open, onClose }: Props) {
     setSignupName("");
     setSignupPassword("");
     setSignupPasswordConfirm("");
-    setRecoveryName("");
     setRecoveryEmail("");
-    setRecoveryPassword("");
-    setRecoveryPasswordConfirm("");
     setError(null);
     setNotice(null);
   }, [onClose]);
@@ -220,9 +201,9 @@ export default function LoginModal({ open, onClose }: Props) {
     setNotice("회원가입이 완료되었습니다. 로그인해주세요.");
   }
 
-  async function handleFindId() {
-    if (!recoveryName.trim()) {
-      setError("닉네임을 입력해주세요.");
+  async function handleSendMagicLink() {
+    if (!recoveryEmail.trim()) {
+      setError("이메일을 입력해주세요.");
       return;
     }
 
@@ -231,62 +212,11 @@ export default function LoginModal({ open, onClose }: Props) {
     setNotice(null);
 
     try {
-      const params = new URLSearchParams({ name: recoveryName.trim() });
-      const res = await fetch(`/api/users/find-email?${params.toString()}`);
-      const data = (await res.json().catch(() => ({}))) as {
-        email?: string;
-        message?: string;
-      };
-
-      if (!res.ok) {
-        setError(data.message ?? "아이디 찾기에 실패했습니다.");
-        return;
-      }
-
-      setNotice(
-        data.email
-          ? `가입한 아이디는 ${data.email} 입니다.`
-          : (data.message ?? "가입한 아이디를 찾았습니다."),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleResetPassword() {
-    if (!recoveryEmail.trim() || !recoveryName.trim()) {
-      setError("아이디와 닉네임을 입력해주세요.");
-      return;
-    }
-
-    if (!recoveryPassword || !recoveryPasswordConfirm) {
-      setError("새 비밀번호를 모두 입력해주세요.");
-      return;
-    }
-
-    if (recoveryPassword !== recoveryPasswordConfirm) {
-      setError("새 비밀번호가 일치하지 않습니다.");
-      return;
-    }
-
-    const passwordValidationMessage = validatePassword(recoveryPassword);
-    if (passwordValidationMessage) {
-      setError(passwordValidationMessage);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setNotice(null);
-
-    try {
-      const res = await fetch("/api/users/reset-password", {
+      const res = await fetch("/api/auth/magic-link/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: recoveryEmail.trim(),
-          name: recoveryName.trim(),
-          newPassword: recoveryPassword,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -294,19 +224,13 @@ export default function LoginModal({ open, onClose }: Props) {
       };
 
       if (!res.ok) {
-        setError(data.message ?? "비밀번호 재설정에 실패했습니다.");
+        setError(data.message ?? "로그인 링크 전송에 실패했습니다.");
         return;
       }
 
-      setStep("login");
-      setEmail(recoveryEmail.trim());
-      setPassword("");
-      setRecoveryName("");
-      setRecoveryEmail("");
-      setRecoveryPassword("");
-      setRecoveryPasswordConfirm("");
       setNotice(
-        data.message ?? "비밀번호가 재설정되었습니다. 다시 로그인해주세요.",
+        data.message ??
+          "로그인 링크를 메일로 보내드렸습니다. 받은 메일에서 링크를 클릭해주세요.",
       );
     } finally {
       setLoading(false);
@@ -357,19 +281,17 @@ export default function LoginModal({ open, onClose }: Props) {
           <div className="my-6 flex flex-col items-center">
             <Image
               src="/logo.svg"
-              alt="Horok Tech"
+              alt="c.horok"
               width={60}
               height={60}
               style={{ width: "auto", height: "auto" }}
             />
             <h2 className="text-lg font-bold mt-2">
               {step === "login"
-                ? "Horok Tech"
+                ? "c.horok"
                 : step === "signup"
                   ? "회원가입"
-                  : step === "findId"
-                    ? "아이디 찾기"
-                    : "비밀번호 재설정"}
+                  : "비밀번호를 잊으셨나요?"}
             </h2>
           </div>
 
@@ -409,30 +331,18 @@ export default function LoginModal({ open, onClose }: Props) {
                 </button>
               </form>
 
-              <div className="mt-3 flex justify-center gap-3 text-xs text-muted-foreground">
+              <div className="mt-3 flex justify-center text-xs text-muted-foreground">
                 <button
                   type="button"
                   onClick={() => {
-                    setStep("findId");
-                    setError(null);
-                    setNotice(null);
-                  }}
-                  className="hover:text-foreground"
-                >
-                  아이디 찾기
-                </button>
-                <span>/</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep("resetPassword");
+                    setStep("magicLink");
                     setRecoveryEmail(email);
                     setError(null);
                     setNotice(null);
                   }}
                   className="hover:text-foreground"
                 >
-                  비밀번호 찾기
+                  비밀번호를 잊으셨나요?
                 </button>
               </div>
 
@@ -603,23 +513,23 @@ export default function LoginModal({ open, onClose }: Props) {
             </form>
           )}
 
-          {step === "findId" && (
+          {step === "magicLink" && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleFindId();
+                handleSendMagicLink();
               }}
               className="space-y-3"
             >
               <input
-                value={recoveryName}
-                onChange={(e) => setRecoveryName(e.target.value)}
-                placeholder="가입한 닉네임"
+                value={recoveryEmail}
+                onChange={(e) => setRecoveryEmail(e.target.value)}
+                placeholder="가입한 이메일"
                 className="w-full rounded-md border px-3 py-2 text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                입력한 닉네임과 일치하는 계정의 아이디를 일부 마스킹해
-                보여줍니다.
+                입력한 이메일로 로그인 링크를 보내드립니다. 메일의 링크를
+                클릭하면 바로 로그인됩니다.
               </p>
 
               {error && <p className="text-xs text-red-500">{error}</p>}
@@ -630,75 +540,7 @@ export default function LoginModal({ open, onClose }: Props) {
                 disabled={loading}
                 className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
-                {loading ? "확인 중..." : "아이디 찾기"}
-              </button>
-            </form>
-          )}
-
-          {step === "resetPassword" && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleResetPassword();
-              }}
-              className="space-y-3"
-            >
-              <input
-                value={recoveryEmail}
-                onChange={(e) => setRecoveryEmail(e.target.value)}
-                placeholder="아이디 (이메일)"
-                className="w-full rounded-md border px-3 py-2 text-sm"
-              />
-              <input
-                value={recoveryName}
-                onChange={(e) => setRecoveryName(e.target.value)}
-                placeholder="가입한 닉네임"
-                className="w-full rounded-md border px-3 py-2 text-sm"
-              />
-              <input
-                type="password"
-                value={recoveryPassword}
-                onChange={(e) => setRecoveryPassword(e.target.value)}
-                placeholder="새 비밀번호"
-                className="w-full rounded-md border px-3 py-2 text-sm"
-              />
-              {recoveryPasswordValidationMessage && (
-                <p className="text-xs text-red-500">
-                  {recoveryPasswordValidationMessage}
-                </p>
-              )}
-              <input
-                type="password"
-                value={recoveryPasswordConfirm}
-                onChange={(e) => setRecoveryPasswordConfirm(e.target.value)}
-                placeholder="새 비밀번호 확인"
-                className="w-full rounded-md border px-3 py-2 text-sm"
-              />
-              {Boolean(recoveryPasswordConfirm) && !isRecoveryPasswordValid && (
-                <p className="text-xs text-red-500">
-                  비밀번호 길이를 먼저 맞춰주세요.
-                </p>
-              )}
-              {isRecoveryPasswordMismatch && (
-                <p className="text-xs text-red-500">
-                  새 비밀번호가 일치하지 않습니다.
-                </p>
-              )}
-              {isRecoveryPasswordMatched && (
-                <p className="text-xs text-green-600">
-                  새 비밀번호가 일치합니다.
-                </p>
-              )}
-
-              {error && <p className="text-xs text-red-500">{error}</p>}
-              {notice && <p className="text-xs text-green-600">{notice}</p>}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-              >
-                {loading ? "재설정 중..." : "비밀번호 재설정"}
+                {loading ? "전송 중..." : "로그인 링크 보내기"}
               </button>
             </form>
           )}
