@@ -243,9 +243,7 @@ export default function LoginModal({ open, onClose }: Props) {
         return;
       }
 
-      setNotice(
-        "로그인 링크를 메일로 보내드렸습니다. 받은 메일에서 링크를 클릭해주세요.",
-      );
+      setNotice("로그인 링크 전송 완료!");
     } finally {
       setLoading(false);
     }
@@ -333,8 +331,12 @@ export default function LoginModal({ open, onClose }: Props) {
                   className="w-full rounded-md border px-3 py-2 text-sm"
                 />
 
-                {error && <p className="text-xs text-red-500">{error}</p>}
-                {notice && <p className="text-xs text-green-600">{notice}</p>}
+                {error && (
+                  <p className="text-center text-xs text-red-500">{error}</p>
+                )}
+                {notice && (
+                  <p className="text-center text-xs text-green-600">{notice}</p>
+                )}
 
                 <button
                   type="submit"
@@ -514,8 +516,12 @@ export default function LoginModal({ open, onClose }: Props) {
                 <p className="text-xs text-green-600">비밀번호가 일치합니다.</p>
               )}
 
-              {error && <p className="text-xs text-red-500">{error}</p>}
-              {notice && <p className="text-xs text-green-600">{notice}</p>}
+              {error && (
+                <p className="text-center text-xs text-red-500">{error}</p>
+              )}
+              {notice && (
+                <p className="text-center text-xs text-green-600">{notice}</p>
+              )}
 
               <button
                 type="submit"
@@ -541,13 +547,16 @@ export default function LoginModal({ open, onClose }: Props) {
                 placeholder="가입한 이메일"
                 className="w-full rounded-md border px-3 py-2 text-sm"
               />
-              <p className="text-xs text-muted-foreground">
-                입력한 이메일로 로그인 링크를 보내드립니다. 메일의 링크를
-                클릭하면 바로 로그인됩니다.
+              <p className="text-xs text-muted-foreground text-center mb-10">
+                입력한 이메일로 로그인 링크를 보내드립니다.
               </p>
 
-              {error && <p className="text-xs text-red-500">{error}</p>}
-              {notice && <p className="text-xs text-green-600">{notice}</p>}
+              {error && (
+                <p className="text-center text-xs text-red-500">{error}</p>
+              )}
+              {notice && (
+                <p className="text-center text-xs text-green-600">{notice}</p>
+              )}
 
               <button
                 type="submit"
