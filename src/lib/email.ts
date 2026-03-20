@@ -1,10 +1,6 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import type { NodemailerConfig } from "next-auth/providers/nodemailer";
 import { createTransport } from "nodemailer";
 import { findUserByEmail } from "@/lib/db";
-
-const LOGO_CID = "horok-logo";
 
 function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -52,7 +48,6 @@ export function getSmtpEmailConfig() {
       const subject = `[c.horok] ${subjectName} 님 로그인 링크가 준비됐어요!`;
       const text = createLoginEmailText({ url, host });
       const html = createLoginEmailHtml({ identifier, url, host });
-      const logoAttachment = await createLogoAttachment();
 
       await transport.sendMail({
         to: identifier,
@@ -60,7 +55,6 @@ export function getSmtpEmailConfig() {
         subject,
         text,
         html,
-        attachments: logoAttachment ? [logoAttachment] : [],
       });
     },
   };
@@ -92,6 +86,7 @@ function createLoginEmailHtml({
   const escapedIdentifier = escapeHtml(identifier);
   const escapedUrl = escapeHtml(url);
   const escapedHost = escapeHtml(host);
+  const escapedLogoUrl = getEscapedEmailLogoUrl();
   const fontFamily =
     "Pretendard Variable, Pretendard, Apple SD Gothic Neo, Malgun Gothic, 'Segoe UI', sans-serif";
 
@@ -100,13 +95,17 @@ function createLoginEmailHtml({
       <div style="padding:32px 16px;background:linear-gradient(180deg,#fff7ed 0%,#f8f8f7 38%,#f8f8f7 100%);font-family:${fontFamily};">
         <div style="max-width:560px;margin:0 auto;">
           <div style="margin-bottom:18px;text-align:center;">
-            <img
-              src="cid:${LOGO_CID}"
+            ${
+              escapedLogoUrl
+                ? `<img
+              src="${escapedLogoUrl}"
               alt="horok logo"
               width="76"
               height="76"
               style="display:block;width:76px;height:76px;margin:0 auto 0;"
-            />
+            />`
+                : ""
+            }
             <div style="font-size:30px;line-height:1;font-weight:800;letter-spacing:-0.04em;color:black;">
               c.horok
             </div>
@@ -187,19 +186,12 @@ async function getLoginMailSubjectName(identifier: string) {
   return sanitizeEmailSubjectValue(candidate);
 }
 
-async function createLogoAttachment() {
-  const svgPath = path.join(process.cwd(), "public", "logo.svg");
-  const svg = await readFile(svgPath, "utf8");
-  const match = svg.match(/data:image\/png;base64,([^"]+)/);
+function getEscapedEmailLogoUrl() {
+  const logoUrl = process.env.EMAIL_LOGO_URL?.trim();
 
-  if (!match?.[1]) {
+  if (!logoUrl) {
     return null;
   }
 
-  return {
-    filename: "horok-logo.png",
-    content: Buffer.from(match[1], "base64"),
-    cid: LOGO_CID,
-    contentType: "image/png",
-  };
+  return escapeHtml(logoUrl);
 }
