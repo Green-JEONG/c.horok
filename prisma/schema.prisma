@@ -164,3 +164,12 @@ model Notification {
   @@index([userId])
   @@map("notifications")
 }
+
+model VerificationToken {
+  identifier String   @db.VarChar(255)
+  token      String   @db.VarChar(255)
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}

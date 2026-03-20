@@ -3,17 +3,28 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
-import { findUserByEmail, upsertOAuthUser } from "@/lib/db";
+import Nodemailer from "next-auth/providers/nodemailer";
+import { authAdapter } from "@/lib/auth-adapter";
+import { findUserByEmail } from "@/lib/db";
+import { getSmtpEmailConfig } from "@/lib/email";
 import { env } from "@/lib/env";
 
+const smtpEmailConfig = getSmtpEmailConfig();
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: authAdapter,
+  session: {
+    strategy: "jwt",
+  },
   providers: [
     GitHub({
+      allowDangerousEmailAccountLinking: true,
       clientId: env.GITHUB_CLIENT_ID,
       clientSecret: env.GITHUB_CLIENT_SECRET,
     }),
 
     Google({
+      allowDangerousEmailAccountLinking: true,
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
     }),
@@ -55,36 +66,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    Nodemailer({
+      id: "nodemailer",
+      ...smtpEmailConfig,
+    }),
   ],
 
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account?.provider === "github" || account?.provider === "google") {
-        const email = user.email;
-        const providerId =
-          account.provider === "github"
-            ? String(profile?.id)
-            : String(profile?.sub);
-
-        if (!email || !providerId) return false;
-
-        const dbUser = await upsertOAuthUser({
-          email,
-          name: user.name ?? null,
-          image: user.image ?? null,
-          provider: account.provider,
-          providerId,
-        });
-
-        if (!dbUser) return false;
-
-        user.dbUserId = String(dbUser.id);
-        user.image = dbUser.image ?? user.image;
-        user.oauthImage = dbUser.oauth_image;
-        user.role = dbUser.role;
-        user.provider = dbUser.provider;
-      }
-
+    async signIn() {
       return true;
     },
 
