@@ -10,6 +10,7 @@ import AuthSessionProvider from "@/components/providers/SessionProvider";
 import RecommendedCategories from "@/components/home/RecommendedCategories";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.horok.co.kr"),
   title: "호록(Horok) - 나만의 포스트",
   description: "호록이와 다양한 이야기를 나누고 기록해 보세요.",
   openGraph: {
