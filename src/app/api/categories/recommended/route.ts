@@ -26,6 +26,7 @@ export async function GET() {
       .map((category) => ({
         id: Number(category.id),
         name: category.name,
+        slug: category.slug,
         postCount: category._count.posts,
       }))
       .filter((category) => category.postCount > 0)

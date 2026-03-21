@@ -93,6 +93,73 @@ export async function searchPosts(
     .map(mapPost);
 }
 
+export async function getPostsByCategorySlug(
+  slug: string,
+  limit: number,
+  offset: number,
+  sort: SortType = DEFAULT_SORT,
+): Promise<{ categoryName: string | null; posts: DbPost[] }> {
+  const category = await prisma.category.findUnique({
+    where: { slug },
+    select: { name: true },
+  });
+
+  if (!category) {
+    return {
+      categoryName: null,
+      posts: [],
+    };
+  }
+
+  const posts = await prisma.post.findMany({
+    where: {
+      isDeleted: false,
+      category: {
+        slug,
+      },
+    },
+    include: {
+      user: { select: { name: true } },
+      category: { select: { name: true } },
+      views: { select: { viewCount: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
+    },
+  });
+
+  return {
+    categoryName: category.name,
+    posts: posts
+      .sort((a, b) => {
+        return comparePostMetrics(
+          sort,
+          {
+            id: a.id,
+            createdAt: a.createdAt,
+            likeCount: a._count.likes,
+            commentsCount: a._count.comments,
+            viewCount: Number(a.views?.viewCount ?? 0),
+          },
+          {
+            id: b.id,
+            createdAt: b.createdAt,
+            likeCount: b._count.likes,
+            commentsCount: b._count.comments,
+            viewCount: Number(b.views?.viewCount ?? 0),
+          },
+        );
+      })
+      .slice(offset, offset + limit)
+      .map(mapPost),
+  };
+}
+
 export async function getMyPosts(
   userId: number,
   sort: SortType = DEFAULT_SORT,
