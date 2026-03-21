@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 type Category = {
   id: number;
   name: string;
+  slug: string;
   postCount: number;
 };
 
@@ -40,7 +41,7 @@ export default function RecommendedCategories() {
               key={c.id}
               type="button"
               onClick={() =>
-                router.push(`/search?q=${encodeURIComponent(c.name)}`)
+                router.push(`/search?category=${encodeURIComponent(c.slug)}`)
               }
               className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
             >
