@@ -5,7 +5,7 @@ import { createPost, deletePost, updatePost } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
-  title: "Admin | c.Horok",
+  title: "Admin | c.horok",
   description: "관리자 페이지",
 };
 

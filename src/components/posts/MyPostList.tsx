@@ -36,21 +36,26 @@ export default async function MyPostList({ sort }: { sort?: string }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
-      {posts.map((post) => (
-        <PostCard
-          key={post.id}
-          id={post.id}
-          title={post.title}
-          description={post.content}
-          thumbnail={post.thumbnail}
-          category={post.category_name}
-          author={post.author_name}
-          likes={post.likes_count}
-          comments={post.comments_count}
-          createdAt={post.created_at}
-        />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
+        {posts.map((post) => (
+          <PostCard
+            key={post.id}
+            id={post.id}
+            title={post.title}
+            description={post.content}
+            thumbnail={post.thumbnail}
+            category={post.category_name}
+            author={post.author_name}
+            likes={post.likes_count}
+            comments={post.comments_count}
+            createdAt={post.created_at}
+          />
+        ))}
+      </div>
+      <p className="py-6 text-center text-xs text-muted-foreground">
+        마지막 게시물입니다
+      </p>
+    </>
   );
 }

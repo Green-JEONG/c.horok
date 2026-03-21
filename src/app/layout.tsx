@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     title: "호록(Horok) - 나만의 포스트",
     description: "호록이와 다양한 이야기를 나누고 기록해 보세요.",
     url: "https://www.horok.co.kr",
-    siteName: "Horok-dev",
+    siteName: "c.Horok",
     images: [
       {
         url: "/logo.svg",
@@ -74,7 +74,7 @@ export default function RootLayout({
 
                 {/* Footer */}
                 <footer className="mt-auto text-center text-xs text-muted-foreground">
-                  © 2026 | c.Horok | All rights reserved.
+                  © 2026 | c.horok | All rights reserved.
                 </footer>
               </div>
             </aside>
