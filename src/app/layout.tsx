@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
+import HorokChat from "@/components/chat/HorokChat";
+import RecommendedCategories from "@/components/home/RecommendedCategories";
 import BannerBar from "@/components/layout/BannerBar";
 import Header from "@/components/layout/Header";
 import LoginWelcomeToast from "@/components/layout/LoginWelcomeToast";
+import AuthSessionProvider from "@/components/providers/SessionProvider";
 import PopularPosts from "@/components/sidebar/PopularPosts";
 // import RecommendedKeywords from "@/components/sidebar/RecommendedKeywords";
 import "@/app/globals.css";
-import AuthSessionProvider from "@/components/providers/SessionProvider";
-import RecommendedCategories from "@/components/home/RecommendedCategories";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.horok.co.kr"),
@@ -96,6 +97,7 @@ export default function RootLayout({
               {children}
             </section>
           </main>
+          <HorokChat />
         </AuthSessionProvider>
       </body>
     </html>

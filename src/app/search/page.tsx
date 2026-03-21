@@ -66,6 +66,10 @@ export default async function SearchPage({ searchParams }: Props) {
             />
           ))}
         </div>
+
+        <p className="py-6 text-center text-xs text-muted-foreground">
+          마지막 게시물입니다
+        </p>
       </div>
     );
   }
@@ -100,6 +104,10 @@ export default async function SearchPage({ searchParams }: Props) {
           />
         ))}
       </div>
+
+      <p className="py-6 text-center text-xs text-muted-foreground">
+        마지막 게시물입니다
+      </p>
     </div>
   );
 }
