@@ -2,53 +2,112 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { DbPost } from "@/lib/db";
 import { parseSortType, type SortType } from "@/lib/post-sort";
 import PostCard from "./PostCard";
 
 const PAGE_SIZE = 12;
 
+type PostListItem = {
+  id: number;
+  title: string;
+  content: string;
+  thumbnail: string | null;
+  created_at: Date | string;
+  author_name: string;
+  category_name: string;
+  likes_count: number;
+  comments_count: number;
+};
+
+type Props = {
+  initialPosts: PostListItem[];
+  endpoint: string;
+  initialSort?: SortType;
+  responseKey?: string;
+  gridClassName?: string;
+  emptyMessage?: string;
+  endMessage?: string;
+  loadingMessage?: string;
+  syncSortWithSearchParams?: boolean;
+  autoloadFirstPage?: boolean;
+};
+
+function readPostsFromPayload(
+  payload: unknown,
+  responseKey?: string,
+): PostListItem[] {
+  if (Array.isArray(payload)) {
+    return payload as PostListItem[];
+  }
+
+  if (
+    responseKey &&
+    payload &&
+    typeof payload === "object" &&
+    responseKey in payload
+  ) {
+    const value = payload[responseKey as keyof typeof payload];
+    return Array.isArray(value) ? (value as PostListItem[]) : [];
+  }
+
+  return [];
+}
+
 export default function PostListInfinite({
   initialPosts,
-  initialSort,
-}: {
-  initialPosts: DbPost[];
-  initialSort: SortType;
-}) {
-  const [posts, setPosts] = useState<DbPost[]>(initialPosts);
-  const [page, setPage] = useState(2);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  endpoint,
+  initialSort = "latest",
+  responseKey,
+  gridClassName = "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4",
+  emptyMessage = "게시물이 없습니다.",
+  endMessage = "마지막 게시물입니다",
+  loadingMessage = "불러오는 중...",
+  syncSortWithSearchParams = false,
+  autoloadFirstPage = false,
+}: Props) {
   const searchParams = useSearchParams();
-  const sort = parseSortType(searchParams.get("sort") ?? initialSort);
+  const sort = syncSortWithSearchParams
+    ? parseSortType(searchParams.get("sort") ?? initialSort)
+    : initialSort;
+
+  const [posts, setPosts] = useState<PostListItem[]>(initialPosts);
+  const [page, setPage] = useState(initialPosts.length > 0 ? 2 : 1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(initialPosts.length >= PAGE_SIZE);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(!autoloadFirstPage);
 
   const loaderRef = useRef<HTMLDivElement | null>(null);
   const fetchingRef = useRef(false);
 
   useEffect(() => {
     setPosts(initialPosts);
-    setPage(2);
-    setHasMore(initialPosts.length >= PAGE_SIZE);
+    setPage(initialPosts.length > 0 ? 2 : 1);
+    setHasMore(initialPosts.length >= PAGE_SIZE || autoloadFirstPage);
+    setHasLoadedOnce(!autoloadFirstPage || initialPosts.length > 0);
     fetchingRef.current = false;
-  }, [initialPosts]);
+  }, [autoloadFirstPage, initialPosts]);
 
   useEffect(() => {
-    if (!loaderRef.current) return;
+    const loadMore = async () => {
+      if (loading || !hasMore || fetchingRef.current) return;
 
-    const observer = new IntersectionObserver(
-      async ([entry]) => {
-        if (!entry.isIntersecting || loading || !hasMore || fetchingRef.current)
-          return;
+      fetchingRef.current = true;
+      setLoading(true);
 
-        fetchingRef.current = true;
-        setLoading(true);
+      try {
+        const url = new URL(endpoint, window.location.origin);
+        url.searchParams.set("page", String(page));
 
-        const res = await fetch(`/api/posts?page=${page}&sort=${sort}`);
-        const data: DbPost[] = await res.json();
+        if (syncSortWithSearchParams) {
+          url.searchParams.set("sort", sort);
+        }
+
+        const res = await fetch(url.toString());
+        const data = readPostsFromPayload(await res.json(), responseKey);
 
         setPosts((prev) => {
-          const existingIds = new Set(prev.map((p) => p.id));
-          const newPosts = data.filter((p) => !existingIds.has(p.id));
+          const existingIds = new Set(prev.map((post) => post.id));
+          const newPosts = data.filter((post) => !existingIds.has(post.id));
 
           if (newPosts.length < PAGE_SIZE) {
             setHasMore(false);
@@ -57,47 +116,80 @@ export default function PostListInfinite({
           return [...prev, ...newPosts];
         });
 
-        setPage((p) => p + 1);
+        setPage((current) => current + 1);
+        setHasLoadedOnce(true);
+      } finally {
         setLoading(false);
         fetchingRef.current = false;
+      }
+    };
+
+    if (autoloadFirstPage && !hasLoadedOnce && posts.length === 0) {
+      void loadMore();
+      return;
+    }
+
+    if (!loaderRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        void loadMore();
       },
       { rootMargin: "300px" },
     );
 
     observer.observe(loaderRef.current);
     return () => observer.disconnect();
-  }, [page, loading, hasMore, sort]);
+  }, [
+    autoloadFirstPage,
+    endpoint,
+    hasLoadedOnce,
+    hasMore,
+    loading,
+    page,
+    posts.length,
+    responseKey,
+    sort,
+    syncSortWithSearchParams,
+  ]);
+
+  if (!loading && posts.length === 0 && !hasMore && hasLoadedOnce) {
+    return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
+  }
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4">
-        {posts.map((post) => (
-          <PostCard
-            key={post.id}
-            id={post.id}
-            title={post.title}
-            description={post.content}
-            thumbnail={post.thumbnail}
-            category={post.category_name}
-            author={post.author_name}
-            likes={post.likes_count}
-            comments={post.comments_count}
-            createdAt={post.created_at}
-          />
-        ))}
-      </div>
+      {posts.length > 0 && (
+        <div className={gridClassName}>
+          {posts.map((post) => (
+            <PostCard
+              key={post.id}
+              id={post.id}
+              title={post.title}
+              description={post.content}
+              thumbnail={post.thumbnail}
+              category={post.category_name}
+              author={post.author_name}
+              likes={post.likes_count}
+              comments={post.comments_count}
+              createdAt={new Date(post.created_at)}
+            />
+          ))}
+        </div>
+      )}
 
       {hasMore && <div ref={loaderRef} className="h-16 w-full" />}
 
       {loading && (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          불러오는 중...
+          {loadingMessage}
         </p>
       )}
 
-      {!hasMore && (
+      {!hasMore && posts.length > 0 && (
         <p className="py-6 text-center text-xs text-muted-foreground">
-          마지막 게시글입니다
+          {endMessage}
         </p>
       )}
     </>

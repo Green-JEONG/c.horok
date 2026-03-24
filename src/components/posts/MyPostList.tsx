@@ -1,8 +1,8 @@
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-import PostCard from "@/components/posts/PostCard";
 import { getUserIdByEmail } from "@/lib/db";
 import { parseSortType } from "@/lib/post-sort";
 import { getMyPosts } from "@/lib/queries";
+import PostListInfinite from "./PostListInfinite";
 
 export default async function MyPostList({ sort }: { sort?: string }) {
   const session = await auth();
@@ -25,7 +25,8 @@ export default async function MyPostList({ sort }: { sort?: string }) {
     );
   }
 
-  const posts = await getMyPosts(userId, parseSortType(sort));
+  const parsedSort = parseSortType(sort);
+  const posts = await getMyPosts(userId, parsedSort, 12, 0);
 
   if (posts.length === 0) {
     return (
@@ -36,26 +37,13 @@ export default async function MyPostList({ sort }: { sort?: string }) {
   }
 
   return (
-    <>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
-        {posts.map((post) => (
-          <PostCard
-            key={post.id}
-            id={post.id}
-            title={post.title}
-            description={post.content}
-            thumbnail={post.thumbnail}
-            category={post.category_name}
-            author={post.author_name}
-            likes={post.likes_count}
-            comments={post.comments_count}
-            createdAt={post.created_at}
-          />
-        ))}
-      </div>
-      <p className="py-6 text-center text-xs text-muted-foreground">
-        마지막 게시물입니다
-      </p>
-    </>
+    <PostListInfinite
+      initialPosts={posts}
+      endpoint="/api/mypage/posts"
+      initialSort={parsedSort}
+      syncSortWithSearchParams
+      gridClassName="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3"
+      emptyMessage="아직 작성한 게시글이 없습니다."
+    />
   );
 }

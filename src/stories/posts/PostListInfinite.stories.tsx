@@ -25,5 +25,6 @@ export default meta;
 export const Default: StoryObj<typeof PostListInfinite> = {
   args: {
     initialPosts: mockPosts,
+    endpoint: "/api/posts",
   },
 };

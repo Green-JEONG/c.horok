@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { getCategoryBySlug, getPostsByCategory } from "@/lib/categories";
+import { parseSortType } from "@/lib/post-sort";
+import { getPostsByCategorySlug } from "@/lib/queries";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
-
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? "1");
-  const limit = Number(url.searchParams.get("limit") ?? "10");
+  const limit = Number(url.searchParams.get("limit") ?? "12");
+  const sort = parseSortType(url.searchParams.get("sort"));
 
   if (Number.isNaN(page) || Number.isNaN(limit) || page < 1 || limit < 1) {
     return NextResponse.json(
@@ -18,26 +19,29 @@ export async function GET(
     );
   }
 
-  const category = await getCategoryBySlug(slug);
-  if (!category) {
+  const offset = (page - 1) * limit;
+  const { categoryName, posts } = await getPostsByCategorySlug(
+    slug,
+    limit,
+    offset,
+    sort,
+  );
+
+  if (!categoryName) {
     return NextResponse.json(
       { message: "Category not found" },
       { status: 404 },
     );
   }
 
-  const { posts, total } = await getPostsByCategory({
-    categoryId: category.id,
-    page,
-    limit,
-  });
-
   return NextResponse.json({
-    category,
+    category: {
+      name: categoryName,
+      slug,
+    },
     pagination: {
       page,
       limit,
-      total,
     },
     posts,
   });

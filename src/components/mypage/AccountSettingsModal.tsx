@@ -381,7 +381,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-60">
+    <div className="fixed inset-0 z-[90]">
       {/* overlay */}
       <button
         type="button"

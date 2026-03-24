@@ -163,6 +163,8 @@ export async function getPostsByCategorySlug(
 export async function getMyPosts(
   userId: number,
   sort: SortType = DEFAULT_SORT,
+  limit?: number,
+  offset = 0,
 ): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
     where: {
@@ -204,12 +206,15 @@ export async function getMyPosts(
         },
       );
     })
+    .slice(offset, limit ? offset + limit : undefined)
     .map(mapPost);
 }
 
 export async function getLikedPosts(
   userId: number,
   sort: SortType = DEFAULT_SORT,
+  limit?: number,
+  offset = 0,
 ): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
     where: {
@@ -255,5 +260,6 @@ export async function getLikedPosts(
         },
       );
     })
+    .slice(offset, limit ? offset + limit : undefined)
     .map(mapPost);
 }

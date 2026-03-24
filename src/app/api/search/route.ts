@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { searchPosts } from "@/lib/db";
+import { parseSortType } from "@/lib/post-sort";
+import { searchPosts } from "@/lib/queries";
 import { normalizeQuery } from "@/lib/search";
 
 export async function GET(req: Request) {
@@ -10,10 +11,11 @@ export async function GET(req: Request) {
   if (!q) return NextResponse.json([]);
 
   const page = Number(searchParams.get("page") ?? 1);
+  const sort = parseSortType(searchParams.get("sort"));
   const limit = 12;
   const offset = (page - 1) * limit;
 
-  const rows = await searchPosts(q, limit, offset);
+  const rows = await searchPosts(q, limit, offset, sort);
 
   return NextResponse.json(rows);
 }

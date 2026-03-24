@@ -5,17 +5,19 @@ export const metadata: Metadata = {
   description: "게시글 검색 결과 페이지",
 };
 
-import PostCard from "@/components/posts/PostCard";
+import PostListInfinite from "@/components/posts/PostListInfinite";
+import { parseSortType } from "@/lib/post-sort";
 import { getPostsByCategorySlug, searchPosts } from "@/lib/queries";
 
 type Props = {
-  searchParams: Promise<{ q?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; sort?: string }>;
 };
 
 export default async function SearchPage({ searchParams }: Props) {
-  const { q, category } = await searchParams;
+  const { q, category, sort } = await searchParams;
   const categorySlug = category?.trim();
   const keyword = q?.trim();
+  const parsedSort = parseSortType(sort);
 
   if (!keyword && !categorySlug) {
     return (
@@ -28,6 +30,7 @@ export default async function SearchPage({ searchParams }: Props) {
       categorySlug,
       12,
       0,
+      parsedSort,
     );
 
     if (!categoryName) {
@@ -50,31 +53,19 @@ export default async function SearchPage({ searchParams }: Props) {
       <div className="space-y-4">
         <h2 className="text-sm font-semibold">#{categoryName}</h2>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              id={post.id}
-              title={post.title}
-              description={post.content}
-              thumbnail={post.thumbnail}
-              category={post.category_name}
-              author={post.author_name}
-              likes={post.likes_count}
-              comments={post.comments_count}
-              createdAt={post.created_at}
-            />
-          ))}
-        </div>
-
-        <p className="py-6 text-center text-xs text-muted-foreground">
-          마지막 게시물입니다
-        </p>
+        <PostListInfinite
+          initialPosts={posts}
+          endpoint={`/api/categories/${categorySlug}/posts`}
+          initialSort={parsedSort}
+          responseKey="posts"
+          syncSortWithSearchParams
+          emptyMessage={`“#${categoryName}”에 대한 게시글이 없습니다.`}
+        />
       </div>
     );
   }
 
-  const posts = await searchPosts(keyword ?? "", 12, 0);
+  const posts = await searchPosts(keyword ?? "", 12, 0, parsedSort);
 
   if (posts.length === 0) {
     return (
@@ -88,26 +79,13 @@ export default async function SearchPage({ searchParams }: Props) {
     <div className="space-y-4">
       <h2 className="text-sm font-semibold">{keyword}</h2>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {posts.map((post) => (
-          <PostCard
-            key={post.id}
-            id={post.id}
-            title={post.title}
-            description={post.content}
-            thumbnail={post.thumbnail}
-            category={post.category_name}
-            author={post.author_name}
-            likes={post.likes_count}
-            comments={post.comments_count}
-            createdAt={post.created_at}
-          />
-        ))}
-      </div>
-
-      <p className="py-6 text-center text-xs text-muted-foreground">
-        마지막 게시물입니다
-      </p>
+      <PostListInfinite
+        initialPosts={posts}
+        endpoint={`/api/search?q=${encodeURIComponent(keyword ?? "")}`}
+        initialSort={parsedSort}
+        syncSortWithSearchParams
+        emptyMessage={`“${keyword}”에 대한 검색 결과가 없습니다.`}
+      />
     </div>
   );
 }
