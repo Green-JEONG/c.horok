@@ -14,7 +14,15 @@ const SORT_LABEL: Record<SortType, string> = {
   comments: "댓글순",
 };
 
-export default function PostListHeader() {
+type Props = {
+  title?: string;
+  showWriteButton?: boolean;
+};
+
+export default function PostListHeader({
+  title: customTitle,
+  showWriteButton,
+}: Props = {}) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{
     top: number;
@@ -32,13 +40,17 @@ export default function PostListHeader() {
   const isFeedPage = pathname === "/feed" || pathname.startsWith("/feed/");
   const isLikesPage = pathname === "/likes" || pathname.startsWith("/likes/");
 
-  const title = category
-    ? `#${category}`
-    : isLikesPage
-      ? "좋아요"
-      : isFeedPage
-        ? "피드"
-        : "내 글";
+  const title =
+    customTitle ??
+    (category
+      ? `#${category}`
+      : isLikesPage
+        ? "좋아요"
+        : isFeedPage
+          ? "피드"
+          : "내 글");
+
+  const canShowWriteButton = showWriteButton ?? !isLikesPage;
 
   useEffect(() => {
     if (!open) {
@@ -109,7 +121,7 @@ export default function PostListHeader() {
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
 
       <div className="flex items-center gap-2">
-        {!isLikesPage ? <HomeWriteButton /> : null}
+        {canShowWriteButton ? <HomeWriteButton /> : null}
         <button
           ref={buttonRef}
           type="button"

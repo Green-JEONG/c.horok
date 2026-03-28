@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 import LoginWelcomeToast from "@/components/layout/LoginWelcomeToast";
 import AuthSessionProvider from "@/components/providers/SessionProvider";
 import PopularPosts from "@/components/sidebar/PopularPosts";
+import UserProfiles from "@/components/sidebar/UserProfiles";
 // import RecommendedKeywords from "@/components/sidebar/RecommendedKeywords";
 import "@/app/globals.css";
 
@@ -70,6 +71,7 @@ export default function RootLayout({
               {/* 세로 구분선 */}
               <div className="flex h-full px-6 flex-col border-r py-6">
                 <div className="space-y-8">
+                  <UserProfiles />
                   <PopularPosts />
                   {/* <RecommendedKeywords /> */}
                   <RecommendedCategories />

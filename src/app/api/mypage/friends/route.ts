@@ -21,6 +21,7 @@ export async function GET() {
             id: true,
             name: true,
             email: true,
+            image: true,
           },
         },
       },
@@ -31,7 +32,7 @@ export async function GET() {
         id: Number(row.friendUser.id),
         name: row.friendUser.name,
         email: row.friendUser.email,
-        image: null,
+        image: row.friendUser.image,
       })),
     );
   } catch (e) {
