@@ -17,7 +17,7 @@ function getColor(count: number) {
 const WEEKS = 36;
 const DAYS = WEEKS * 7;
 
-export default function ContributionGrid() {
+export default function ContributionGrid({ userId }: { userId?: number }) {
   const [data, setData] = useState<Contribution[]>([]);
 
   const map = useMemo(() => {
@@ -41,7 +41,15 @@ export default function ContributionGrid() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/users/contributions")
+    const params = new URLSearchParams();
+
+    if (userId) {
+      params.set("userId", String(userId));
+    }
+
+    const query = params.toString();
+
+    fetch(`/api/users/contributions${query ? `?${query}` : ""}`)
       .then(async (res) => {
         if (!res.ok) {
           console.error("API failed:", res.status);
@@ -57,7 +65,7 @@ export default function ContributionGrid() {
         console.error("fetch error:", err);
         setData([]);
       });
-  }, []);
+  }, [userId]);
 
   return (
     <div className="rounded-xl border bg-background p-3">

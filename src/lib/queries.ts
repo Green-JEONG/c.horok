@@ -160,7 +160,7 @@ export async function getPostsByCategorySlug(
   };
 }
 
-export async function getMyPosts(
+export async function getUserPosts(
   userId: number,
   sort: SortType = DEFAULT_SORT,
   limit?: number,
@@ -208,6 +208,13 @@ export async function getMyPosts(
     })
     .slice(offset, limit ? offset + limit : undefined)
     .map(mapPost);
+}
+
+export async function getMyPosts(
+  userId: number,
+  sort: SortType = DEFAULT_SORT,
+): Promise<DbPost[]> {
+  return getUserPosts(userId, sort);
 }
 
 export async function getLikedPosts(

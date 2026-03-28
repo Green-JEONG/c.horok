@@ -115,6 +115,14 @@ export async function findUserByEmail(email: string) {
   return user ? mapUser(user) : null;
 }
 
+export async function findUserById(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: BigInt(userId) },
+  });
+
+  return user ? mapUser(user) : null;
+}
+
 export async function findUserByName(name: string, excludeUserId?: string) {
   const excludeId = parseBigIntId(excludeUserId);
 
