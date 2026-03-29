@@ -1,11 +1,14 @@
-<img width="205" height="215" alt="c.horok_logo" src="https://github.com/user-attachments/assets/bfb7ba2d-724d-4c15-bcae-1be0d81c6ff2" />
+<div align="center">
+  <img width="205" height="215" alt="c.horok_logo" src="https://github.com/user-attachments/assets/bfb7ba2d-724d-4c15-bcae-1be0d81c6ff2" />
 
-<br>c.horok은 호록 컴퍼니의 기술 콘텐츠를 중심으로 운영하는 커뮤니티형 블로그 프로젝트입니다.
+  <br>c.horok은 호록 컴퍼니의 기술 콘텐츠를 중심으로 운영하는 커뮤니티형 블로그 프로젝트입니다.
+  
+</div>
 
 # 🧩 Version
 
 <details>
-<summary>🥚 v0.1.0</summary>
+<summary><s>🥚 v0.1.0</s></summary>
 
   > 기술 블로그
   
@@ -77,19 +80,32 @@
   ![Mar-29-2026 15-15-05](https://github.com/user-attachments/assets/1bf1aee7-6f73-4eae-9aae-975e9c66c9d3)
 
   2. 게시글
+
+  ![Mar-29-2026 15-44-19](https://github.com/user-attachments/assets/c7f363f6-2bb7-4771-a2a0-cfd5f02377ab)
+
   - 게시글 작성, 수정, 삭제(소프트 삭제)
+
+  ![Mar-29-2026 15-45-20](https://github.com/user-attachments/assets/16e92c60-9a2d-4db0-a9bc-e3f786fc47bb)
+
   - Markdown 기반 게시글 작성 및 렌더링
   - 썸네일 이미지 업로드
   - 조회수 집계
   - 알림 데이터 모델 구성
 
+  ![Mar-29-2026 15-46-43](https://github.com/user-attachments/assets/1862b8ed-e845-4200-8ccc-a08cb91ed583)
+
   3. 마이페이지
+
+  ![Mar-29-2026 15-47-28](https://github.com/user-attachments/assets/579ac8b7-6494-4f1d-82dc-aa32908e76bb)
+
   - 내가 작성한 글 목록
   - 내가 작성한 댓글 목록
   - 친구 목록
-  - 탭 쿼리스트링 기반 섹션 이동
 
   4. AI
+
+  ![Mar-29-2026 15-48-06](https://github.com/user-attachments/assets/53986a23-f4f5-4ad4-bfc3-454a1485a15e)
+
   - Google Generative AI 기반 Horok 챗봇
   - 우하단 플로팅 챗봇 UI
   - 스트리밍 응답 처리
