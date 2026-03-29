@@ -82,10 +82,10 @@ export default function HorokChat() {
 
   return (
     <div className="pointer-events-none fixed right-4 bottom-4 z-40 flex items-end justify-end sm:right-6 sm:bottom-6">
-      <div className="pointer-events-auto flex flex-col items-end gap-3">
+      <div className="relative flex flex-col items-end">
         <div
           className={cn(
-            "w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-[28px] border border-orange-100 bg-white transition-all duration-300 dark:border-orange-400/20 dark:bg-zinc-950",
+            "pointer-events-auto absolute right-0 bottom-[calc(100%+0.75rem)] w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-[28px] border border-orange-100 bg-white transition-all duration-300 dark:border-orange-400/20 dark:bg-zinc-950",
             isOpen
               ? "translate-y-0 scale-100 opacity-100"
               : "pointer-events-none translate-y-4 scale-95 opacity-0",
@@ -194,7 +194,7 @@ export default function HorokChat() {
         <button
           type="button"
           onClick={() => setIsOpen((open) => !open)}
-          className="group relative block size-[72px] transition hover:-translate-y-0.5"
+          className="pointer-events-auto group relative block size-[72px] transition hover:-translate-y-0.5"
           aria-label={isOpen ? "챗봇 접기" : "챗봇 열기"}
         >
           <Image
