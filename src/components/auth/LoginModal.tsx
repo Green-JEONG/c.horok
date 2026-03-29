@@ -2,6 +2,7 @@
 
 import { ArrowLeft, X } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { markLoginWelcomeToast } from "@/components/layout/LoginWelcomeToast";
@@ -19,6 +20,7 @@ type AuthStep = "login" | "signup" | "magicLink";
 
 export default function LoginModal({ open, onClose }: Props) {
   const [step, setStep] = useState<AuthStep>("login");
+  const router = useRouter();
 
   // 로그인 입력 state
   const [email, setEmail] = useState("");
@@ -129,6 +131,7 @@ export default function LoginModal({ open, onClose }: Props) {
     if (res?.ok) {
       markLoginWelcomeToast();
       handleClose(); // 로그인 성공 → 모달 닫기
+      router.refresh();
     }
   }
 

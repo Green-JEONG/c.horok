@@ -31,13 +31,30 @@ export const metadata: Metadata = {
   },
 };
 
+const themeScript = `
+(() => {
+  const storageKey = "theme";
+  const root = document.documentElement;
+  const savedTheme = window.localStorage.getItem(storageKey);
+  const theme = savedTheme === "light" || savedTheme === "dark"
+    ? savedTheme
+    : "dark";
+
+  root.classList.toggle("dark", theme === "dark");
+  root.style.colorScheme = theme;
+})();
+`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        <script>{themeScript}</script>
+      </head>
       <body className="flex min-h-dvh flex-col overflow-x-hidden">
         <AuthSessionProvider>
           <Header />

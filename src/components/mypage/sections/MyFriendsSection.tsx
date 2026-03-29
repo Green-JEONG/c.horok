@@ -8,6 +8,7 @@ type Friend = {
   id: number;
   name: string | null;
   image: string | null;
+  followerCount: number;
 };
 
 export default function MyFriendsSection() {
@@ -62,6 +63,9 @@ export default function MyFriendsSection() {
               />
               <p className="mt-3 w-full truncate font-medium">
                 {friend.name ?? "이름 없는 사용자"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                구독자 {friend.followerCount}명
               </p>
             </Link>
           </li>

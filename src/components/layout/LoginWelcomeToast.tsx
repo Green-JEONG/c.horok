@@ -46,7 +46,7 @@ export default function LoginWelcomeToast() {
 
   return (
     <div className="pointer-events-none fixed left-1/2 top-24 z-70 -translate-x-1/2">
-      <div className="rounded-lg bg-black/80 px-10 py-5 text-md font-medium text-background shadow-2xl">
+      <div className="rounded-lg bg-black/80 px-10 py-5 text-md font-medium text-background shadow-2xl dark:text-white">
         {userName}님 반가워요!
       </div>
     </div>

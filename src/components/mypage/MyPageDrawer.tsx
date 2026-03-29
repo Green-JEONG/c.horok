@@ -15,7 +15,12 @@ type Props = {
 
 type Notification = {
   id: number;
-  type: "FRIEND_REQUEST" | "POST_COMMENT" | "COMMENT_REPLY" | "POST_LIKE";
+  type:
+    | "FRIEND_REQUEST"
+    | "POST_COMMENT"
+    | "COMMENT_REPLY"
+    | "POST_LIKE"
+    | "NEW_FOLLOWER";
   actor_name: string | null;
   message?: string | null;
   post_id: number | null;
@@ -40,6 +45,8 @@ function renderNotificationMessage(n: Notification) {
       return `${n.actor_name ?? "누군가"}님이 내 댓글에 답글을 남겼습니다`;
     case "POST_LIKE":
       return `${n.actor_name ?? "누군가"}님이 내 게시물을 좋아합니다`;
+    case "NEW_FOLLOWER":
+      return `${n.actor_name ?? "누군가"}님이 나를 구독했습니다`;
     default:
       return "새 알림이 있습니다";
   }
