@@ -1,18 +1,31 @@
 "use client";
 
-import { Sun, Moon } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
+    const root = document.documentElement;
+    const savedTheme = window.localStorage.getItem("theme");
+    const nextIsDark = savedTheme
+      ? savedTheme === "dark"
+      : root.classList.contains("dark");
+
+    root.classList.toggle("dark", nextIsDark);
+    root.style.colorScheme = nextIsDark ? "dark" : "light";
+    setIsDark(nextIsDark);
   }, []);
 
   function toggleTheme() {
-    document.documentElement.classList.toggle("dark");
-    setIsDark(document.documentElement.classList.contains("dark"));
+    const root = document.documentElement;
+    const nextIsDark = !root.classList.contains("dark");
+
+    root.classList.toggle("dark", nextIsDark);
+    root.style.colorScheme = nextIsDark ? "dark" : "light";
+    window.localStorage.setItem("theme", nextIsDark ? "dark" : "light");
+    setIsDark(nextIsDark);
   }
 
   return (

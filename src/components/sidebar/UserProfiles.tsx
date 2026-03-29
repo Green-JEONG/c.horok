@@ -10,6 +10,7 @@ type ProfileCard = {
   id: number;
   name: string | null;
   image: string | null;
+  followerCount: number;
   isSelf: boolean;
   isFriend: boolean;
 };
@@ -20,17 +21,27 @@ export default function UserProfiles() {
   const [profile, setProfile] = useState<ProfileCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const [isSubscribedHovering, setIsSubscribedHovering] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       const selfProfile = session?.user?.id
-        ? {
-            id: Number(session.user.id),
-            name: session.user.name ?? null,
-            image: session.user.image ?? null,
-            isSelf: true,
-            isFriend: false,
-          }
+        ? await fetch(`/api/users/${session.user.id}/profile`)
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error();
+              }
+
+              return response.json();
+            })
+            .catch(() => ({
+              id: Number(session.user.id),
+              name: session.user.name ?? null,
+              image: session.user.image ?? null,
+              followerCount: 0,
+              isSelf: true,
+              isFriend: false,
+            }))
         : null;
 
       if (!pathname.startsWith("/posts/")) {
@@ -89,12 +100,15 @@ export default function UserProfiles() {
     load();
   }, [pathname, session]);
 
-  const handleAddFriend = async (friendUserId: number) => {
+  const handleToggleFriend = async (
+    friendUserId: number,
+    isFriend: boolean,
+  ) => {
     try {
       setPendingId(friendUserId);
 
       const response = await fetch("/api/friends", {
-        method: "POST",
+        method: isFriend ? "DELETE" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -107,11 +121,21 @@ export default function UserProfiles() {
 
       setProfile((current) =>
         current && current.id === friendUserId
-          ? { ...current, isFriend: true }
+          ? {
+              ...current,
+              isFriend: !isFriend,
+              followerCount: Math.max(
+                0,
+                current.followerCount + (isFriend ? -1 : 1),
+              ),
+            }
           : current,
       );
+      setIsSubscribedHovering(false);
     } catch {
-      window.alert("친구 추가에 실패했습니다.");
+      window.alert(
+        isFriend ? "구독 취소에 실패했습니다." : "친구 추가에 실패했습니다.",
+      );
     } finally {
       setPendingId(null);
     }
@@ -143,6 +167,9 @@ export default function UserProfiles() {
               <p className="truncate text-base font-semibold">
                 {profile.name ?? "이름 없는 사용자"}
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                구독자 {profile.followerCount}명
+              </p>
             </div>
           </div>
 
@@ -158,16 +185,32 @@ export default function UserProfiles() {
             ) : (
               <Button
                 size="sm"
-                variant={profile.isFriend ? "secondary" : "default"}
+                variant={
+                  profile.isFriend && isSubscribedHovering
+                    ? "destructive"
+                    : profile.isFriend
+                      ? "secondary"
+                      : "default"
+                }
                 className="w-full"
-                disabled={profile.isFriend || pendingId === profile.id}
-                onClick={() => handleAddFriend(profile.id)}
+                disabled={pendingId === profile.id}
+                onClick={() => handleToggleFriend(profile.id, profile.isFriend)}
+                onMouseEnter={() => {
+                  if (profile.isFriend) {
+                    setIsSubscribedHovering(true);
+                  }
+                }}
+                onMouseLeave={() => setIsSubscribedHovering(false)}
               >
-                {profile.isFriend
-                  ? "구독중"
-                  : pendingId === profile.id
-                    ? "추가 중..."
-                    : "친구추가"}
+                {pendingId === profile.id
+                  ? profile.isFriend
+                    ? "취소 중..."
+                    : "추가 중..."
+                  : profile.isFriend
+                    ? isSubscribedHovering
+                      ? "구독 취소"
+                      : "구독중"
+                    : "구독하기"}
               </Button>
             )}
           </div>

@@ -32,12 +32,15 @@ export default function PopularPosts() {
         <h3 className="text-sm font-semibold">인기</h3>
       </div>
       <ul className="space-y-2 text-sm">
-        {posts.map((post) => (
+        {posts.map((post, index) => (
           <li key={post.id}>
             <Link
               href={`/posts/${post.id}`}
-              className="block overflow-hidden text-muted-foreground hover:text-foreground"
+              className="flex items-start gap-1 overflow-hidden text-muted-foreground hover:text-foreground"
             >
+              <span className="min-w-4 text-sm font-semibold tabular-nums text-foreground/80">
+                {index + 1}
+              </span>
               <span className="block truncate">{post.title}</span>
             </Link>
           </li>

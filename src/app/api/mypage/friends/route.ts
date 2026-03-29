@@ -22,6 +22,11 @@ export async function GET() {
             name: true,
             email: true,
             image: true,
+            _count: {
+              select: {
+                followers: true,
+              },
+            },
           },
         },
       },
@@ -33,6 +38,7 @@ export async function GET() {
         name: row.friendUser.name,
         email: row.friendUser.email,
         image: row.friendUser.image,
+        followerCount: row.friendUser._count.followers,
       })),
     );
   } catch (e) {

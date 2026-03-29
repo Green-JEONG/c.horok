@@ -25,6 +25,11 @@ export async function GET(
             id: true,
             name: true,
             image: true,
+            _count: {
+              select: {
+                followers: true,
+              },
+            },
           },
         },
       },
@@ -59,6 +64,7 @@ export async function GET(
       id: Number(post.user.id),
       name: post.user.name,
       image: post.user.image,
+      followerCount: post.user._count.followers,
       isSelf,
       isFriend: Boolean(existingFriend),
     });
