@@ -8,7 +8,7 @@ import ThemeToggle from "./ThemeToggle";
 export default async function Header() {
   return (
     <header className="border-b">
-      <div className="mx-full flex h-14 max-w-6xl items-center px-4">
+      <div className="flex h-14 w-full items-center px-4">
         {/* LEFT */}
         <div className="flex items-center gap-6 shrink-0">
           <Link
@@ -23,13 +23,11 @@ export default async function Header() {
           <HeaderNav />
         </div>
 
-        <div className="md:block w-6 lg:w-10" />
-
-        <div className="flex-1 min-w-0">
+        <div className="ml-6 mr-2 flex min-w-0 flex-1 justify-end">
           <HeaderSearch />
         </div>
 
-        <div className="ml-3 flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <ThemeToggle />
           <HeaderActions />
         </div>

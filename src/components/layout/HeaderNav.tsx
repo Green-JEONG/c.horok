@@ -1,14 +1,25 @@
 "use client";
 
+import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import clsx from "clsx";
 
 const navItems = [
   {
     href: "/feed",
     label: "피드",
     match: (p: string) => p === "/feed" || p.startsWith("/feed/"),
+  },
+  {
+    href: "/videos",
+    label: "영상",
+    match: (p: string) => p === "/videos" || p.startsWith("/videos/"),
+  },
+  {
+    href: "/coding-tests",
+    label: "코딩테스트",
+    match: (p: string) =>
+      p === "/coding-tests" || p.startsWith("/coding-tests/"),
   },
   {
     href: "/likes",
@@ -21,7 +32,7 @@ export default function HeaderNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex items-center gap-3 text-sm font-medium">
+    <nav className="flex items-center gap-6 text-sm font-medium">
       {navItems.map((item) => {
         const isActive = item.match(pathname);
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import PostCard from "@/components/posts/PostCard";
 import { getUserIdByEmail } from "@/lib/db";
@@ -9,6 +10,8 @@ type Props = {
   userId?: number;
   emptyMessage?: string;
   unauthenticatedMessage?: string;
+  emptyState?: ReactNode;
+  unauthenticatedState?: ReactNode;
 };
 
 export default async function MyPostList({
@@ -16,6 +19,8 @@ export default async function MyPostList({
   userId: initialUserId,
   emptyMessage = "아직 작성한 게시글이 없습니다.",
   unauthenticatedMessage = "로그인 후 내가 작성한 게시글을 볼 수 있습니다.",
+  emptyState,
+  unauthenticatedState,
 }: Props) {
   const session = await auth();
   let userId = initialUserId ?? null;
@@ -23,9 +28,11 @@ export default async function MyPostList({
   if (!userId) {
     if (!session?.user?.email) {
       return (
-        <div className="text-sm text-muted-foreground">
-          {unauthenticatedMessage}
-        </div>
+        unauthenticatedState ?? (
+          <div className="text-sm text-muted-foreground">
+            {unauthenticatedMessage}
+          </div>
+        )
       );
     }
 
@@ -43,7 +50,11 @@ export default async function MyPostList({
   const posts = await getUserPosts(userId, parseSortType(sort));
 
   if (posts.length === 0) {
-    return <div className="text-sm text-muted-foreground">{emptyMessage}</div>;
+    return (
+      emptyState ?? (
+        <div className="text-sm text-muted-foreground">{emptyMessage}</div>
+      )
+    );
   }
 
   return (
