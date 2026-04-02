@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import PostListHeader from "@/components/posts/PostListHeader";
 
 export const metadata: Metadata = {
   title: "영상 | c.horok",
@@ -10,7 +9,7 @@ export default function VideosPage() {
   return (
     <section>
       <div className="space-y-3">
-        <PostListHeader title="영상" showWriteButton={false} />
+        <h2 className="text-sm font-semibold text-foreground">영상</h2>
         <p className="text-sm text-muted-foreground">
           영상 콘텐츠는 현재 준비 중입니다.
         </p>
