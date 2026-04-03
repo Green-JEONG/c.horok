@@ -1,5 +1,7 @@
 <div align="center">
-  <img width="205" height="215" alt="c.horok_logo" src="https://github.com/user-attachments/assets/bfb7ba2d-724d-4c15-bcae-1be0d81c6ff2" />
+  <a href="https://horok.co.kr">
+    <img width="205" height="215" alt="c.horok_logo" src="https://github.com/user-attachments/assets/bfb7ba2d-724d-4c15-bcae-1be0d81c6ff2" />
+  </a>
 
   <br>c.horok은 호록 컴퍼니의 기술 콘텐츠를 중심으로 운영하는 커뮤니티형 블로그 프로젝트입니다.
   
