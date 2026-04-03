@@ -32,7 +32,7 @@ export default function HeaderNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex items-center gap-6 text-sm font-medium">
+    <nav className="grid w-full grid-cols-4 gap-2 text-sm font-medium md:flex md:w-auto md:grid-cols-none md:items-center md:gap-6">
       {navItems.map((item) => {
         const isActive = item.match(pathname);
 
@@ -41,7 +41,7 @@ export default function HeaderNav() {
             key={item.href}
             href={item.href}
             className={clsx(
-              "transition-colors",
+              "flex min-w-0 items-center justify-center rounded-md px-2 py-1.5 text-center whitespace-nowrap transition-colors md:px-0 md:py-0",
               isActive
                 ? "text-foreground font-semibold"
                 : "text-muted-foreground hover:text-foreground",
