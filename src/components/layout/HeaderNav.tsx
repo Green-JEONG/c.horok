@@ -26,13 +26,18 @@ const navItems = [
     label: "좋아요",
     match: (p: string) => p.startsWith("/likes"),
   },
+  {
+    href: "/notices",
+    label: "공지사항",
+    match: (p: string) => p === "/notices" || p.startsWith("/notices/"),
+  },
 ];
 
 export default function HeaderNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="grid w-full grid-cols-4 gap-2 text-sm font-medium md:flex md:w-auto md:grid-cols-none md:items-center md:gap-6">
+    <nav className="grid w-full grid-cols-5 gap-2 text-sm font-medium md:flex md:w-auto md:grid-cols-none md:items-center md:gap-6">
       {navItems.map((item) => {
         const isActive = item.match(pathname);
 

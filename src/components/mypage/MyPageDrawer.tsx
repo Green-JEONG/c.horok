@@ -2,11 +2,11 @@
 
 import { Circle, CircleCheckBig, Settings } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
+import { cn } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -31,6 +31,7 @@ type Notification = {
 };
 
 const NOTIFICATIONS_UPDATED_EVENT = "notifications-updated";
+const DRAWER_TRANSITION_MS = 300;
 
 function renderNotificationMessage(n: Notification) {
   if (n.is_post_deleted) return "삭제된 게시물입니다";
@@ -55,6 +56,7 @@ function renderNotificationMessage(n: Notification) {
 export default function MyPageDrawer({ open, onClose }: Props) {
   const { data: session } = useSession();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(open);
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState({
@@ -78,6 +80,19 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   // 드로어가 닫히면 설정 모달도 닫기(자연스럽게)
   useEffect(() => {
     if (!open) setSettingsOpen(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setIsVisible(true);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsVisible(false);
+    }, DRAWER_TRANSITION_MS);
+
+    return () => window.clearTimeout(timeoutId);
   }, [open]);
 
   useEffect(() => {
@@ -133,28 +148,45 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     loadStats();
   }, [open]);
 
-  if (!open) return null;
+  if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-[80]">
+    <div
+      className={cn(
+        "fixed inset-0 z-[80]",
+        open ? "pointer-events-auto" : "pointer-events-none",
+      )}
+    >
       {/* dim + blur */}
       <button
         type="button"
         aria-label="마이페이지 닫기"
         onClick={onClose}
-        className="absolute inset-0 cursor-pointer bg-black/50"
+        className={cn(
+          "absolute inset-0 cursor-pointer bg-black/50 transition-opacity duration-300",
+          open ? "opacity-100" : "opacity-0",
+        )}
       />
 
-      <aside className="absolute left-0 top-0 h-full w-87.5 bg-background text-foreground shadow-xl flex flex-col">
+      <aside
+        className={cn(
+          "absolute left-0 top-0 flex h-full w-87.5 flex-col bg-background text-foreground shadow-xl transition-transform duration-300 ease-out",
+          open ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
         <div className="flex items-center justify-between p-4">
           <nav className="flex items-center gap-4 text-sm">
             {session?.user?.role === "ADMIN" && (
-              <Link
-                href="/admin"
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  router.push("/admin");
+                }}
                 className="text-red-500 font-semibold hover:underline"
               >
                 관리자
-              </Link>
+              </button>
             )}
           </nav>
           <button
@@ -265,6 +297,11 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                       }
 
                       onClose();
+                      if (n.type === "NEW_FOLLOWER") {
+                        router.push("/mypage?tab=friends");
+                        return;
+                      }
+
                       if (n.post_id && !n.is_post_deleted) {
                         router.push(`/posts/${n.post_id}`);
                       }

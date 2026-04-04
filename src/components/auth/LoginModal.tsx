@@ -265,8 +265,8 @@ export default function LoginModal({ open, onClose }: Props) {
       </button>
 
       {/* modal */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative w-full max-w-sm rounded-xl bg-background p-6 shadow-lg">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+        <div className="pointer-events-auto relative w-full max-w-sm rounded-2xl border border-border bg-background p-6 text-foreground shadow-xl">
           {/* 상단 네비 */}
           <div className="absolute left-5 top-5 flex items-center gap-2">
             {step !== "login" && (
@@ -277,7 +277,7 @@ export default function LoginModal({ open, onClose }: Props) {
                   setError(null);
                   setNotice(null);
                 }}
-                className="text-muted-foreground hover:text-foreground"
+                className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <ArrowLeft size={20} />
               </button>
@@ -287,7 +287,7 @@ export default function LoginModal({ open, onClose }: Props) {
           <button
             type="button"
             onClick={handleClose}
-            className="absolute right-5 top-5 text-muted-foreground hover:text-foreground"
+            className="absolute right-5 top-5 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <X size={20} />
           </button>

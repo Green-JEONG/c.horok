@@ -16,17 +16,34 @@ export default function MyPageSection() {
   const friendsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (tab === "posts") {
-      postsRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    const targetRef =
+      tab === "posts"
+        ? postsRef
+        : tab === "comments"
+          ? commentsRef
+          : tab === "friends"
+            ? friendsRef
+            : null;
 
-    if (tab === "comments") {
-      commentsRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    if (!targetRef?.current) return;
 
-    if (tab === "friends") {
-      friendsRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    const scrollToSection = () => {
+      targetRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+
+    scrollToSection();
+
+    const retryDelays = [150, 350, 700];
+    const timeoutIds = retryDelays.map((delay) =>
+      window.setTimeout(scrollToSection, delay),
+    );
+
+    return () => {
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
   }, [tab]);
 
   return (
