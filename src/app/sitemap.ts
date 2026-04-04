@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://horok.co.kr";
 
   return [
     {
