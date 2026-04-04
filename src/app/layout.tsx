@@ -13,11 +13,11 @@ import "@/app/globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.horok.co.kr"),
-  title: "호록(Horok) - 나만의 포스트",
-  description: "호록이와 다양한 이야기를 나누고 기록해 보세요.",
+  title: "호록이의 보금자리 | 기술 기록과 공유의 공간 🐯",
+  description: "기술로 소통하고, 배움을 나누며, 성장의 발자취를 기록합니다.",
   openGraph: {
-    title: "호록(Horok) - 나만의 포스트",
-    description: "호록이와 다양한 이야기를 나누고 기록해 보세요.",
+    title: "오늘의 기록이 내일의 기술이 되는 곳",
+    description: "함께 공부하고, 기록하고, 나누세요.",
     url: "https://www.horok.co.kr",
     siteName: "c.Horok",
     images: [
