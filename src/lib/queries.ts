@@ -272,3 +272,28 @@ export async function getLikedPosts(
     .slice(offset, limit ? offset + limit : undefined)
     .map(mapPost);
 }
+
+export async function getRandomPosts(limit: number): Promise<DbPost[]> {
+  const posts = await prisma.post.findMany({
+    where: {
+      isDeleted: false,
+    },
+    include: {
+      user: { select: { name: true } },
+      category: { select: { name: true } },
+      _count: {
+        select: {
+          likes: true,
+          comments: {
+            where: { isDeleted: false },
+          },
+        },
+      },
+    },
+  });
+
+  return posts
+    .sort(() => Math.random() - 0.5)
+    .slice(0, limit)
+    .map(mapPost);
+}

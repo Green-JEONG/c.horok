@@ -1,11 +1,11 @@
-import Link from "next/link";
-
-export const dynamic = "force-dynamic";
-
 import { Suspense } from "react";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
 import MyPostList from "@/components/posts/MyPostList";
+import PostCard from "@/components/posts/PostCard";
 import PostListHeader from "@/components/posts/PostListHeader";
+import { getRandomPosts } from "@/lib/queries";
+
+export const dynamic = "force-dynamic";
 
 export default async function Page({
   searchParams,
@@ -13,36 +13,45 @@ export default async function Page({
   searchParams: Promise<{ sort?: string }>;
 }) {
   const { sort } = await searchParams;
+  const randomPosts = await getRandomPosts(6);
+
+  const randomPostsSection =
+    randomPosts.length > 0 ? (
+      <section className="space-y-3 mt-15">
+        <h2 className="text-sm font-semibold text-foreground">맛보기</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
+          {randomPosts.map((post) => (
+            <PostCard
+              key={post.id}
+              id={post.id}
+              title={post.title}
+              description={post.content}
+              thumbnail={post.thumbnail}
+              category={post.category_name}
+              author={post.author_name}
+              likes={post.likes_count}
+              comments={post.comments_count}
+              createdAt={post.created_at}
+            />
+          ))}
+        </div>
+      </section>
+    ) : null;
+
   const unauthenticatedState = (
-    <div className="space-y-3">
+    <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         로그인 후 게시글을 볼 수 있습니다.
       </p>
-      <p className="text-sm text-muted-foreground">
-        지금은 피드에서 최신 글을 먼저 둘러보실 수 있습니다.
-      </p>
-      <Link
-        href="/feed"
-        className="inline-flex items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
-      >
-        피드 보러 가기
-      </Link>
+      {randomPostsSection}
     </div>
   );
   const emptyState = (
-    <div className="space-y-3">
+    <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         아직 작성한 게시글이 없습니다.
       </p>
-      <p className="text-sm text-muted-foreground">
-        지금은 피드에서 최신 글을 먼저 둘러보실 수 있습니다.
-      </p>
-      <Link
-        href="/feed"
-        className="inline-flex items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
-      >
-        피드 보러 가기
-      </Link>
+      {randomPostsSection}
     </div>
   );
 
