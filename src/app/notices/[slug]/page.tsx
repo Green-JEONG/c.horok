@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import { getNoticeBySlug, notices } from "@/lib/notices";
 
 type Props = {
@@ -38,42 +38,34 @@ export default async function NoticeDetailPage({ params }: Props) {
   }
 
   return (
-    <article className="mx-auto max-w-3xl space-y-6">
-      <div className="space-y-3">
-        <Link
-          href="/notices"
-          className="inline-flex text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          공지사항 목록으로
-        </Link>
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
-              공지사항
-            </span>
-            {notice.isPinned ? (
-              <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
-                중요
-              </span>
-            ) : null}
-            <time dateTime={notice.publishedAt}>{notice.publishedAt}</time>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {notice.title}
-          </h1>
-          <p className="text-sm leading-6 text-muted-foreground sm:text-base">
-            {notice.summary}
-          </p>
-        </div>
-      </div>
+    <article className="mx-auto max-w-3xl">
+      <header className="mb-3">
+        <h1 className="text-3xl font-bold leading-tight">{notice.title}</h1>
 
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-        <div className="space-y-4 text-sm leading-7 text-foreground sm:text-base">
-          {notice.content.map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
-          ))}
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+          <span>c.horok 운영팀</span>
+          <span>·</span>
+          <span>
+            <time dateTime={notice.publishedAt}>{notice.publishedAt}</time>
+          </span>
+          <span>·</span>
+          <span
+            className={
+              notice.isPinned
+                ? "rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                : "rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300"
+            }
+          >
+            {notice.isPinned ? "중요 공지" : "공지사항"}
+          </span>
         </div>
-      </div>
+
+        <hr className="mt-6" />
+      </header>
+
+      <MarkdownRenderer
+        content={[notice.summary, ...notice.content].join("\n\n")}
+      />
     </article>
   );
 }
