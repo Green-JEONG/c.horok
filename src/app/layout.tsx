@@ -10,15 +10,18 @@ import PopularPosts from "@/components/sidebar/PopularPosts";
 import UserProfiles from "@/components/sidebar/UserProfiles";
 // import RecommendedKeywords from "@/components/sidebar/RecommendedKeywords";
 import "@/app/globals.css";
+import { getSiteUrl } from "@/lib/site-url";
+
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.horok.co.kr"),
+  metadataBase: new URL(siteUrl),
   title: "호록이의 보금자리 | 기술 기록과 공유의 공간 🐯",
   description: "기술로 소통하고, 배움을 나누며, 성장의 발자취를 기록합니다.",
   openGraph: {
     title: "오늘의 기록이 내일의 기술이 되는 곳",
     description: "함께 공부하고, 기록하고, 나누세요.",
-    url: "https://www.horok.co.kr",
+    url: siteUrl,
     siteName: "c.Horok",
     images: [
       {

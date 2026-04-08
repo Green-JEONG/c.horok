@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Mypage | c.horok",
   description: "마이 페이지",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 import { Suspense } from "react";

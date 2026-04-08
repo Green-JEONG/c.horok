@@ -1,19 +1,15 @@
 import type { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/site-url";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = "http://localhost:3000";
+  const baseUrl = getSiteUrl();
 
   return {
     rules: [
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin/", "/api/"],
-      },
-      {
-        userAgent: "Googlebot",
-        allow: "/",
-        disallow: ["/terms/"],
+        disallow: ["/admin/", "/api/", "/likes/", "/mypage/"],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

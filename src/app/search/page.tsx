@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "검색 결과 | c.horok",
   description: "게시글 검색 결과 페이지",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 import PostListInfinite from "@/components/posts/PostListInfinite";

@@ -7,6 +7,10 @@ import { prisma } from "@/lib/prisma";
 export const metadata: Metadata = {
   title: "Admin | c.horok",
   description: "관리자 페이지",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 type UserRow = {

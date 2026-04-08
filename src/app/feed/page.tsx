@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import PostList from "@/components/posts/PostList";
+import PostListHeader from "@/components/posts/PostListHeader";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Feed | c.horok",
   description: "피드 페이지",
+  alternates: {
+    canonical: "/feed",
+  },
 };
-
-import { Suspense } from "react";
-import PostList from "@/components/posts/PostList";
-import PostListHeader from "@/components/posts/PostListHeader";
 
 export default async function FeedPage({
   searchParams,

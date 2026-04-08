@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
 import MyPostList from "@/components/posts/MyPostList";
@@ -6,6 +7,12 @@ import PostListHeader from "@/components/posts/PostListHeader";
 import { getRandomPosts } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+};
 
 export default async function Page({
   searchParams,
