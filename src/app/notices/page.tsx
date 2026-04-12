@@ -31,16 +31,22 @@ export default function NoticesPage() {
         </p> */}
       </div>
 
-      <div className="overflow-x-auto border-t border-border">
-        <table className="min-w-full border-collapse text-sm">
+      <div className="overflow-hidden border-t border-border">
+        <table className="w-full table-fixed border-collapse text-sm">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr className="border-y border-border">
-              <th className="w-20 px-4 py-3 text-center font-medium">번호</th>
-              <th className="w-24 px-4 py-3 text-center font-medium">구분</th>
-              <th className="min-w-[320px] px-4 py-3 text-left font-medium">
+              <th className="w-14 px-2 py-3 text-center font-medium sm:w-20 sm:px-4">
+                번호
+              </th>
+              <th className="w-16 px-2 py-3 text-center font-medium sm:w-24 sm:px-4">
+                구분
+              </th>
+              <th className="px-2 py-3 text-left font-medium sm:px-4">
                 제목
               </th>
-              <th className="w-32 px-4 py-3 text-center font-medium">등록일</th>
+              <th className="w-24 px-2 py-3 text-center font-medium sm:w-32 sm:px-4">
+                등록일
+              </th>
             </tr>
           </thead>
 
@@ -53,24 +59,27 @@ export default function NoticesPage() {
                   key={notice.slug}
                   className="border-b border-border transition-colors hover:bg-muted/20"
                 >
-                  <td className="px-4 py-4 text-center text-muted-foreground">
+                  <td className="px-2 py-4 text-center text-muted-foreground sm:px-4">
                     {notices.length - index}
                   </td>
-                  <td className="px-4 py-4 text-center">
+                  <td className="px-2 py-4 text-center sm:px-4">
                     <span
-                      className={`inline-flex min-w-14 items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold ${noticeLabel.className}`}
+                      className={`inline-flex min-w-0 items-center justify-center rounded-full border px-2 py-1 text-xs font-semibold sm:min-w-14 sm:px-2.5 ${noticeLabel.className}`}
                     >
                       {noticeLabel.text}
                     </span>
                   </td>
-                  <td className="px-4 py-4">
-                    <Link href={`/notices/${notice.slug}`} className="block">
+                  <td className="px-2 py-4 sm:px-4">
+                    <Link
+                      href={`/notices/${notice.slug}`}
+                      className="block w-full overflow-hidden"
+                    >
                       <p className="truncate font-medium text-foreground">
                         {notice.title}
                       </p>
                     </Link>
                   </td>
-                  <td className="px-4 py-4 text-center text-muted-foreground">
+                  <td className="px-2 py-4 text-center text-muted-foreground sm:px-4">
                     <time dateTime={notice.publishedAt}>
                       {notice.publishedAt}
                     </time>
