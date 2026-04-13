@@ -141,4 +141,61 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none; /* Chrome, Safari */
   }
+
+  .hljs {
+    color: oklch(0.22 0.03 264);
+    background: transparent;
+  }
+
+  .hljs-comment,
+  .hljs-quote {
+    color: oklch(0.55 0.02 250);
+    font-style: italic;
+  }
+
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal,
+  .hljs-section,
+  .hljs-link {
+    color: oklch(0.56 0.22 20);
+  }
+
+  .hljs-string,
+  .hljs-attr,
+  .hljs-attribute,
+  .hljs-template-tag {
+    color: oklch(0.58 0.17 145);
+  }
+
+  .hljs-title,
+  .hljs-title.class_,
+  .hljs-title.function_,
+  .hljs-function,
+  .hljs-tag {
+    color: oklch(0.5 0.17 255);
+  }
+
+  .hljs-number,
+  .hljs-symbol,
+  .hljs-bullet,
+  .hljs-variable,
+  .hljs-template-variable {
+    color: oklch(0.62 0.2 65);
+  }
+
+  .hljs-built_in,
+  .hljs-type,
+  .hljs-class,
+  .hljs-property {
+    color: oklch(0.48 0.14 300);
+  }
+
+  .hljs-emphasis {
+    font-style: italic;
+  }
+
+  .hljs-strong {
+    font-weight: 700;
+  }
 }
