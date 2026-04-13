@@ -46,7 +46,7 @@ export default function HeaderNav() {
             key={item.href}
             href={item.href}
             className={clsx(
-              "flex min-w-0 items-center justify-center border-b-2 px-2 py-2 text-center whitespace-nowrap transition-colors md:px-1 md:py-3",
+              "flex min-w-0 items-center justify-center border-b-2 px-2 py-2 text-center whitespace-nowrap transition-colors",
               isActive
                 ? "border-primary text-foreground font-semibold"
                 : "border-transparent text-muted-foreground hover:text-foreground",

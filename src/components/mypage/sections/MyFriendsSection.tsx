@@ -3,6 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import SectionPagination from "@/components/mypage/sections/SectionPagination";
+
+const PAGE_SIZE = 6;
 
 type Friend = {
   id: number;
@@ -25,6 +28,11 @@ function FriendList({
   friends: Friend[];
   emptyMessage: string;
 }) {
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(friends.length / PAGE_SIZE));
+  const pagedFriends = friends.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">{title}</h3>
@@ -32,30 +40,37 @@ function FriendList({
       {friends.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
-        <ul className="flex gap-4 overflow-x-auto pb-2">
-          {friends.map((friend) => (
-            <li key={`${title}-${friend.id}`} className="shrink-0">
-              <Link
-                href={`/users/${friend.id}`}
-                className="flex min-w-32 flex-col items-center rounded-xl border bg-background px-4 py-4 text-center transition-colors hover:bg-muted"
-              >
-                <Image
-                  src={friend.image ?? "/logo.svg"}
-                  alt={`${friend.name ?? "구독 유저"} 프로필`}
-                  width={72}
-                  height={72}
-                  className="h-18 w-18 rounded-full border object-cover"
-                />
-                <p className="mt-3 w-full truncate font-medium">
-                  {friend.name ?? "이름 없는 사용자"}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  구독자 {friend.followerCount}명
-                </p>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="flex flex-wrap gap-4">
+            {pagedFriends.map((friend) => (
+              <li key={`${title}-${friend.id}`} className="shrink-0">
+                <Link
+                  href={`/users/${friend.id}`}
+                  className="flex min-w-32 flex-col items-center rounded-xl border bg-background px-4 py-4 text-center transition-colors hover:bg-muted"
+                >
+                  <Image
+                    src={friend.image ?? "/logo.svg"}
+                    alt={`${friend.name ?? "구독 유저"} 프로필`}
+                    width={72}
+                    height={72}
+                    className="h-18 w-18 rounded-full border object-cover"
+                  />
+                  <p className="mt-3 w-full truncate font-medium">
+                    {friend.name ?? "이름 없는 사용자"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    구독자 {friend.followerCount}명
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <SectionPagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </>
       )}
     </div>
   );

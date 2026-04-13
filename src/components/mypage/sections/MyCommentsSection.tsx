@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import SectionPagination from "@/components/mypage/sections/SectionPagination";
+
+const PAGE_SIZE = 5;
 
 type MyComment = {
   id: number;
@@ -14,6 +17,7 @@ type MyComment = {
 export default function MyCommentsSection() {
   const [comments, setComments] = useState<MyComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetch("/api/mypage/comments")
@@ -31,32 +35,48 @@ export default function MyCommentsSection() {
     );
   }
 
+  const totalPages = Math.max(1, Math.ceil(comments.length / PAGE_SIZE));
+  const pagedComments = comments.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
+
   return (
-    <section>
+    <section className="space-y-4">
       <h2 className="mb-4 text-xl font-semibold">내가 쓴 댓글</h2>
 
       <ul className="space-y-3">
-        {comments.map(({ id, content, post_id, post_title, is_post_deleted }) => (
-          <li key={id}>
-            {is_post_deleted ? (
-              <div className="block rounded-lg border p-4 text-sm opacity-70">
-                <p className="line-clamp-2">{content}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{post_title}</p>
-              </div>
-            ) : (
-              <Link
-                href={`/posts/${post_id}`}
-                className="block rounded-lg border p-4 text-sm transition-colors hover:bg-muted"
-              >
-                <p className="line-clamp-2">{content}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {post_title}에 달린 댓글
-                </p>
-              </Link>
-            )}
-          </li>
-        ))}
+        {pagedComments.map(
+          ({ id, content, post_id, post_title, is_post_deleted }) => (
+            <li key={id}>
+              {is_post_deleted ? (
+                <div className="block rounded-lg border p-4 text-sm opacity-70">
+                  <p className="line-clamp-2">{content}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {post_title}
+                  </p>
+                </div>
+              ) : (
+                <Link
+                  href={`/posts/${post_id}`}
+                  className="block rounded-lg border p-4 text-sm transition-colors hover:bg-muted"
+                >
+                  <p className="line-clamp-2">{content}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {post_title}에 달린 댓글
+                  </p>
+                </Link>
+              )}
+            </li>
+          ),
+        )}
       </ul>
+
+      <SectionPagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
     </section>
   );
 }

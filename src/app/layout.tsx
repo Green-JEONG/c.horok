@@ -82,7 +82,6 @@ export default function RootLayout({
     hidden
     w-1/4
     md:block
-    py-6
     h-full
     sticky
     top-0
