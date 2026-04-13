@@ -62,7 +62,7 @@
 
 </details>
 
-<details>
+<details open>
 <summary>🐣 v1.0.0</summary>
 
   > 기존 블로그 구조 위에 인증, 게시글/댓글/좋아요, 마이페이지, 관리자 기능, AI 챗봇, 이메일 로그인까지 통합한 상태로 확장을 마친 상태입니다.
@@ -130,18 +130,20 @@
 
 </details>
 
-# 🤖 Tech
-|Frontend|Backend|
-|:---:|:---:|
-|Next.js 16|Next.js Route Handlers|
-|React 19|Prisma|
-|TypeScript|PostgreSQL|
-|Tailwind CSS 4|Supabase Storage|
-||NextAuth v5 beta|
-||Nodemailer|
-||Google Gemini 2.5 Flash|
+## 1. 기술 스택
 
-# 🚀 Run Server 
+| 영역 | 사용 기술 |
+| --- | --- |
+| Web App | Next.js App Router, React 19, TypeScript |
+| Styling | Tailwind CSS 4, Radix UI, `class-variance-authority`, `tailwind-merge` |
+| Auth | NextAuth v5 beta, Credentials, GitHub, Google, Nodemailer provider |
+| DB | PostgreSQL, Prisma |
+| Storage | Supabase Storage |
+| Markdown | `react-markdown`, `remark-gfm`, `rehype-highlight`, `rehype-sanitize` |
+| AI | `ai`, `@ai-sdk/react`, `@ai-sdk/google` |
+| Tooling | Biome, Storybook, Vitest, Playwright |
+
+## 🚀 Run Server
 ```bash
 pnpm install
 pnpm dev
