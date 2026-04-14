@@ -142,6 +142,28 @@
     display: none; /* Chrome, Safari */
   }
 
+  .contribution-day {
+    border-radius: 1.5px;
+  }
+
+  @media (min-width: 420px) {
+    .contribution-day {
+      border-radius: 1.75px;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .contribution-day {
+      border-radius: 1.75px;
+    }
+  }
+
+  @media (min-width: 840px) {
+    .contribution-day {
+      border-radius: 2.5px;
+    }
+  }
+
   .hljs {
     color: oklch(0.22 0.03 264);
     background: transparent;
