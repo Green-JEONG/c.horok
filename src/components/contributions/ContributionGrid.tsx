@@ -14,11 +14,12 @@ function getColor(count: number) {
   return "bg-emerald-600";
 }
 
-const WEEKS = 36;
+const WEEKS = 48;
 const DAYS = WEEKS * 7;
 
 export default function ContributionGrid({ userId }: { userId?: number }) {
   const [data, setData] = useState<Contribution[]>([]);
+  const [visibleWeeks, setVisibleWeeks] = useState(WEEKS);
 
   const map = useMemo(() => {
     const m = new Map<string, number>();
@@ -39,6 +40,10 @@ export default function ContributionGrid({ userId }: { userId?: number }) {
     }
     return result;
   }, []);
+
+  const visibleDays = useMemo(() => {
+    return days.slice(-visibleWeeks * 7);
+  }, [days, visibleWeeks]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -67,25 +72,55 @@ export default function ContributionGrid({ userId }: { userId?: number }) {
       });
   }, [userId]);
 
+  useEffect(() => {
+    const updateVisibleWeeks = () => {
+      const width = window.innerWidth;
+
+      if (width < 420) {
+        setVisibleWeeks(12);
+        return;
+      }
+
+      if (width < 640) {
+        setVisibleWeeks(24);
+        return;
+      }
+
+      if (width < 840) {
+        setVisibleWeeks(36);
+        return;
+      }
+
+      setVisibleWeeks(WEEKS);
+    };
+
+    updateVisibleWeeks();
+    window.addEventListener("resize", updateVisibleWeeks);
+
+    return () => {
+      window.removeEventListener("resize", updateVisibleWeeks);
+    };
+  }, []);
+
   return (
     <div className="rounded-xl border bg-background p-3">
       <p className="text-sm font-semibold"></p>
 
       <div
-        className="grid w-full gap-1"
+        className="grid w-full gap-[3px]"
         style={{
           gridAutoFlow: "column",
           gridTemplateRows: "repeat(7, minmax(0, 1fr))",
-          gridTemplateColumns: `repeat(${WEEKS}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${visibleWeeks}, minmax(0, 1fr))`,
         }}
       >
-        {days.map((date) => {
+        {visibleDays.map((date) => {
           const count = map.get(date) ?? 0;
           return (
             <div
               key={date}
               title={`${date}: ${count}회`}
-              className={`aspect-square w-full rounded-[3px] ${getColor(count)}`}
+              className={`contribution-day aspect-square w-full ${getColor(count)}`}
             />
           );
         })}
