@@ -1,18 +1,19 @@
 import type { MetadataRoute } from "next";
-import { getSiteUrl } from "@/lib/site-url";
+// import { getSiteUrl } from "@/lib/site-url"; // 이 함수가 non-www를 주면 문제가 반복됩니다.
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = getSiteUrl();
+  // 구글이 '선택한 표준 URL'인 www 버전을 직접 입력하세요.
+  const baseUrl = "https://www.horok.co.kr";
 
   return [
     {
-      url: baseUrl,
+      url: baseUrl, // https://www.horok.co.kr (끝에 / 없음)
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
     },
     {
-      url: `${baseUrl}/feed`,
+      url: `${baseUrl}/feed`, // https://www.horok.co.kr/feed (끝에 / 없음)
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.9,
