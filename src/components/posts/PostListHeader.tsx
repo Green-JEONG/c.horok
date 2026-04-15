@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { parseSortType, type SortType } from "@/lib/post-sort";
@@ -17,11 +18,13 @@ const SORT_LABEL: Record<SortType, string> = {
 type Props = {
   title?: string;
   showWriteButton?: boolean;
+  titleAction?: ReactNode;
 };
 
 export default function PostListHeader({
   title: customTitle,
   showWriteButton,
+  titleAction,
 }: Props = {}) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{
@@ -118,7 +121,10 @@ export default function PostListHeader({
 
   return (
     <div className="flex items-center justify-between">
-      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {titleAction}
+      </div>
 
       <div className="flex items-center gap-2">
         {canShowWriteButton ? <HomeWriteButton /> : null}

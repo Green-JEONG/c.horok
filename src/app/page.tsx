@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
 import MyPostList from "@/components/posts/MyPostList";
 import PostCard from "@/components/posts/PostCard";
 import PostListHeader from "@/components/posts/PostListHeader";
+import { Button } from "@/components/ui/button";
 import { getRandomPosts } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +23,7 @@ export default async function Page({
   searchParams: Promise<{ sort?: string }>;
 }) {
   const { sort } = await searchParams;
+  const session = await auth();
   const randomPosts = await getRandomPosts(6);
 
   const randomPostsSection =
@@ -68,10 +72,19 @@ export default async function Page({
         fallback={<div className="h-6 w-32 rounded bg-muted animate-pulse" />}
       >
         <ContributionGrid />
-        <PostListHeader />
+        <PostListHeader
+          titleAction={
+            session?.user ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/mypage?tab=posts">더보기</Link>
+              </Button>
+            ) : null
+          }
+        />
       </Suspense>
       <MyPostList
         sort={sort}
+        limit={6}
         emptyState={emptyState}
         unauthenticatedState={unauthenticatedState}
       />

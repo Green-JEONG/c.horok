@@ -5,7 +5,6 @@ const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
   : null;
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
   trailingSlash: false, // 주소 끝에 /를 붙이지 않도록 명시 (구글 표준에 맞춤)
   images: {
