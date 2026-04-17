@@ -40,7 +40,33 @@ const markdownTools = [
 type MarkdownToolAction = (typeof markdownTools)[number]["action"];
 type EditorTab = "thumbnail" | "write" | "preview";
 
-export default function PostEditor() {
+type PostEditorProps = {
+  mode?: "create" | "edit";
+  postId?: number;
+  initialTitle?: string;
+  initialContent?: string;
+  initialCategoryName?: string;
+  initialThumbnail?: string | null;
+  cancelLabel?: string;
+  submitLabel?: string;
+  submittingLabel?: string;
+  onCancel?: () => void;
+  onSuccess?: (payload: unknown) => void;
+};
+
+export default function PostEditor({
+  mode = "create",
+  postId,
+  initialTitle = "",
+  initialContent = "",
+  initialCategoryName = "",
+  initialThumbnail = null,
+  cancelLabel = "취소",
+  submitLabel = mode === "edit" ? "수정 저장" : "게시하기",
+  submittingLabel = mode === "edit" ? "저장 중..." : "게시 중...",
+  onCancel,
+  onSuccess,
+}: PostEditorProps) {
   const router = useRouter();
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const contentImageInputRef = useRef<HTMLInputElement>(null);
@@ -48,12 +74,16 @@ export default function PostEditor() {
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [title, setTitle] = useState(initialTitle);
+  const [content, setContent] = useState(initialContent);
+  const [tags, setTags] = useState(
+    initialCategoryName ? [initialCategoryName] : [],
+  );
   const [tagInput, setTagInput] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [thumbnailPath, setThumbnailPath] = useState<string | null>(null);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(initialThumbnail);
+  const [thumbnailPath, setThumbnailPath] = useState<string | null>(
+    getStorageObjectPathFromPublicUrl(initialThumbnail),
+  );
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -314,7 +344,7 @@ export default function PostEditor() {
     setError(null);
 
     try {
-      if (thumbnailPath) {
+      if (mode === "create" && thumbnailPath) {
         await removeThumbnailFromStorage(thumbnailPath);
       }
 
@@ -334,6 +364,15 @@ export default function PostEditor() {
       const {
         data: { publicUrl },
       } = supabase.storage.from(POST_THUMBNAIL_BUCKET).getPublicUrl(nextPath);
+
+      const previousUnsavedPath =
+        mode === "edit" && thumbnailPath && thumbnailUrl !== initialThumbnail
+          ? thumbnailPath
+          : null;
+
+      if (previousUnsavedPath && previousUnsavedPath !== nextPath) {
+        await removeThumbnailFromStorage(previousUnsavedPath);
+      }
 
       setThumbnailPath(nextPath);
       setThumbnailUrl(publicUrl);
@@ -436,11 +475,16 @@ export default function PostEditor() {
   }
 
   async function handleThumbnailRemove() {
-    const path =
-      thumbnailPath ?? getStorageObjectPathFromPublicUrl(thumbnailUrl);
-
     try {
-      await removeThumbnailFromStorage(path);
+      const path =
+        thumbnailPath ?? getStorageObjectPathFromPublicUrl(thumbnailUrl);
+
+      if (mode === "create") {
+        await removeThumbnailFromStorage(path);
+      } else if (thumbnailPath && thumbnailUrl !== initialThumbnail) {
+        await removeThumbnailFromStorage(thumbnailPath);
+      }
+
       setThumbnailPath(null);
       setThumbnailUrl(null);
       setError(null);
@@ -463,8 +507,10 @@ export default function PostEditor() {
     setError(null);
 
     try {
-      const response = await fetch("/api/posts", {
-        method: "POST",
+      const endpoint = mode === "edit" ? `/api/posts/${postId}` : "/api/posts";
+      const method = mode === "edit" ? "PUT" : "POST";
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -483,7 +529,26 @@ export default function PostEditor() {
         return;
       }
 
-      if (payload?.id) {
+      if (
+        mode === "edit" &&
+        initialThumbnail &&
+        initialThumbnail !== thumbnailUrl
+      ) {
+        const oldSavedThumbnailPath =
+          getStorageObjectPathFromPublicUrl(initialThumbnail);
+        if (oldSavedThumbnailPath) {
+          await removeThumbnailFromStorage(oldSavedThumbnailPath);
+        }
+      }
+
+      onSuccess?.(payload);
+
+      if (mode === "edit") {
+        router.refresh();
+        return;
+      }
+
+      if ((payload as { id?: number } | null)?.id) {
         router.push(`/posts/${payload.id}`);
         router.refresh();
         return;
@@ -632,7 +697,11 @@ export default function PostEditor() {
           </div>
         ) : null}
 
-        <div className="h-[420px] rounded-md border border-border/80 bg-muted/15">
+        <div
+          className={`rounded-md border border-border/80 bg-muted/15 ${
+            activeTab === "preview" ? "" : "h-[420px]"
+          }`}
+        >
           {activeTab === "thumbnail" ? (
             <div className="flex h-full flex-col px-5 py-5">
               <div className="flex-1">
@@ -703,7 +772,7 @@ export default function PostEditor() {
               />
             </div>
           ) : activeTab === "preview" ? (
-            <div className="h-full overflow-y-auto px-5 py-5">
+            <div className="px-5 py-5">
               {content.trim() || thumbnailUrl ? (
                 <div className="space-y-5">
                   {thumbnailUrl ? (
@@ -760,10 +829,17 @@ export default function PostEditor() {
           disabled={
             isSubmitting || isUploadingThumbnail || isUploadingContentImage
           }
-          onClick={() => router.back()}
+          onClick={() => {
+            if (onCancel) {
+              onCancel();
+              return;
+            }
+
+            router.back();
+          }}
           className="min-w-24"
         >
-          취소
+          {cancelLabel}
         </Button>
 
         <Button
@@ -776,10 +852,10 @@ export default function PostEditor() {
           className="min-w-28"
         >
           {isSubmitting
-            ? "게시 중..."
+            ? submittingLabel
             : isUploadingThumbnail || isUploadingContentImage
               ? "업로드 중..."
-              : "게시하기"}
+              : submitLabel}
         </Button>
       </div>
     </section>
