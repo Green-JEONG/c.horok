@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
-import { hasLiked, getLikeCount } from "@/lib/likes";
+import { getLikeCount, hasLiked } from "@/lib/likes";
 import { getPostById } from "@/lib/posts";
 
 export async function GET(
@@ -28,7 +28,18 @@ export async function GET(
   if (session?.user?.email) {
     const userId = await getUserIdByEmail(session.user.email);
     if (userId) {
+      const post = await getPostById(postId, {
+        includeHiddenForUserId: userId,
+      });
+      if (!post) {
+        return NextResponse.json({ message: "Not found" }, { status: 404 });
+      }
       liked = await hasLiked(postId, userId);
+    }
+  } else {
+    const post = await getPostById(postId);
+    if (!post) {
+      return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
   }
 

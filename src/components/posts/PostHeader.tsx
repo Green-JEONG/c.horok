@@ -16,6 +16,14 @@ export default function PostHeader({ post }: { post: DbPost }) {
         </span>
         <span>·</span>
         <span>조회 {post.view_count}</span>
+        {post.is_hidden ? (
+          <>
+            <span>·</span>
+            <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+              숨김 상태
+            </span>
+          </>
+        ) : null}
         <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground">
           #{post.category_name}
         </span>

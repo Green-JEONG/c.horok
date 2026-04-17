@@ -11,6 +11,7 @@ type Props = {
   comments: number;
   createdAt: Date;
   thumbnail?: string | null;
+  isHidden?: boolean;
 };
 
 export default function PostCard({
@@ -23,6 +24,7 @@ export default function PostCard({
   likes,
   comments,
   createdAt,
+  isHidden = false,
 }: Props) {
   return (
     <Link
@@ -45,6 +47,9 @@ export default function PostCard({
         </p>
 
         <h3 className="mb-1 line-clamp-1 text-sm font-semibold">{title}</h3>
+        {isHidden ? (
+          <p className="mb-2 text-xs font-medium text-amber-600">숨김 처리됨</p>
+        ) : null}
 
         <p className="mb-3 line-clamp-1 text-xs text-muted-foreground">
           {description}

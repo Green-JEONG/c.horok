@@ -77,6 +77,7 @@ export default async function MyPostList({
             likes={post.likes_count}
             comments={post.comments_count}
             createdAt={new Date(post.created_at)}
+            isHidden={post.is_hidden}
           />
         ))}
       </div>

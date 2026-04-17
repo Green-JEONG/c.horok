@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import CommentForm from "@/components/posts/CommentForm";
 import CommentList from "@/components/posts/CommentList";
@@ -6,8 +7,8 @@ import PostContent from "@/components/posts/PostContent";
 import PostFooter from "@/components/posts/PostFooter";
 import PostHeader from "@/components/posts/PostHeader";
 import PostViewTracker from "@/components/posts/PostViewTracker";
+import { getDbUserIdFromSession } from "@/lib/auth-db";
 import { findPostById } from "@/lib/db";
-import { notFound } from "next/navigation";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -21,7 +22,10 @@ export default async function PostPage({ params }: Props) {
     notFound();
   }
 
-  const post = await findPostById(postId);
+  const dbUserId = await getDbUserIdFromSession();
+  const post = await findPostById(postId, {
+    includeHiddenForUserId: dbUserId,
+  });
   if (!post) {
     notFound();
   }
@@ -41,6 +45,7 @@ export default async function PostPage({ params }: Props) {
         initialContent={post.content}
         initialCategoryName={post.category_name}
         initialThumbnail={post.thumbnail}
+        initialIsHidden={post.is_hidden}
         isOwner={isOwner}
       />
       <PostContent post={post} />
