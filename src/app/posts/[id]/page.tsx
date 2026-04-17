@@ -47,8 +47,9 @@ export default async function PostPage({ params }: Props) {
         initialThumbnail={post.thumbnail}
         initialIsHidden={post.is_hidden}
         isOwner={isOwner}
-      />
-      <PostContent post={post} />
+      >
+        <PostContent post={post} />
+      </PostActions>
       <PostFooter postId={postId} />
 
       {/* 댓글 */}
