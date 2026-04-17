@@ -9,6 +9,7 @@ export type PostRow = {
   content: string;
   created_at: string;
   updated_at: string;
+  is_hidden: boolean;
   is_deleted: boolean;
 };
 
@@ -26,6 +27,7 @@ function mapPost(post: {
   content: string;
   createdAt: Date;
   updatedAt: Date;
+  isHidden: boolean;
   isDeleted: boolean;
 }) {
   return {
@@ -36,15 +38,27 @@ function mapPost(post: {
     content: post.content,
     created_at: post.createdAt.toISOString(),
     updated_at: post.updatedAt.toISOString(),
+    is_hidden: post.isHidden,
     is_deleted: post.isDeleted,
   };
 }
 
-export async function getPostById(id: number) {
+export async function getPostById(
+  id: number,
+  options?: {
+    includeHiddenForUserId?: number | null;
+  },
+) {
   const post = await prisma.post.findFirst({
     where: {
       id: BigInt(id),
       isDeleted: false,
+      OR: [
+        { isHidden: false },
+        ...(options?.includeHiddenForUserId
+          ? [{ userId: BigInt(options.includeHiddenForUserId) }]
+          : []),
+      ],
     },
   });
 
@@ -68,7 +82,7 @@ export async function incrementPostViews(postId: number) {
 
 export async function getPopularPosts(limit = 5): Promise<PopularPostRow[]> {
   const posts = await prisma.post.findMany({
-    where: { isDeleted: false },
+    where: { isDeleted: false, isHidden: false },
     include: {
       views: {
         select: { viewCount: true },
@@ -104,6 +118,21 @@ export async function createPost(params: {
       title,
       content,
       thumbnail: thumbnailUrl,
+    },
+  });
+
+  return mapPost(post);
+}
+
+export async function setPostHidden(params: {
+  postId: number;
+  isHidden: boolean;
+}) {
+  const post = await prisma.post.update({
+    where: { id: BigInt(params.postId) },
+    data: {
+      isHidden: params.isHidden,
+      hiddenAt: params.isHidden ? new Date() : null,
     },
   });
 
@@ -151,6 +180,7 @@ export async function deletePost(postId: number) {
     where: {
       categoryId: post.categoryId,
       isDeleted: false,
+      isHidden: false,
     },
   });
 

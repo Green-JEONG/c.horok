@@ -1,7 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getDbUserIdFromSession } from "@/lib/auth-db";
-import { deletePost, getPostById, updatePost } from "@/lib/posts";
+import {
+  deletePost,
+  getPostById,
+  setPostHidden,
+  updatePost,
+} from "@/lib/posts";
 
 export async function GET(
   _req: NextRequest,
@@ -14,7 +19,10 @@ export async function GET(
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
   }
 
-  const post = await getPostById(postId);
+  const dbUserId = await getDbUserIdFromSession();
+  const post = await getPostById(postId, {
+    includeHiddenForUserId: dbUserId,
+  });
   if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
@@ -38,7 +46,9 @@ export async function PUT(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const post = await getPostById(postId);
+  const post = await getPostById(postId, {
+    includeHiddenForUserId: dbUserId,
+  });
   if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
@@ -71,6 +81,43 @@ export async function PUT(
   return NextResponse.json(updated);
 }
 
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+  const postId = Number(id);
+
+  if (Number.isNaN(postId)) {
+    return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
+  }
+
+  const dbUserId = await getDbUserIdFromSession();
+  if (!dbUserId) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const post = await getPostById(postId, {
+    includeHiddenForUserId: dbUserId,
+  });
+  if (!post) {
+    return NextResponse.json({ message: "Not found" }, { status: 404 });
+  }
+
+  if (post.user_id !== dbUserId) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+  }
+
+  const { isHidden } = await req.json();
+  if (typeof isHidden !== "boolean") {
+    return NextResponse.json({ message: "Invalid input" }, { status: 400 });
+  }
+
+  const updated = await setPostHidden({ postId, isHidden });
+
+  return NextResponse.json(updated);
+}
+
 export async function DELETE(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -87,7 +134,9 @@ export async function DELETE(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const post = await getPostById(postId);
+  const post = await getPostById(postId, {
+    includeHiddenForUserId: dbUserId,
+  });
   if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }

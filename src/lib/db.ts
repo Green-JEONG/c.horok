@@ -30,6 +30,7 @@ export type DbPost = {
   view_count: number;
   likes_count: number;
   comments_count: number;
+  is_hidden: boolean;
   user_id?: number;
 };
 
@@ -85,6 +86,7 @@ function mapPost(post: {
   thumbnail: string | null;
   createdAt: Date;
   updatedAt: Date;
+  isHidden: boolean;
   userId?: bigint;
   user: { name: string | null };
   category: { name: string };
@@ -103,6 +105,7 @@ function mapPost(post: {
     view_count: Number(post.views?.viewCount ?? 0),
     likes_count: post._count?.likes ?? 0,
     comments_count: post._count?.comments ?? 0,
+    is_hidden: post.isHidden,
     user_id: post.userId ? bigintToNumber(post.userId) : undefined,
   };
 }
@@ -250,7 +253,7 @@ export async function findPostsPaged(
   sort: SortType = DEFAULT_SORT,
 ): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
-    where: { isDeleted: false },
+    where: { isDeleted: false, isHidden: false },
     include: {
       user: { select: { name: true } },
       category: { select: { name: true } },
@@ -290,11 +293,22 @@ export async function findPostsPaged(
     .map(mapPost);
 }
 
-export async function findPostById(id: number) {
+export async function findPostById(
+  id: number,
+  options?: {
+    includeHiddenForUserId?: number | null;
+  },
+) {
   const post = await prisma.post.findFirst({
     where: {
       id: BigInt(id),
       isDeleted: false,
+      OR: [
+        { isHidden: false },
+        ...(options?.includeHiddenForUserId
+          ? [{ userId: BigInt(options.includeHiddenForUserId) }]
+          : []),
+      ],
     },
     include: {
       user: { select: { name: true } },
@@ -321,6 +335,7 @@ async function searchPostsInternal(
 ) {
   const where: Prisma.PostWhereInput = {
     isDeleted: false,
+    isHidden: false,
     OR: [
       { title: { contains: keyword, mode: "insensitive" } },
       { content: { contains: keyword, mode: "insensitive" } },

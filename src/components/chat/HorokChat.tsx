@@ -91,7 +91,7 @@ export default function HorokChat() {
   const [threads, setThreads] = useState<ChatThreadSummary[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
-  const [mobileView, setMobileView] = useState<"threads" | "chat">("chat");
+  const [view, setView] = useState<"chat" | "threads">("chat");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
@@ -130,16 +130,14 @@ export default function HorokChat() {
     () => threads.find((thread) => thread.id === threadId) ?? null,
     [threadId, threads],
   );
+  const isThreadMode = sessionStatus === "authenticated" && view === "threads";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   });
 
   useEffect(() => {
-    if (
-      !isOpen ||
-      (sessionStatus === "authenticated" && mobileView !== "chat")
-    ) {
+    if (!isOpen || isThreadMode) {
       return;
     }
 
@@ -148,7 +146,7 @@ export default function HorokChat() {
     }, 150);
 
     return () => window.clearTimeout(timer);
-  }, [isOpen, mobileView, sessionStatus]);
+  }, [isOpen, isThreadMode]);
 
   const applyActiveThread = useCallback((nextThreadId: string | null) => {
     activeThreadIdRef.current = nextThreadId;
@@ -186,10 +184,6 @@ export default function HorokChat() {
         setThreads(data.threads);
         applyActiveThread(data.activeThreadId);
         setMessages(data.activeThreadId ? data.messages : []);
-
-        if (data.activeThreadId) {
-          setMobileView("chat");
-        }
       } catch (loadError) {
         console.error("Failed to load chat state", loadError);
         setThreads([]);
@@ -211,6 +205,7 @@ export default function HorokChat() {
       applyActiveThread(null);
       setThreads([]);
       setMessages(INITIAL_MESSAGES);
+      setView("chat");
       return;
     }
 
@@ -219,12 +214,13 @@ export default function HorokChat() {
 
   async function handleSelectThread(nextThreadId: string) {
     if (nextThreadId === threadId) {
-      setMobileView("chat");
+      setView("chat");
       return;
     }
 
     clearError();
     await loadChatState(nextThreadId);
+    setView("chat");
   }
 
   async function handleCreateThread() {
@@ -250,7 +246,7 @@ export default function HorokChat() {
       applyActiveThread(data.threadId);
       setMessages([]);
       setInput("");
-      setMobileView("chat");
+      setView("chat");
       await loadChatState(data.threadId);
     } catch (createError) {
       console.error("Failed to create thread", createError);
@@ -317,7 +313,6 @@ export default function HorokChat() {
     }
 
     setInput("");
-    setMobileView("chat");
     await sendMessage({ text: trimmed });
 
     if (sessionStatus === "authenticated") {
@@ -325,16 +320,12 @@ export default function HorokChat() {
     }
   }
 
-  const showThreadListPane = sessionStatus === "authenticated";
-  const showMobileThreads = showThreadListPane && mobileView === "threads";
-  const showMobileChat = !showThreadListPane || mobileView === "chat";
-
   return (
     <div className="pointer-events-none fixed right-4 bottom-4 z-40 flex items-end justify-end sm:right-6 sm:bottom-6">
       <div className="relative flex flex-col items-end">
         <div
           className={cn(
-            "pointer-events-auto absolute right-0 bottom-[calc(100%+0.75rem)] w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] border border-orange-100 bg-white transition-all duration-300 dark:border-orange-400/20 dark:bg-zinc-950 sm:max-w-[46rem]",
+            "pointer-events-auto absolute right-0 bottom-[calc(100%+0.75rem)] w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] border border-orange-100 bg-white transition-all duration-300 dark:border-orange-400/20 dark:bg-zinc-950 sm:max-w-sm",
             isOpen
               ? "translate-y-0 scale-100 opacity-100"
               : "pointer-events-none translate-y-4 scale-95 opacity-0",
@@ -342,30 +333,38 @@ export default function HorokChat() {
         >
           <div className="bg-primary px-5 py-4 text-primary-foreground">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                {showThreadListPane ? (
+              <div className="flex min-w-0 items-center gap-2">
+                {sessionStatus === "authenticated" ? (
                   <button
                     type="button"
                     onClick={() =>
-                      setMobileView((current) =>
+                      setView((current) =>
                         current === "chat" ? "threads" : "chat",
                       )
                     }
-                    className="rounded-full bg-white/15 p-2 text-primary-foreground transition hover:bg-white/25 sm:hidden"
-                    aria-label="대화 목록 보기"
+                    className="rounded-full bg-white/15 p-2 text-primary-foreground transition hover:bg-white/25"
+                    aria-label={
+                      isThreadMode ? "대화창으로 돌아가기" : "대화 목록 보기"
+                    }
                   >
-                    {showMobileThreads ? (
+                    {isThreadMode ? (
                       <ChevronLeft className="size-4" />
                     ) : (
                       <List className="size-4" />
                     )}
                   </button>
                 ) : null}
-                <div>
-                  <p className="text-base font-semibold">호록이 상담소</p>
-                  <p className="text-xs text-primary-foreground/80">
-                    {activeThread?.title ??
-                      "대화 목록과 스레드를 관리할 수 있어요."}
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold">
+                    호록이 상담소
+                  </p>
+                  <p className="truncate text-xs text-primary-foreground/80">
+                    {isThreadMode
+                      ? "저장된 대화 목록"
+                      : (activeThread?.title ??
+                        (sessionStatus === "authenticated"
+                          ? "대화를 선택해 주세요."
+                          : "궁금한 점을 바로 물어보세요."))}
                   </p>
                 </div>
               </div>
@@ -381,14 +380,9 @@ export default function HorokChat() {
             </div>
           </div>
 
-          <div className="flex h-[31rem] bg-[linear-gradient(180deg,#fff8f0_0%,#ffffff_24%)] dark:bg-[linear-gradient(180deg,#2c1f12_0%,#171717_22%)]">
-            {showThreadListPane ? (
-              <aside
-                className={cn(
-                  "w-full border-r border-orange-100/80 bg-orange-50/75 dark:border-orange-400/15 dark:bg-zinc-950/60 sm:block sm:w-72",
-                  showMobileThreads ? "block" : "hidden sm:block",
-                )}
-              >
+          <div className="flex h-[30rem] flex-col bg-[linear-gradient(180deg,#fff8f0_0%,#ffffff_24%)] dark:bg-[linear-gradient(180deg,#2c1f12_0%,#171717_22%)]">
+            {isThreadMode ? (
+              <>
                 <div className="border-b border-orange-100/80 p-3 dark:border-orange-400/15">
                   <Button
                     type="button"
@@ -400,7 +394,7 @@ export default function HorokChat() {
                   </Button>
                 </div>
 
-                <div className="scrollbar-hide h-[calc(31rem-4.5rem)] overflow-y-auto p-2">
+                <div className="scrollbar-hide flex-1 overflow-y-auto p-3">
                   {threads.length > 0 ? (
                     threads.map((thread) => {
                       const isActive = thread.id === threadId;
@@ -414,7 +408,7 @@ export default function HorokChat() {
                             "mb-2 w-full rounded-2xl border px-3 py-3 text-left transition",
                             isActive
                               ? "border-orange-300 bg-white shadow-sm dark:border-orange-400/40 dark:bg-zinc-900"
-                              : "border-transparent bg-white/60 hover:border-orange-200 hover:bg-white dark:bg-zinc-900/60 dark:hover:border-orange-400/20",
+                              : "border-transparent bg-white/70 hover:border-orange-200 hover:bg-white dark:bg-zinc-900/60 dark:hover:border-orange-400/20",
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -437,26 +431,16 @@ export default function HorokChat() {
                         아직 저장된 대화가 없어요.
                       </p>
                       <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                        새 대화를 눌러 스레드를 만들고 이어서 관리해 보세요.
+                        새 대화를 눌러 스레드를 만들고 자유롭게 오가며 대화를
+                        이어가세요.
                       </p>
                     </div>
                   )}
                 </div>
-              </aside>
-            ) : null}
-
-            <div
-              className={cn(
-                "flex flex-1 flex-col",
-                showThreadListPane
-                  ? showMobileChat
-                    ? "flex"
-                    : "hidden sm:flex"
-                  : "flex",
-              )}
-            >
-              <div className="flex items-center justify-between border-b border-orange-100/80 px-4 py-3 dark:border-orange-400/15">
-                <div>
+              </>
+            ) : (
+              <>
+                <div className="border-b border-orange-100/80 px-4 py-3 dark:border-orange-400/15">
                   <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100">
                     {activeThread?.title ??
                       (sessionStatus === "authenticated"
@@ -466,139 +450,126 @@ export default function HorokChat() {
                   <p className="text-xs text-muted-foreground">
                     {sessionStatus === "authenticated"
                       ? activeThread
-                        ? "스레드별로 대화를 이어갈 수 있어요."
-                        : "왼쪽 목록에서 스레드를 열거나 새 대화를 시작하세요."
-                      : "로그인하면 스레드별로 저장됩니다."}
+                        ? "목록 아이콘으로 다른 스레드로 이동할 수 있어요."
+                        : "제목 왼쪽 목록 아이콘을 눌러 원하는 대화창으로 이동하세요."
+                      : "로그인하면 대화를 스레드별로 저장할 수 있어요."}
                   </p>
                 </div>
 
-                {showThreadListPane ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="hidden rounded-xl sm:inline-flex"
-                    onClick={() => void handleCreateThread()}
-                    disabled={isCreatingThread}
-                  >
-                    <MessageSquarePlus className="size-4" />새 대화
-                  </Button>
-                ) : null}
-              </div>
-
-              <div className="scrollbar-hide flex-1 space-y-3 overflow-y-auto px-4 py-4">
-                {showThreadListPane && !threadId ? (
-                  <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-                    <p className="text-base font-semibold text-slate-800 dark:text-zinc-100">
-                      대화 스레드를 선택해 주세요.
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      스레드마다 다른 주제로 대화를 나눌 수 있고, 나중에 다시
-                      이어서 볼 수 있어요.
-                    </p>
-                    <Button
-                      type="button"
-                      className="mt-5 rounded-2xl"
-                      onClick={() => void handleCreateThread()}
-                      disabled={isCreatingThread}
-                    >
-                      <MessageSquarePlus className="size-4" />새 스레드 만들기
-                    </Button>
-                  </div>
-                ) : hasMessages ? (
-                  visibleMessages.map((message) => {
-                    const text = getMessageText(message.parts).trim();
-                    if (!text) {
-                      return null;
-                    }
-
-                    const isUser = message.role === "user";
-
-                    return (
-                      <div
-                        key={message.id}
-                        className={cn(
-                          "flex",
-                          isUser ? "justify-end" : "justify-start",
-                        )}
+                <div className="scrollbar-hide flex-1 space-y-3 overflow-y-auto px-4 py-4">
+                  {sessionStatus === "authenticated" && !threadId ? (
+                    <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+                      <p className="text-base font-semibold text-slate-800 dark:text-zinc-100">
+                        대화 스레드를 선택해 주세요.
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        제목 왼쪽 목록 아이콘으로 목록 화면을 열고 원하는
+                        대화창을 선택하면 됩니다.
+                      </p>
+                      <Button
+                        type="button"
+                        className="mt-5 rounded-2xl"
+                        onClick={() => setView("threads")}
                       >
+                        <List className="size-4" />
+                        대화 목록 보기
+                      </Button>
+                    </div>
+                  ) : hasMessages ? (
+                    visibleMessages.map((message) => {
+                      const text = getMessageText(message.parts).trim();
+                      if (!text) {
+                        return null;
+                      }
+
+                      const isUser = message.role === "user";
+
+                      return (
                         <div
+                          key={message.id}
                           className={cn(
-                            "max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-6 shadow-sm",
-                            isUser
-                              ? "rounded-br-lg bg-orange-500 text-white dark:bg-orange-500 dark:text-white"
-                              : "rounded-bl-lg border border-orange-100 bg-white text-slate-800 dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-100",
+                            "flex",
+                            isUser ? "justify-end" : "justify-start",
                           )}
                         >
-                          {!isUser ? (
-                            <p className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-orange-500 dark:text-orange-300">
-                              HOROK
-                            </p>
-                          ) : null}
-                          <p className="whitespace-pre-wrap">{text}</p>
+                          <div
+                            className={cn(
+                              "max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-6 shadow-sm",
+                              isUser
+                                ? "rounded-br-lg bg-orange-500 text-white dark:bg-orange-500 dark:text-white"
+                                : "rounded-bl-lg border border-orange-100 bg-white text-slate-800 dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-100",
+                            )}
+                          >
+                            {!isUser ? (
+                              <p className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-orange-500 dark:text-orange-300">
+                                HOROK
+                              </p>
+                            ) : null}
+                            <p className="whitespace-pre-wrap">{text}</p>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                    대화를 시작하면 호록 챗봇이 바로 응답합니다.
-                  </div>
-                )}
-
-                {isLoading ? (
-                  <div className="flex justify-start">
-                    <div className="rounded-3xl rounded-bl-lg border border-orange-100 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-300">
-                      답변을 작성 중입니다...
+                      );
+                    })
+                  ) : (
+                    <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+                      대화를 시작하면 호록 챗봇이 바로 응답합니다.
                     </div>
-                  </div>
-                ) : null}
+                  )}
 
-                {error ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-300">
-                    챗봇 연결 중 문제가 발생했습니다. 잠시 후 다시 시도해
-                    주세요.
-                  </div>
-                ) : null}
+                  {isLoading ? (
+                    <div className="flex justify-start">
+                      <div className="rounded-3xl rounded-bl-lg border border-orange-100 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-300">
+                        답변을 작성 중입니다...
+                      </div>
+                    </div>
+                  ) : null}
 
-                {sessionStatus !== "authenticated" ? (
-                  <div className="px-2 text-center text-xs leading-5 text-muted-foreground">
-                    로그인하면 대화가 스레드 목록으로 저장되고 다시 이어서 볼 수
-                    있습니다.
-                  </div>
-                ) : null}
+                  {error ? (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-300">
+                      챗봇 연결 중 문제가 발생했습니다. 잠시 후 다시 시도해
+                      주세요.
+                    </div>
+                  ) : null}
 
-                <div ref={messagesEndRef} />
-              </div>
+                  {sessionStatus !== "authenticated" ? (
+                    <div className="px-2 text-center text-xs leading-5 text-muted-foreground">
+                      로그인하면 대화가 스레드 목록으로 저장되고 다시 이어서 볼
+                      수 있습니다.
+                    </div>
+                  ) : null}
 
-              <form
-                onSubmit={handleSubmit}
-                className="border-t border-orange-100 p-3 dark:border-orange-400/20"
-              >
-                <div className="flex items-end gap-2 rounded-3xl border border-orange-200 bg-white p-2 shadow-sm dark:border-orange-400/25 dark:bg-zinc-900">
-                  <input
-                    ref={inputRef}
-                    value={input}
-                    onChange={(event) => setInput(event.target.value)}
-                    placeholder={
-                      sessionStatus === "authenticated" && !threadId
-                        ? "새 스레드를 만들거나 선택해 주세요"
-                        : "호록이에게 물어보세요"
-                    }
-                    className="h-10 flex-1 bg-transparent px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-                  />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    className="size-10 rounded-full"
-                    disabled={!input.trim() || isLoading}
-                    aria-label="메시지 전송"
-                  >
-                    <Send className="size-4" />
-                  </Button>
+                  <div ref={messagesEndRef} />
                 </div>
-              </form>
-            </div>
+
+                <form
+                  onSubmit={handleSubmit}
+                  className="border-t border-orange-100 p-3 dark:border-orange-400/20"
+                >
+                  <div className="flex items-end gap-2 rounded-3xl border border-orange-200 bg-white p-2 shadow-sm dark:border-orange-400/25 dark:bg-zinc-900">
+                    <input
+                      ref={inputRef}
+                      value={input}
+                      onChange={(event) => setInput(event.target.value)}
+                      placeholder={
+                        sessionStatus === "authenticated" && !threadId
+                          ? "대화 목록에서 스레드를 선택해 주세요"
+                          : "호록이에게 물어보세요"
+                      }
+                      className="h-10 flex-1 bg-transparent px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                    />
+                    <Button
+                      type="submit"
+                      size="icon"
+                      className="size-10 rounded-full"
+                      disabled={!input.trim() || isLoading}
+                      aria-label="메시지 전송"
+                    >
+                      <Send className="size-4" />
+                    </Button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
 

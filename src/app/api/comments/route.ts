@@ -15,7 +15,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid input" }, { status: 400 });
     }
 
-    const post = await getPostById(Number(postId));
+    const post = await getPostById(Number(postId), {
+      includeHiddenForUserId: userId,
+    });
     if (!post) {
       return NextResponse.json({ message: "Post not found" }, { status: 404 });
     }
