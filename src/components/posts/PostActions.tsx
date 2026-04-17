@@ -18,6 +18,7 @@ type Props = {
   initialContent: string;
   initialCategoryName: string;
   initialThumbnail: string | null;
+  initialIsHidden: boolean;
   isOwner: boolean;
 };
 
@@ -27,6 +28,7 @@ export default function PostActions({
   initialContent,
   initialCategoryName,
   initialThumbnail,
+  initialIsHidden,
   isOwner,
 }: Props) {
   const router = useRouter();
@@ -49,6 +51,8 @@ export default function PostActions({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isHidden, setIsHidden] = useState(initialIsHidden);
+  const [isTogglingHidden, setIsTogglingHidden] = useState(false);
 
   if (!isOwner) return null;
 
@@ -278,6 +282,42 @@ export default function PostActions({
     }
   }
 
+  async function handleToggleHidden() {
+    const nextHidden = !isHidden;
+    const confirmed = window.confirm(
+      nextHidden
+        ? "이 게시글을 숨김 처리할까요? 숨김 처리하면 다른 사용자는 볼 수 없습니다."
+        : "이 게시글을 다시 공개할까요?",
+    );
+    if (!confirmed) return;
+
+    setIsTogglingHidden(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isHidden: nextHidden }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setError(payload?.message ?? "게시글 숨김 상태 변경에 실패했습니다.");
+        return;
+      }
+
+      setIsHidden(nextHidden);
+      router.refresh();
+    } catch {
+      setError("게시글 숨김 상태 변경 중 오류가 발생했습니다.");
+    } finally {
+      setIsTogglingHidden(false);
+    }
+  }
+
   return (
     <div className="mb-6 space-y-3">
       <div className="flex justify-end gap-2 text-sm">
@@ -286,6 +326,7 @@ export default function PostActions({
           disabled={
             isSubmitting ||
             isDeleting ||
+            isTogglingHidden ||
             isUploadingThumbnail ||
             isUploadingContentImage
           }
@@ -303,6 +344,28 @@ export default function PostActions({
           disabled={
             isSubmitting ||
             isDeleting ||
+            isTogglingHidden ||
+            isUploadingThumbnail ||
+            isUploadingContentImage
+          }
+          onClick={handleToggleHidden}
+          className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isTogglingHidden
+            ? isHidden
+              ? "공개 중..."
+              : "숨김 중..."
+            : isHidden
+              ? "숨김 해제"
+              : "숨김"}
+        </button>
+
+        <button
+          type="button"
+          disabled={
+            isSubmitting ||
+            isDeleting ||
+            isTogglingHidden ||
             isUploadingThumbnail ||
             isUploadingContentImage
           }
@@ -359,6 +422,7 @@ export default function PostActions({
                   multiple
                   disabled={
                     isSubmitting ||
+                    isTogglingHidden ||
                     isUploadingThumbnail ||
                     isUploadingContentImage
                   }
@@ -400,6 +464,7 @@ export default function PostActions({
                   accept="image/*"
                   disabled={
                     isSubmitting ||
+                    isTogglingHidden ||
                     isUploadingThumbnail ||
                     isUploadingContentImage
                   }
@@ -425,6 +490,7 @@ export default function PostActions({
                     type="button"
                     disabled={
                       isSubmitting ||
+                      isTogglingHidden ||
                       isUploadingThumbnail ||
                       isUploadingContentImage
                     }
@@ -444,7 +510,10 @@ export default function PostActions({
             <button
               type="button"
               disabled={
-                isSubmitting || isUploadingThumbnail || isUploadingContentImage
+                isSubmitting ||
+                isTogglingHidden ||
+                isUploadingThumbnail ||
+                isUploadingContentImage
               }
               onClick={async () => {
                 if (thumbnailPath && thumbnailUrl !== savedThumbnailUrl) {
@@ -467,7 +536,10 @@ export default function PostActions({
             <button
               type="button"
               disabled={
-                isSubmitting || isUploadingThumbnail || isUploadingContentImage
+                isSubmitting ||
+                isTogglingHidden ||
+                isUploadingThumbnail ||
+                isUploadingContentImage
               }
               onClick={handleUpdate}
               className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"

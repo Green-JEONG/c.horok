@@ -15,6 +15,7 @@ export type DbPost = {
   category_name: string;
   likes_count: number;
   comments_count: number;
+  is_hidden: boolean;
 };
 
 function mapPost(post: {
@@ -23,6 +24,7 @@ function mapPost(post: {
   content: string;
   thumbnail: string | null;
   createdAt: Date;
+  isHidden: boolean;
   user: { name: string | null };
   category: { name: string };
   _count: { likes: number; comments: number };
@@ -37,6 +39,7 @@ function mapPost(post: {
     category_name: post.category.name,
     likes_count: post._count.likes,
     comments_count: post._count.comments,
+    is_hidden: post.isHidden,
   };
 }
 
@@ -49,6 +52,7 @@ export async function searchPosts(
   const posts = await prisma.post.findMany({
     where: {
       isDeleted: false,
+      isHidden: false,
       OR: [
         { title: { contains: keyword, mode: "insensitive" } },
         { content: { contains: keyword, mode: "insensitive" } },
@@ -114,6 +118,7 @@ export async function getPostsByCategorySlug(
   const posts = await prisma.post.findMany({
     where: {
       isDeleted: false,
+      isHidden: false,
       category: {
         slug,
       },
@@ -228,6 +233,7 @@ export async function getLikedPosts(
   const posts = await prisma.post.findMany({
     where: {
       isDeleted: false,
+      isHidden: false,
       likes: {
         some: {
           userId: BigInt(userId),
@@ -277,6 +283,7 @@ export async function getRandomPosts(limit: number): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
     where: {
       isDeleted: false,
+      isHidden: false,
     },
     include: {
       user: { select: { name: true } },

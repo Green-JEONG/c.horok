@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getDbUserIdFromSession } from "@/lib/auth-db";
 import { getPostById, incrementPostViews } from "@/lib/posts";
 
 export async function POST(
@@ -12,7 +13,10 @@ export async function POST(
     return NextResponse.json({ message: "Invalid post id" }, { status: 400 });
   }
 
-  const post = await getPostById(postId);
+  const dbUserId = await getDbUserIdFromSession();
+  const post = await getPostById(postId, {
+    includeHiddenForUserId: dbUserId,
+  });
   if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
