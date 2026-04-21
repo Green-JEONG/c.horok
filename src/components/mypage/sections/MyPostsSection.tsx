@@ -16,6 +16,7 @@ type MyPost = {
   category_name: string;
   likes_count: number;
   comments_count: number;
+  is_hidden: boolean;
 };
 
 export default function MyPostsSection() {
@@ -81,6 +82,7 @@ export default function MyPostsSection() {
                 likes={post.likes_count}
                 comments={post.comments_count}
                 createdAt={new Date(post.created_at)}
+                isHidden={post.is_hidden}
               />
             ))}
           </div>

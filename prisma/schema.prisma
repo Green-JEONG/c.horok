@@ -18,6 +18,11 @@ enum AuthProvider {
   google
 }
 
+enum ChatMessageRole {
+  user
+  assistant
+}
+
 model User {
   id            BigInt      @id @default(autoincrement())
   email         String      @unique @db.VarChar(255)
@@ -41,8 +46,36 @@ model User {
   posts         Post[]
   friendships   Friend[]    @relation("FriendUser")
   followers     Friend[]    @relation("FriendFriendUser")
+  chatThreads   ChatThread[]
 
   @@map("users")
+}
+
+model ChatThread {
+  id        BigInt        @id @default(autoincrement())
+  userId    BigInt        @map("user_id")
+  title     String?       @db.VarChar(120)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt], map: "idx_chat_threads_user_updated_at")
+  @@map("chat_threads")
+}
+
+model ChatMessage {
+  id        BigInt          @id @default(autoincrement())
+  threadId  BigInt          @map("thread_id")
+  role      ChatMessageRole
+  content   String          @db.Text
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  thread    ChatThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt], map: "idx_chat_messages_thread_created_at")
+  @@map("chat_messages")
 }
 
 model Category {
@@ -64,6 +97,8 @@ model Post {
   thumbnail   String?        @db.VarChar(255)
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at")
+  isHidden    Boolean        @default(false) @map("is_hidden")
+  hiddenAt    DateTime?      @map("hidden_at")
   isDeleted   Boolean        @default(false) @map("is_deleted")
   deletedAt   DateTime?      @map("deleted_at")
   deletedBy   Int?           @map("deleted_by")

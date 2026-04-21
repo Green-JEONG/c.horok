@@ -27,7 +27,9 @@ export async function POST(
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
-  const post = await getPostById(postId);
+  const post = await getPostById(postId, {
+    includeHiddenForUserId: userId,
+  });
   if (!post) {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
