@@ -87,7 +87,7 @@ export default function RootPortal() {
         </div>
 
         <div className="flex-1 bg-[linear-gradient(180deg,#ffffff_0%,#ffffff_60%,#dff0e7_100%)] p-4 sm:p-6 lg:p-8">
-          <div className="relative aspect-[16/24] w-full min-[480px]:aspect-[16/20] sm:aspect-[16/11.5] lg:aspect-[16/10]">
+          <div className="relative aspect-[16/26] w-full min-[480px]:aspect-[16/22] sm:aspect-[16/11.5] lg:aspect-[16/10]">
             <div className="absolute inset-0">
               <div className="absolute left-[3%] top-[6%] z-0 w-[31%] sm:w-[37%]">
                 <Image
@@ -138,7 +138,7 @@ export default function RootPortal() {
                 </div>
               </div>
 
-              <section className="absolute bottom-[-8%] left-[7%] right-[7%] z-10 grid grid-cols-2 gap-x-[12%] gap-y-[10%] min-[480px]:bottom-[1%] sm:bottom-0 sm:left-[6%] sm:right-[6%] sm:grid-cols-4 sm:gap-[4.2%] lg:bottom-[3%]">
+              <section className="absolute bottom-[4%] left-[7%] right-[7%] z-10 grid grid-cols-2 gap-x-[12%] gap-y-[10%] min-[480px]:bottom-[3%] sm:bottom-0 sm:left-[6%] sm:right-[6%] sm:grid-cols-4 sm:gap-[4.2%] lg:bottom-[3%]">
                 {services.map((service) => {
                   const isActive = activeServiceHref === service.href;
 
