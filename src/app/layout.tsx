@@ -17,8 +17,8 @@ const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "호록이의 보금자리",
-  description: "기술로 소통하고, 배움을 나누며, 성장의 발자취를 기록합니다.",
+  title: "c.horok | 호록 컴퍼니",
+  description: "오늘의 기록이 내일의 기술이 되는 곳",
   openGraph: {
     title: "오늘의 기록이 내일의 기술이 되는 곳",
     description: "함께 공부하고, 기록하고, 나누세요.",

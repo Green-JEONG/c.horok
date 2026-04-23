@@ -77,7 +77,7 @@ export default function RootPortal() {
 
   return (
     <main className="min-h-dvh bg-[#f7f7f7] px-4 py-10 text-black sm:px-8 lg:px-12">
-      <div className="mx-auto max-w-[1200px] overflow-hidden rounded-[20px] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]">
+      <div className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-[1200px] flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] sm:min-h-0">
         <div className="flex h-16 items-center bg-[#3d4d57] px-[4.2%] sm:h-20 lg:h-24">
           <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
             <span className="h-4 w-4 rounded-full bg-[#fa5f56] sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
@@ -86,10 +86,10 @@ export default function RootPortal() {
           </div>
         </div>
 
-        <div className="bg-[linear-gradient(180deg,#ffffff_0%,#ffffff_60%,#dff0e7_100%)] p-4 sm:p-6 lg:p-8">
-          <div className="relative aspect-[16/10] w-full">
+        <div className="flex-1 bg-[linear-gradient(180deg,#ffffff_0%,#ffffff_60%,#dff0e7_100%)] p-4 sm:p-6 lg:p-8">
+          <div className="relative aspect-[16/24] w-full min-[480px]:aspect-[16/20] sm:aspect-[16/11.5] lg:aspect-[16/10]">
             <div className="absolute inset-0">
-              <div className="absolute left-[3%] top-[6%] z-0 w-[37%]">
+              <div className="absolute left-[3%] top-[6%] z-0 w-[31%] sm:w-[37%]">
                 <Image
                   src="/logo_body.png"
                   alt="horok mascot"
@@ -100,7 +100,7 @@ export default function RootPortal() {
                 />
               </div>
 
-              <div className="absolute right-[6.5%] top-[1.5%] z-20 w-[50%] rounded-[24px] border border-black/10 bg-white px-[5.2%] py-[4%] shadow-[0_5px_14px_rgba(15,23,42,0.12)]">
+              <div className="absolute left-[38%] right-[5%] top-[3%] z-20 rounded-[24px] border border-black/10 bg-white px-[5.2%] py-[4%] shadow-[0_5px_14px_rgba(15,23,42,0.12)] sm:left-auto sm:right-[6.5%] sm:top-[1.5%] sm:w-[50%]">
                 <div className="absolute left-[-2.8%] top-[62%] h-0 w-0 -translate-y-1/2 border-y-[0.7vw] border-r-[1.2vw] border-y-transparent border-r-white drop-shadow-[-2px_2px_2px_rgba(15,23,42,0.06)] sm:left-[-3.1%] sm:border-y-[0.9vw] sm:border-r-[1.6vw] lg:left-[-3.3%] lg:border-y-[1.15vw] lg:border-r-[2vw]" />
                 <div className="space-y-[4%]">
                   <div className="space-y-[1.8%]">
@@ -109,7 +109,7 @@ export default function RootPortal() {
                         안녕하세요!
                       </p>
                     )}
-                    <h1 className="text-lg font-normal leading-[1.12] sm:text-[2rem] lg:text-[2.5rem]">
+                    <h1 className="text-[1.25rem] font-normal leading-[1.12] min-[480px]:text-[1.55rem] sm:text-[2.1rem] lg:text-[2.5rem]">
                       {activeService ? (
                         <>
                           <strong className="font-black">
@@ -127,7 +127,7 @@ export default function RootPortal() {
                       )}
                     </h1>
                   </div>
-                  <p className="text-[0.68rem] leading-[1.28] text-black/85 sm:text-[0.82rem] lg:text-[1.02rem]">
+                  <p className="text-[0.88rem] leading-[1.34] text-black/85 min-[480px]:text-[0.98rem] sm:text-[1.05rem] lg:text-[1.12rem]">
                     {bubbleLines.map((line) => (
                       <span key={line}>
                         {line}
@@ -138,7 +138,7 @@ export default function RootPortal() {
                 </div>
               </div>
 
-              <section className="absolute bottom-[-1.5%] left-[6%] right-[6%] z-10 grid grid-cols-4 gap-[4.2%]">
+              <section className="absolute bottom-[-8%] left-[7%] right-[7%] z-10 grid grid-cols-2 gap-x-[12%] gap-y-[10%] min-[480px]:bottom-[1%] sm:bottom-0 sm:left-[6%] sm:right-[6%] sm:grid-cols-4 sm:gap-[4.2%] lg:bottom-[3%]">
                 {services.map((service) => {
                   const isActive = activeServiceHref === service.href;
 
@@ -158,33 +158,33 @@ export default function RootPortal() {
                         }`}
                       >
                         <div
-                          className={`absolute left-0 top-[-8%] h-[96%] w-[56%] origin-top-left rounded-[24px] ${service.tabColor} transition duration-300 ${
+                          className={`absolute left-0 top-[-8%] h-[96%] w-[56%] origin-top-left rounded-[12px] sm:rounded-[18px] lg:rounded-[24px] ${service.tabColor} transition duration-300 ${
                             isActive
                               ? "-rotate-3 -translate-x-1.5 -translate-y-1"
                               : ""
                           }`}
                         />
                         <div
-                          className={`absolute right-0 top-[-4%] h-[92%] w-[56%] origin-top-right rounded-[24px] ${service.tabColor} transition duration-300 ${
+                          className={`absolute right-0 top-[-4%] h-[92%] w-[56%] origin-top-right rounded-[12px] sm:rounded-[18px] lg:rounded-[24px] ${service.tabColor} transition duration-300 ${
                             isActive
                               ? "rotate-3 translate-x-1.5 -translate-y-1"
                               : ""
                           }`}
                         />
                         <div
-                          className={`relative rounded-[24px] ${service.folderColor} px-[12%] py-[22%] shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition duration-300 ${
+                          className={`relative rounded-[18px] sm:rounded-[22px] lg:rounded-[24px] ${service.folderColor} px-[12%] py-[24%] sm:py-[22%] shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition duration-300 ${
                             isActive
                               ? "-translate-y-2 rotate-[-1.5deg] shadow-[0_18px_30px_rgba(15,23,42,0.22)]"
                               : "group:hover:-translate-y-1 group:hover:shadow-[0_14px_24px_rgba(15,23,42,0.14)]"
                           }`}
                         >
-                          <p className="whitespace-pre-line text-sm font-black leading-[1.08] tracking-[0.16em] text-black sm:text-2xl lg:text-[2.2rem]">
+                          <p className="whitespace-pre-line text-base font-black leading-[1.08] tracking-[0.14em] text-black sm:text-2xl sm:tracking-[0.16em] lg:text-[2.2rem]">
                             {service.title}
                           </p>
                         </div>
                       </div>
                       <p
-                        className={`mt-[4%] text-sm font-medium tracking-tight text-black transition duration-300 sm:text-xl lg:text-[1.8rem] ${
+                        className={`mt-[5%] text-base font-medium tracking-tight text-black transition duration-300 sm:mt-[4%] sm:text-xl lg:text-[1.8rem] ${
                           isActive ? "translate-y-1 scale-[1.02]" : ""
                         }`}
                       >
