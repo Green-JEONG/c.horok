@@ -12,9 +12,9 @@ export default function HorokShopPage() {
   return (
     <section>
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Horok Shop</h2>
+        <h2 className="text-sm font-semibold text-foreground">쇼핑</h2>
         <p className="text-sm text-muted-foreground">
-          호록 컴퍼니의 브랜드 상품과 프로젝트 굿즈는 현재 준비 중입니다.
+          호록 컴퍼니의 브랜드 상품과 굿즈는 현재 준비 중입니다.
         </p>
       </div>
     </section>

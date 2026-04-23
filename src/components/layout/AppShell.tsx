@@ -21,12 +21,19 @@ export default function AppShell({
 }: AppShellProps) {
   const pathname = usePathname();
   const isPortalPage = pathname === "/";
+  const isStandaloneServicePage =
+    pathname === "/horok-cote" ||
+    pathname.startsWith("/horok-cote/") ||
+    pathname === "/horok-tv" ||
+    pathname.startsWith("/horok-tv/") ||
+    pathname === "/horok-shop" ||
+    pathname.startsWith("/horok-shop/");
 
-  if (isPortalPage) {
+  if (isPortalPage || isStandaloneServicePage) {
     return (
       <>
         <main className="min-h-dvh">{children}</main>
-        {chat}
+        {isPortalPage ? null : chat}
       </>
     );
   }
