@@ -43,6 +43,7 @@ export default async function LikedPostList({ sort }: { sort?: string }) {
       initialSort={parsedSort}
       syncSortWithSearchParams
       emptyMessage="아직 좋아요한 게시글이 없습니다."
+      postRouteSection="likes"
     />
   );
 }

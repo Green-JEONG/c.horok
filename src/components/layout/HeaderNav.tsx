@@ -6,30 +6,21 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   {
-    href: "/feed",
+    href: "/horok-tech/feeds",
     label: "피드",
-    match: (p: string) => p === "/feed" || p.startsWith("/feed/"),
-  },
-  {
-    href: "/videos",
-    label: "영상",
-    match: (p: string) => p === "/videos" || p.startsWith("/videos/"),
-  },
-  {
-    href: "/coding-tests",
-    label: "코딩테스트",
     match: (p: string) =>
-      p === "/coding-tests" || p.startsWith("/coding-tests/"),
+      p === "/horok-tech/feeds" || p.startsWith("/horok-tech/feeds/"),
   },
   {
-    href: "/likes",
+    href: "/horok-tech/likes",
     label: "좋아요",
-    match: (p: string) => p.startsWith("/likes"),
+    match: (p: string) => p.startsWith("/horok-tech/likes"),
   },
   {
-    href: "/notices",
+    href: "/horok-tech/notices",
     label: "공지사항",
-    match: (p: string) => p === "/notices" || p.startsWith("/notices/"),
+    match: (p: string) =>
+      p === "/horok-tech/notices" || p.startsWith("/horok-tech/notices/"),
   },
 ];
 
@@ -37,7 +28,7 @@ export default function HeaderNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="grid w-full grid-cols-5 gap-2 text-sm font-medium md:flex md:w-auto md:grid-cols-none md:items-center md:gap-5">
+    <nav className="grid w-full grid-cols-3 gap-2 text-sm font-medium md:flex md:w-auto md:grid-cols-none md:items-center md:gap-5">
       {navItems.map((item) => {
         const isActive = item.match(pathname);
 

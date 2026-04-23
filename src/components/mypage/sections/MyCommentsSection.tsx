@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import SectionPagination from "@/components/mypage/sections/SectionPagination";
+import { getTechFeedPostPath } from "@/lib/routes";
 
 const PAGE_SIZE = 5;
 
@@ -58,7 +59,7 @@ export default function MyCommentsSection() {
                 </div>
               ) : (
                 <Link
-                  href={`/posts/${post_id}`}
+                  href={`${getTechFeedPostPath(post_id)}?commentId=${id}`}
                   className="block rounded-lg border p-4 text-sm transition-colors hover:bg-muted"
                 >
                   <p className="line-clamp-2">{content}</p>

@@ -27,7 +27,7 @@ export default function RecommendedCategories() {
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         <Image src="/thumb.svg" alt="thumb" width={18} height={18} />
-        <h3 className="text-sm font-semibold">카테고리</h3>
+        <h3 className="text-lg font-bold tracking-tight">카테고리</h3>
       </div>
 
       {categories.length === 0 ? (

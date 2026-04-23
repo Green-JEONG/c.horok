@@ -55,7 +55,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
     return (
       <div className="space-y-4">
-        <h2 className="text-sm font-semibold">#{categoryName}</h2>
+        <h2 className="text-lg font-bold tracking-tight">#{categoryName}</h2>
 
         <PostListInfinite
           initialPosts={posts}

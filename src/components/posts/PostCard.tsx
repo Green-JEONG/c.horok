@@ -1,5 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
+import { isNoticeCategoryName } from "@/lib/notice-categories";
+import {
+  getTechFeedPostPath,
+  getTechLikesPostPath,
+  getTechNoticePath,
+} from "@/lib/routes";
 
 type Props = {
   id: number;
@@ -12,7 +18,34 @@ type Props = {
   createdAt: Date;
   thumbnail?: string | null;
   isHidden?: boolean;
+  categoryBadgeText?: string;
+  categoryBadgeClassName?: string;
+  postRouteSection?: "feeds" | "likes";
 };
+
+function getDefaultNoticeBadge(category: string) {
+  if (category === "긴급") {
+    return {
+      text: "#긴급",
+      className:
+        "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
+    };
+  }
+
+  if (category === "중요") {
+    return {
+      text: "#중요",
+      className:
+        "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300",
+    };
+  }
+
+  return {
+    text: "#공지",
+    className:
+      "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
+  };
+}
 
 export default function PostCard({
   id,
@@ -25,10 +58,26 @@ export default function PostCard({
   comments,
   createdAt,
   isHidden = false,
+  categoryBadgeText,
+  categoryBadgeClassName,
+  postRouteSection = "feeds",
 }: Props) {
+  const isNotice = isNoticeCategoryName(category);
+  const href = isNotice
+    ? getTechNoticePath(id)
+    : postRouteSection === "likes"
+      ? getTechLikesPostPath(id)
+      : getTechFeedPostPath(id);
+  const defaultBadge = isNotice
+    ? getDefaultNoticeBadge(category)
+    : {
+        text: `#${category}`,
+        className: "border-border bg-background text-foreground",
+      };
+
   return (
     <Link
-      href={`/posts/${id}`}
+      href={href}
       className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
     >
       <div className="relative flex h-30 items-center justify-center bg-zinc-900">
@@ -42,9 +91,16 @@ export default function PostCard({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col p-3">
-        <p className="mb-1 truncate text-xs text-muted-foreground">
-          {category} · {author}
-        </p>
+        <div className="mb-2 flex min-w-0 items-center gap-2">
+          <span
+            className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+              categoryBadgeClassName ?? defaultBadge.className
+            }`}
+          >
+            {categoryBadgeText ?? defaultBadge.text}
+          </span>
+          <p className="truncate text-xs text-muted-foreground">{author}</p>
+        </div>
 
         <h3 className="mb-1 line-clamp-1 text-sm font-semibold">{title}</h3>
         {isHidden ? (

@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import PostEditor from "@/components/posts/PostEditor";
 import {
@@ -18,6 +18,9 @@ type Props = {
   initialThumbnail: string | null;
   initialIsHidden: boolean;
   isOwner: boolean;
+  redirectPath?: string;
+  categoryLocked?: boolean;
+  fixedTagOptions?: string[];
   children?: ReactNode;
 };
 
@@ -29,6 +32,9 @@ export default function PostActions({
   initialThumbnail,
   initialIsHidden,
   isOwner,
+  redirectPath = "/horok-tech/feeds",
+  categoryLocked = false,
+  fixedTagOptions,
   children,
 }: Props) {
   const router = useRouter();
@@ -38,7 +44,9 @@ export default function PostActions({
   const [isHidden, setIsHidden] = useState(initialIsHidden);
   const [isTogglingHidden, setIsTogglingHidden] = useState(false);
 
-  if (!isOwner) return null;
+  if (!isOwner) {
+    return children ?? null;
+  }
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -68,7 +76,7 @@ export default function PostActions({
         await removeThumbnailFromStorage(storagePath);
       }
 
-      router.push("/");
+      router.push(redirectPath);
       router.refresh();
     } catch {
       setError("게시글 삭제 중 오류가 발생했습니다.");
@@ -162,6 +170,8 @@ export default function PostActions({
             initialContent={initialContent}
             initialCategoryName={initialCategoryName}
             initialThumbnail={initialThumbnail}
+            categoryLocked={categoryLocked}
+            fixedTagOptions={fixedTagOptions}
             onCancel={() => {
               setIsEditing(false);
               setError(null);

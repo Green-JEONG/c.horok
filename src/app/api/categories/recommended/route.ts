@@ -62,6 +62,7 @@ export async function GET() {
       posts: {
         some: {
           isDeleted: false,
+          isHidden: false,
         },
       },
     },
@@ -69,7 +70,10 @@ export async function GET() {
       _count: {
         select: {
           posts: {
-            where: { isDeleted: false },
+            where: {
+              isDeleted: false,
+              isHidden: false,
+            },
           },
         },
       },

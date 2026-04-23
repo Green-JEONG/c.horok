@@ -4,9 +4,15 @@ import { getUserIdByEmail } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
 import LikeButton from "./LikeButton";
 
-type Props = { postId: number };
+type Props = {
+  postId: number;
+  backHref?: string;
+};
 
-export default async function PostFooter({ postId }: Props) {
+export default async function PostFooter({
+  postId,
+  backHref = "/horok-tech/feeds",
+}: Props) {
   const [likeCount, session] = await Promise.all([
     prisma.postLike.count({
       where: { postId: BigInt(postId) },
@@ -44,7 +50,10 @@ export default async function PostFooter({ postId }: Props) {
         />
       </div>
 
-      <Link href="/" className="text-sm text-muted-foreground hover:underline">
+      <Link
+        href={backHref}
+        className="text-sm text-muted-foreground hover:underline"
+      >
         ← 목록으로
       </Link>
     </footer>

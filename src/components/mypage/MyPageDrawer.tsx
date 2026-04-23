@@ -25,6 +25,7 @@ type Notification = {
   message?: string | null;
   post_id: number | null;
   comment_id: number | null;
+  post_path: string | null;
   is_post_deleted: boolean;
   is_read: number;
   created_at: string;
@@ -302,8 +303,11 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                         return;
                       }
 
-                      if (n.post_id && !n.is_post_deleted) {
-                        router.push(`/posts/${n.post_id}`);
+                      if (n.post_path && !n.is_post_deleted) {
+                        const targetPath = n.comment_id
+                          ? `${n.post_path}?commentId=${n.comment_id}`
+                          : n.post_path;
+                        router.push(targetPath);
                       }
                     }}
                     disabled={n.is_post_deleted}

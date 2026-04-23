@@ -32,7 +32,9 @@ export default function RecommendedKeywords() {
             key={k.word}
             type="button"
             onClick={() =>
-              router.push(`/feed?keyword=${encodeURIComponent(k.word)}`)
+              router.push(
+                `/horok-tech/feeds?keyword=${encodeURIComponent(k.word)}`,
+              )
             }
             className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
           >

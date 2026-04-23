@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import HorokChat from "@/components/chat/HorokChat";
 import RecommendedCategories from "@/components/home/RecommendedCategories";
+import AppShell from "@/components/layout/AppShell";
 import BannerBar from "@/components/layout/BannerBar";
 import Header from "@/components/layout/Header";
 import LoginWelcomeToast from "@/components/layout/LoginWelcomeToast";
@@ -16,7 +17,7 @@ const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "호록이의 보금자리 | 기술 기록과 공유의 공간 🐯",
+  title: "호록이의 보금자리",
   description: "기술로 소통하고, 배움을 나누며, 성장의 발자취를 기록합니다.",
   openGraph: {
     title: "오늘의 기록이 내일의 기술이 되는 곳",
@@ -60,66 +61,27 @@ export default function RootLayout({
       </head>
       <body className="flex min-h-dvh flex-col overflow-x-hidden">
         <AuthSessionProvider>
-          <Header />
           <LoginWelcomeToast />
-
-          <BannerBar />
-          {/* Main */}
-          <main
-            className="
-            mx-auto
-            flex
-            w-full
-            max-w-6xl
-            flex-1
-            md:min-h-0
-            md:overflow-hidden
-  "
+          <AppShell
+            header={<Header />}
+            banner={<BannerBar />}
+            sidebar={
+              <>
+                <UserProfiles />
+                <PopularPosts />
+                {/* <RecommendedKeywords /> */}
+                <RecommendedCategories />
+              </>
+            }
+            footer={
+              <footer className="mt-auto text-center text-xs text-muted-foreground">
+                © 2026 | c.horok | All rights reserved.
+              </footer>
+            }
+            chat={<HorokChat />}
           >
-            {/* Left Sidebar */}
-            <aside
-              className="
-    hidden
-    w-1/4
-    md:block
-    h-full
-    sticky
-    top-0
-  "
-            >
-              {/* 세로 구분선 */}
-              <div className="flex h-full px-6 flex-col border-r py-6">
-                <div className="space-y-8">
-                  <UserProfiles />
-                  <PopularPosts />
-                  {/* <RecommendedKeywords /> */}
-                  <RecommendedCategories />
-                </div>
-
-                {/* Footer */}
-                <footer className="mt-auto text-center text-xs text-muted-foreground">
-                  © 2026 | c.horok | All rights reserved.
-                </footer>
-              </div>
-            </aside>
-
-            {/* Main Content */}
-            <section
-              className="
-    w-full
-    md:w-2/3
-    px-4
-    md:px-6
-    py-6
-    md:min-h-0
-    md:overflow-y-auto
-    scrollbar-hide
-  "
-            >
-              {children}
-            </section>
-          </main>
-          <HorokChat />
+            {children}
+          </AppShell>
         </AuthSessionProvider>
       </body>
     </html>

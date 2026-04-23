@@ -1,5 +1,6 @@
 "use client";
 
+import { UserRound } from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -44,7 +45,7 @@ export default function UserProfiles() {
             }))
         : null;
 
-      if (!pathname.startsWith("/posts/")) {
+      if (!pathname.startsWith("/horok-tech/feeds/posts/")) {
         const userPageMatch = pathname.match(/^\/users\/(\d+)$/);
 
         if (userPageMatch) {
@@ -73,7 +74,7 @@ export default function UserProfiles() {
         return;
       }
 
-      const match = pathname.match(/^\/posts\/(\d+)$/);
+      const match = pathname.match(/^\/horok-tech\/feeds\/posts\/(\d+)$/);
       if (!match) {
         setProfile(selfProfile);
         setLoading(false);
@@ -144,7 +145,8 @@ export default function UserProfiles() {
   return (
     <section className="-mx-6 px-6 space-y-3">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold">유저 프로필</h3>
+        <UserRound className="h-[18px] w-[18px]" />
+        <h3 className="text-lg font-bold tracking-tight">프로필</h3>
       </div>
 
       {loading ? (
@@ -180,7 +182,7 @@ export default function UserProfiles() {
               </Button>
             ) : status !== "authenticated" ? (
               <Button size="sm" variant="outline" className="w-full" disabled>
-                로그인 후 이용
+                로그인 후 구독하기
               </Button>
             ) : (
               <Button

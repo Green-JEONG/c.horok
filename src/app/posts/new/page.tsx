@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "New Post | c.horok",
   description: "글 작성 페이지",
 };
 
-import PostEditor from "@/components/posts/PostEditor";
-
-export default function WritePostPage() {
-  return (
-    <main className="mx-auto max-w-3xl">
-      <h1 className="mb-6 text-2xl font-bold">글 작성</h1>
-      <PostEditor />
-    </main>
-  );
+export default function LegacyWritePostPage() {
+  redirect("/horok-tech/feeds/posts/new");
 }

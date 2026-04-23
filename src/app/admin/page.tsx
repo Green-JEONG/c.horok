@@ -310,7 +310,7 @@ export default async function AdminPage() {
 
                   <a
                     className="text-xs text-muted-foreground underline hover:text-foreground"
-                    href={`/posts/${p.id}`}
+                    href={`/horok-tech/feeds/posts/${p.id}`}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -398,7 +398,7 @@ export default async function AdminPage() {
 
                   <a
                     className="mt-1 inline-block text-xs text-muted-foreground underline hover:text-foreground"
-                    href={`/posts/${c.post_id}`}
+                    href={`/horok-tech/feeds/posts/${c.post_id}`}
                     target="_blank"
                     rel="noreferrer"
                   >

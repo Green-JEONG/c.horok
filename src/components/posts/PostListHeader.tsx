@@ -19,12 +19,18 @@ type Props = {
   title?: string;
   showWriteButton?: boolean;
   titleAction?: ReactNode;
+  sortOptions?: SortType[];
+  writeButtonHref?: string;
+  writeButtonLabel?: string;
 };
 
 export default function PostListHeader({
   title: customTitle,
   showWriteButton,
   titleAction,
+  sortOptions = ["latest", "views", "likes", "comments"],
+  writeButtonHref,
+  writeButtonLabel,
 }: Props = {}) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{
@@ -40,8 +46,12 @@ export default function PostListHeader({
   const sort = parseSortType(searchParams.get("sort"));
   const category = searchParams.get("category");
 
-  const isFeedPage = pathname === "/feed" || pathname.startsWith("/feed/");
-  const isLikesPage = pathname === "/likes" || pathname.startsWith("/likes/");
+  const isFeedPage =
+    pathname === "/horok-tech/feeds" ||
+    pathname.startsWith("/horok-tech/feeds/");
+  const isLikesPage =
+    pathname === "/horok-tech/likes" ||
+    pathname.startsWith("/horok-tech/likes/");
 
   const title =
     customTitle ??
@@ -122,12 +132,16 @@ export default function PostListHeader({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground">
+          {title}
+        </h2>
         {titleAction}
       </div>
 
       <div className="flex items-center gap-2">
-        {canShowWriteButton ? <HomeWriteButton /> : null}
+        {canShowWriteButton ? (
+          <HomeWriteButton href={writeButtonHref} label={writeButtonLabel} />
+        ) : null}
         <button
           ref={buttonRef}
           type="button"
@@ -136,7 +150,7 @@ export default function PostListHeader({
           aria-haspopup="menu"
           aria-expanded={open}
         >
-          {SORT_LABEL[sort]}
+          {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
           <ChevronDown className="h-4 w-4" />
         </button>
       </div>
@@ -148,7 +162,7 @@ export default function PostListHeader({
               className="fixed z-100 rounded-md border bg-background text-sm shadow-md"
               style={menuStyle}
             >
-              {(Object.keys(SORT_LABEL) as SortType[]).map((key) => (
+              {sortOptions.map((key) => (
                 <li key={key}>
                   <button
                     type="button"

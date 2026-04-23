@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { findPostsPaged, getUserIdByEmail } from "@/lib/db";
+import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { parseSortType } from "@/lib/post-sort";
 import { createPost } from "@/lib/posts";
 
@@ -33,6 +34,10 @@ export async function POST(req: Request) {
 
   if (!categoryName || !title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
+  }
+
+  if (isNoticeCategoryName(categoryName) && session.user.role !== "ADMIN") {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const post = await createPost({

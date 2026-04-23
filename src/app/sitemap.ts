@@ -13,25 +13,37 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${baseUrl}/feed`, // https://www.horok.co.kr/feed (끝에 / 없음)
+      url: `${baseUrl}/horok-tech`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.95,
+    },
+    {
+      url: `${baseUrl}/horok-tech/feeds`, // https://www.horok.co.kr/horok-tech/feeds (끝에 / 없음)
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/notices`,
+      url: `${baseUrl}/horok-tech/notices`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/videos`,
+      url: `${baseUrl}/horok-tv`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/coding-tests`,
+      url: `${baseUrl}/horok-cote`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/horok-shop`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,

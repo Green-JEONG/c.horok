@@ -23,6 +23,7 @@ export async function getCategoryBySlug(slug: string) {
           posts: {
             where: {
               isDeleted: false,
+              isHidden: false,
             },
           },
         },
@@ -90,6 +91,7 @@ export async function getPostsByCategory(params: {
   const where = {
     categoryId: BigInt(categoryId),
     isDeleted: false,
+    isHidden: false,
   };
 
   const [posts, total] = await Promise.all([

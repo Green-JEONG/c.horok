@@ -253,7 +253,10 @@ export async function findPostsPaged(
   sort: SortType = DEFAULT_SORT,
 ): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
-    where: { isDeleted: false, isHidden: false },
+    where: {
+      isDeleted: false,
+      isHidden: false,
+    },
     include: {
       user: { select: { name: true } },
       category: { select: { name: true } },

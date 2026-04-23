@@ -4,6 +4,7 @@ import {
   type SortType,
 } from "@/lib/post-sort";
 import { prisma } from "@/lib/prisma";
+import { NOTICE_TAG_OPTIONS } from "./notice-categories";
 
 export type DbPost = {
   id: number;
@@ -53,6 +54,13 @@ export async function searchPosts(
     where: {
       isDeleted: false,
       isHidden: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
       OR: [
         { title: { contains: keyword, mode: "insensitive" } },
         { content: { contains: keyword, mode: "insensitive" } },
@@ -120,7 +128,7 @@ export async function getPostsByCategorySlug(
       isDeleted: false,
       isHidden: false,
       category: {
-        slug,
+        is: { slug },
       },
     },
     include: {
@@ -234,6 +242,13 @@ export async function getLikedPosts(
     where: {
       isDeleted: false,
       isHidden: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
       likes: {
         some: {
           userId: BigInt(userId),
@@ -284,6 +299,13 @@ export async function getRandomPosts(limit: number): Promise<DbPost[]> {
     where: {
       isDeleted: false,
       isHidden: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
     },
     include: {
       user: { select: { name: true } },

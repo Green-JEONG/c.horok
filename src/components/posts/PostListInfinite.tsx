@@ -30,6 +30,7 @@ type Props = {
   loadingMessage?: string;
   syncSortWithSearchParams?: boolean;
   autoloadFirstPage?: boolean;
+  postRouteSection?: "feeds" | "likes";
 };
 
 function readPostsFromPayload(
@@ -64,6 +65,7 @@ export default function PostListInfinite({
   loadingMessage = "불러오는 중...",
   syncSortWithSearchParams = false,
   autoloadFirstPage = false,
+  postRouteSection = "feeds",
 }: Props) {
   const searchParams = useSearchParams();
   const sort = syncSortWithSearchParams
@@ -174,6 +176,7 @@ export default function PostListInfinite({
               likes={post.likes_count}
               comments={post.comments_count}
               createdAt={new Date(post.created_at)}
+              postRouteSection={postRouteSection}
             />
           ))}
         </div>
@@ -188,7 +191,7 @@ export default function PostListInfinite({
       )}
 
       {!hasMore && posts.length > 0 && (
-        <p className="py-6 text-center text-xs text-muted-foreground">
+        <p className="py-6 text-center text-lg font-bold tracking-tight text-muted-foreground">
           {endMessage}
         </p>
       )}

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { getTechFeedPostPath } from "@/lib/routes";
 
 type PopularPost = {
   id: number;
@@ -29,13 +30,13 @@ export default function PopularPosts() {
           height={18}
           style={{ width: "auto", height: "auto" }}
         />
-        <h3 className="text-sm font-semibold">인기</h3>
+        <h3 className="text-lg font-bold tracking-tight">인기</h3>
       </div>
       <ul className="space-y-2 text-sm">
         {posts.map((post, index) => (
           <li key={post.id}>
             <Link
-              href={`/posts/${post.id}`}
+              href={getTechFeedPostPath(post.id)}
               className="flex items-start gap-1 overflow-hidden text-muted-foreground hover:text-foreground"
             >
               <span className="min-w-4 text-sm font-semibold tabular-nums text-foreground/80">

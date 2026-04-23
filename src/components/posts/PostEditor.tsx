@@ -12,6 +12,7 @@ import {
   getStorageObjectPathFromPublicUrl,
   POST_THUMBNAIL_BUCKET,
 } from "@/lib/post-thumbnails";
+import { getTechFeedNewPostPath } from "@/lib/routes";
 import { supabase } from "@/lib/supabase";
 
 const markdownTools = [
@@ -50,6 +51,9 @@ type PostEditorProps = {
   cancelLabel?: string;
   submitLabel?: string;
   submittingLabel?: string;
+  categoryLocked?: boolean;
+  successPathPrefix?: string;
+  fixedTagOptions?: string[];
   onCancel?: () => void;
   onSuccess?: (payload: unknown) => void;
 };
@@ -64,6 +68,9 @@ export default function PostEditor({
   cancelLabel = "취소",
   submitLabel = mode === "edit" ? "수정 저장" : "게시하기",
   submittingLabel = mode === "edit" ? "저장 중..." : "게시 중...",
+  categoryLocked = false,
+  successPathPrefix = "/horok-tech/feeds/posts",
+  fixedTagOptions = [],
   onCancel,
   onSuccess,
 }: PostEditorProps) {
@@ -80,7 +87,14 @@ export default function PostEditor({
     initialCategoryName ? [initialCategoryName] : [],
   );
   const [tagInput, setTagInput] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(initialThumbnail);
+  const [selectedFixedTag, setSelectedFixedTag] = useState(
+    fixedTagOptions.includes(initialCategoryName)
+      ? initialCategoryName
+      : (fixedTagOptions[0] ?? ""),
+  );
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
+    initialThumbnail,
+  );
   const [thumbnailPath, setThumbnailPath] = useState<string | null>(
     getStorageObjectPathFromPublicUrl(initialThumbnail),
   );
@@ -89,6 +103,9 @@ export default function PostEditor({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<EditorTab>("write");
   const [error, setError] = useState<string | null>(null);
+  const shouldShowCategoryBadge = !(
+    categoryLocked && fixedTagOptions.length > 0
+  );
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -496,7 +513,8 @@ export default function PostEditor({
   async function handleSubmit() {
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
-    const categoryName = tags[0];
+    const categoryName =
+      categoryLocked && fixedTagOptions.length > 0 ? selectedFixedTag : tags[0];
 
     if (!trimmedTitle || !trimmedContent || !categoryName) {
       setError("제목, 태그, 내용을 모두 입력해주세요.");
@@ -549,12 +567,12 @@ export default function PostEditor({
       }
 
       if ((payload as { id?: number } | null)?.id) {
-        router.push(`/posts/${payload.id}`);
+        router.push(`${successPathPrefix}/${payload.id}`);
         router.refresh();
         return;
       }
 
-      router.push("/");
+      router.push(getTechFeedNewPostPath());
       router.refresh();
     } catch {
       setError("게시글 저장 중 오류가 발생했습니다.");
@@ -577,47 +595,71 @@ export default function PostEditor({
 
       <div className="space-y-2">
         <div className="flex min-h-12 w-full flex-wrap items-center gap-2 rounded-md border border-border/80 bg-muted/20 px-3 py-2 transition focus-within:border-primary/60 focus-within:bg-background focus-within:ring-4 focus-within:ring-primary/10">
-          {tags.map((tag) => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className="gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-foreground"
-            >
-              {tag}
-              <button
-                type="button"
-                onClick={() => removeTag(tag)}
-                className="text-muted-foreground transition hover:text-foreground"
-                aria-label={`${tag} 태그 삭제`}
-              >
-                ×
-              </button>
-            </Badge>
-          ))}
-          <input
-            id="post-tags"
-            ref={tagInputRef}
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addTag(tagInput);
-                return;
-              }
+          {shouldShowCategoryBadge
+            ? tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-foreground"
+                >
+                  {tag}
+                  {categoryLocked ? null : (
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="text-muted-foreground transition hover:text-foreground"
+                      aria-label={`${tag} 태그 삭제`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </Badge>
+              ))
+            : null}
+          {fixedTagOptions.map((option) => {
+            const isActive = selectedFixedTag === option;
 
-              if (
-                event.key === "Backspace" &&
-                tagInput.length === 0 &&
-                tags.length > 0
-              ) {
-                event.preventDefault();
-                setTags((prev) => prev.slice(0, -1));
-              }
-            }}
-            placeholder={tags.length === 0 ? "태그 및 카테고리" : ""}
-            className="h-8 min-w-32 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
-          />
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSelectedFixedTag(option)}
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  isActive
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                }`}
+              >
+                {option}
+              </button>
+            );
+          })}
+          {categoryLocked ? null : (
+            <input
+              id="post-tags"
+              ref={tagInputRef}
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addTag(tagInput);
+                  return;
+                }
+
+                if (
+                  event.key === "Backspace" &&
+                  tagInput.length === 0 &&
+                  tags.length > 0
+                ) {
+                  event.preventDefault();
+                  setTags((prev) => prev.slice(0, -1));
+                }
+              }}
+              placeholder={tags.length === 0 ? "태그 및 카테고리" : ""}
+              className="h-8 min-w-32 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
+            />
+          )}
         </div>
         <input
           ref={contentImageInputRef}

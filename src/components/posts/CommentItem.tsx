@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import CommentForm from "./CommentForm";
 
 export type CommentNode = {
@@ -28,15 +28,47 @@ export default function CommentItem({
   isLoggedIn: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [content, setContent] = useState(comment.content);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isFocusedComment, setIsFocusedComment] = useState(false);
   const canManage = comment.user_id === currentUserId && !comment.is_deleted;
   const canReply =
     isLoggedIn && comment.parent_id === null && !comment.is_deleted;
+  const targetCommentId = Number(searchParams.get("commentId") ?? "");
+
+  useEffect(() => {
+    if (!Number.isFinite(targetCommentId) || targetCommentId !== comment.id) {
+      return;
+    }
+
+    const element = document.getElementById(`comment-${comment.id}`);
+    if (!element) {
+      return;
+    }
+
+    setIsFocusedComment(true);
+
+    const scrollTimeout = window.setTimeout(() => {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 150);
+
+    const highlightTimeout = window.setTimeout(() => {
+      setIsFocusedComment(false);
+    }, 2600);
+
+    return () => {
+      window.clearTimeout(scrollTimeout);
+      window.clearTimeout(highlightTimeout);
+    };
+  }, [comment.id, targetCommentId]);
 
   async function handleUpdate() {
     const trimmedContent = content.trim();
@@ -99,7 +131,12 @@ export default function CommentItem({
   }
 
   return (
-    <div className="rounded-md border p-4">
+    <div
+      id={`comment-${comment.id}`}
+      className={`scroll-mt-28 rounded-md border p-4 transition-colors ${
+        isFocusedComment ? "border-primary bg-primary/5" : ""
+      }`}
+    >
       <div className="flex justify-between text-sm">
         <span className="font-medium">{comment.author}</span>
         <span className="text-muted-foreground">

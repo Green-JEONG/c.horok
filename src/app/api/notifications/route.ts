@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
+import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
+import { getTechFeedPostPath } from "@/lib/routes";
 
 function normalizeNotificationType(type: string | null) {
   if (type === "NEW_COMMENT") return "POST_COMMENT";
@@ -30,24 +32,36 @@ export async function GET() {
           select: { name: true },
         },
         post: {
-          select: { isDeleted: true },
+          select: {
+            id: true,
+            isDeleted: true,
+            category: {
+              select: {
+                name: true,
+              },
+            },
+          },
         },
       },
     });
 
     return NextResponse.json(
-      rows
-        .map((row) => ({
-          id: Number(row.id),
-          type: normalizeNotificationType(row.type),
-          message: row.content ?? null,
-          actor_name: row.actor?.name ?? null,
-          post_id: row.postId ? Number(row.postId) : null,
-          comment_id: row.commentId ? Number(row.commentId) : null,
-          is_post_deleted: row.post?.isDeleted ?? false,
-          is_read: row.isRead ? 1 : 0,
-          created_at: row.createdAt.toISOString(),
-        })),
+      rows.map((row) => ({
+        id: Number(row.id),
+        type: normalizeNotificationType(row.type),
+        message: row.content ?? null,
+        actor_name: row.actor?.name ?? null,
+        post_id: row.postId ? Number(row.postId) : null,
+        comment_id: row.commentId ? Number(row.commentId) : null,
+        post_path: row.postId
+          ? isNoticeCategoryName(row.post?.category?.name)
+            ? `/horok-tech/notices/${Number(row.postId)}`
+            : getTechFeedPostPath(Number(row.postId))
+          : null,
+        is_post_deleted: row.post?.isDeleted ?? false,
+        is_read: row.isRead ? 1 : 0,
+        created_at: row.createdAt.toISOString(),
+      })),
     );
   } catch (e) {
     console.error("🔔 NOTIFICATIONS API ERROR", e);

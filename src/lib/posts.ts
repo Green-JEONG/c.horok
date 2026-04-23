@@ -1,4 +1,5 @@
 import { deleteUnusedCategories, ensureCategoryByName } from "@/lib/categories";
+import { NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
 export type PostRow = {
@@ -47,6 +48,7 @@ export async function getPostById(
   id: number,
   options?: {
     includeHiddenForUserId?: number | null;
+    includeHiddenForAdmin?: boolean;
   },
 ) {
   const post = await prisma.post.findFirst({
@@ -55,6 +57,7 @@ export async function getPostById(
       isDeleted: false,
       OR: [
         { isHidden: false },
+        ...(options?.includeHiddenForAdmin ? [{}] : []),
         ...(options?.includeHiddenForUserId
           ? [{ userId: BigInt(options.includeHiddenForUserId) }]
           : []),
@@ -82,7 +85,17 @@ export async function incrementPostViews(postId: number) {
 
 export async function getPopularPosts(limit = 5): Promise<PopularPostRow[]> {
   const posts = await prisma.post.findMany({
-    where: { isDeleted: false, isHidden: false },
+    where: {
+      isDeleted: false,
+      isHidden: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
+    },
     include: {
       views: {
         select: { viewCount: true },
