@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { horokCoteProblems } from "@/lib/horok-cote";
 // import { getSiteUrl } from "@/lib/site-url"; // 이 함수가 non-www를 주면 문제가 반복됨.
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -47,5 +48,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.7,
     },
+    ...horokCoteProblems.map((problem) => ({
+      url: `${baseUrl}/horok-cote/${problem.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
   ];
 }

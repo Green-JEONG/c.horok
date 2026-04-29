@@ -21,6 +21,8 @@ export default function AppShell({
 }: AppShellProps) {
   const pathname = usePathname();
   const isPortalPage = pathname === "/";
+  const isHorokTechPage =
+    pathname === "/horok-tech" || pathname.startsWith("/horok-tech/");
   const isStandaloneServicePage =
     pathname === "/horok-cote" ||
     pathname.startsWith("/horok-cote/") ||
@@ -33,7 +35,7 @@ export default function AppShell({
     return (
       <>
         <main className="min-h-dvh">{children}</main>
-        {isPortalPage ? null : chat}
+        {isHorokTechPage ? chat : null}
       </>
     );
   }
@@ -55,7 +57,7 @@ export default function AppShell({
           {children}
         </section>
       </main>
-      {chat}
+      {isHorokTechPage ? chat : null}
     </>
   );
 }
