@@ -3,6 +3,10 @@ import { Prisma } from "@prisma/client";
 import { getDbUserIdFromSession } from "@/lib/auth-db";
 import { createChatThread } from "@/lib/chat";
 
+function resolveChatPlatform(value: string | null | undefined) {
+  return value === "cote" ? "cote" : "tech";
+}
+
 function isChatPersistenceError(error: unknown) {
   return (
     (error instanceof Error &&
@@ -12,9 +16,14 @@ function isChatPersistenceError(error: unknown) {
   );
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const userId = await getDbUserIdFromSession();
+    const body = (await req.json().catch(() => null)) as {
+      platform?: string;
+    } | null;
+    const userId = await getDbUserIdFromSession(
+      resolveChatPlatform(body?.platform),
+    );
     if (!userId) {
       return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }

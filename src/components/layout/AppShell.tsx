@@ -23,9 +23,11 @@ export default function AppShell({
   const isPortalPage = pathname === "/";
   const isHorokTechPage =
     pathname === "/horok-tech" || pathname.startsWith("/horok-tech/");
+  const isHorokCotePage =
+    pathname === "/horok-cote" || pathname.startsWith("/horok-cote/");
+  const isChatEnabledPage = isHorokTechPage || isHorokCotePage;
   const isStandaloneServicePage =
-    pathname === "/horok-cote" ||
-    pathname.startsWith("/horok-cote/") ||
+    isHorokCotePage ||
     pathname === "/horok-tv" ||
     pathname.startsWith("/horok-tv/") ||
     pathname === "/horok-shop" ||
@@ -35,7 +37,7 @@ export default function AppShell({
     return (
       <>
         <main className="min-h-dvh">{children}</main>
-        {isHorokTechPage ? chat : null}
+        {isChatEnabledPage ? chat : null}
       </>
     );
   }
@@ -57,7 +59,7 @@ export default function AppShell({
           {children}
         </section>
       </main>
-      {isHorokTechPage ? chat : null}
+      {isChatEnabledPage ? chat : null}
     </>
   );
 }

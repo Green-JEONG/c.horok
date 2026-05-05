@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { ChevronLeft, List, MessageSquarePlus, Send, X } from "lucide-react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   type FormEvent,
@@ -84,7 +85,9 @@ function getVisibleMessages(
 }
 
 export default function HorokChat() {
+  const pathname = usePathname();
   const { status: sessionStatus } = useSession();
+  const platform = pathname?.startsWith("/horok-cote") ? "cote" : "tech";
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -103,6 +106,7 @@ export default function HorokChat() {
         api: "/api/chat",
         prepareSendMessagesRequest: ({ messages: nextMessages }) => ({
           body: {
+            platform,
             threadId: activeThreadIdRef.current,
             message: nextMessages[nextMessages.length - 1],
           },
@@ -165,12 +169,12 @@ export default function HorokChat() {
       setIsHistoryLoading(true);
 
       try {
-        const query =
-          nextThreadId && /^\d+$/.test(nextThreadId)
-            ? `?threadId=${encodeURIComponent(nextThreadId)}`
-            : "";
+        const searchParams = new URLSearchParams({ platform });
+        if (nextThreadId && /^\d+$/.test(nextThreadId)) {
+          searchParams.set("threadId", nextThreadId);
+        }
 
-        const response = await fetch(`/api/chat${query}`, {
+        const response = await fetch(`/api/chat?${searchParams.toString()}`, {
           method: "GET",
           cache: "no-store",
         });
@@ -193,7 +197,7 @@ export default function HorokChat() {
         setIsHistoryLoading(false);
       }
     },
-    [applyActiveThread, sessionStatus, setMessages],
+    [applyActiveThread, platform, sessionStatus, setMessages],
   );
 
   useEffect(() => {
@@ -233,6 +237,10 @@ export default function HorokChat() {
     try {
       const response = await fetch("/api/chat/threads", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ platform }),
       });
 
       if (!response.ok) {
@@ -269,6 +277,10 @@ export default function HorokChat() {
     try {
       const response = await fetch("/api/chat/threads", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ platform }),
       });
 
       if (!response.ok) {
@@ -325,13 +337,21 @@ export default function HorokChat() {
       <div className="relative flex flex-col items-end">
         <div
           className={cn(
-            "pointer-events-auto absolute right-0 bottom-[calc(100%+0.75rem)] w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] border border-orange-100 bg-white transition-all duration-300 dark:border-orange-400/20 dark:bg-zinc-950 sm:max-w-sm",
+            "pointer-events-auto absolute right-0 bottom-[calc(100%+0.75rem)] w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] border bg-white transition-all duration-300 dark:bg-zinc-950 sm:max-w-sm",
+            platform === "cote"
+              ? "border-[#06923E]/20 dark:border-[#06923E]/30"
+              : "border-orange-100 dark:border-orange-400/20",
             isOpen
               ? "translate-y-0 scale-100 opacity-100"
               : "pointer-events-none translate-y-4 scale-95 opacity-0",
           )}
         >
-          <div className="bg-primary px-5 py-4 text-primary-foreground">
+          <div
+            className={cn(
+              "px-5 py-4 text-primary-foreground",
+              platform === "cote" ? "bg-[#06923E]" : "bg-primary",
+            )}
+          >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
                 {sessionStatus === "authenticated" ? (
@@ -380,15 +400,34 @@ export default function HorokChat() {
             </div>
           </div>
 
-          <div className="flex h-[30rem] flex-col bg-[linear-gradient(180deg,#fff8f0_0%,#ffffff_24%)] dark:bg-[linear-gradient(180deg,#2c1f12_0%,#171717_22%)]">
+          <div
+            className={cn(
+              "flex h-[30rem] flex-col",
+              platform === "cote"
+                ? "bg-[linear-gradient(180deg,#f3fff7_0%,#ffffff_24%)] dark:bg-[linear-gradient(180deg,#102316_0%,#171717_22%)]"
+                : "bg-[linear-gradient(180deg,#fff8f0_0%,#ffffff_24%)] dark:bg-[linear-gradient(180deg,#2c1f12_0%,#171717_22%)]",
+            )}
+          >
             {isThreadMode ? (
               <>
-                <div className="border-b border-orange-100/80 p-3 dark:border-orange-400/15">
+                <div
+                  className={cn(
+                    "border-b p-3",
+                    platform === "cote"
+                      ? "border-[#06923E]/10 dark:border-[#06923E]/20"
+                      : "border-orange-100/80 dark:border-orange-400/15",
+                  )}
+                >
                   <Button
                     type="button"
                     onClick={handleCreateThread}
                     disabled={isCreatingThread}
-                    className="h-10 w-full justify-center rounded-2xl"
+                    className={cn(
+                      "h-10 w-full justify-center rounded-2xl",
+                      platform === "cote"
+                        ? "bg-[#06923E] text-white hover:bg-[#047a33]"
+                        : undefined,
+                    )}
                   >
                     <MessageSquarePlus className="size-4" />새 대화
                   </Button>
@@ -407,8 +446,12 @@ export default function HorokChat() {
                           className={cn(
                             "mb-2 w-full rounded-2xl border px-3 py-3 text-left transition",
                             isActive
-                              ? "border-orange-300 bg-white shadow-sm dark:border-orange-400/40 dark:bg-zinc-900"
-                              : "border-transparent bg-white/70 hover:border-orange-200 hover:bg-white dark:bg-zinc-900/60 dark:hover:border-orange-400/20",
+                              ? platform === "cote"
+                                ? "border-[#06923E]/45 bg-white shadow-sm dark:border-[#06923E]/45 dark:bg-zinc-900"
+                                : "border-orange-300 bg-white shadow-sm dark:border-orange-400/40 dark:bg-zinc-900"
+                              : platform === "cote"
+                                ? "border-transparent bg-white/70 hover:border-[#06923E]/25 hover:bg-white dark:bg-zinc-900/60 dark:hover:border-[#06923E]/25"
+                                : "border-transparent bg-white/70 hover:border-orange-200 hover:bg-white dark:bg-zinc-900/60 dark:hover:border-orange-400/20",
                           )}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -440,7 +483,14 @@ export default function HorokChat() {
               </>
             ) : (
               <>
-                <div className="border-b border-orange-100/80 px-4 py-3 dark:border-orange-400/15">
+                <div
+                  className={cn(
+                    "border-b px-4 py-3",
+                    platform === "cote"
+                      ? "border-[#06923E]/10 dark:border-[#06923E]/20"
+                      : "border-orange-100/80 dark:border-orange-400/15",
+                  )}
+                >
                   <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100">
                     {activeThread?.title ??
                       (sessionStatus === "authenticated"
@@ -468,7 +518,12 @@ export default function HorokChat() {
                       </p>
                       <Button
                         type="button"
-                        className="mt-5 rounded-2xl"
+                        className={cn(
+                          "mt-5 rounded-2xl",
+                          platform === "cote"
+                            ? "bg-[#06923E] text-white hover:bg-[#047a33]"
+                            : undefined,
+                        )}
                         onClick={() => setView("threads")}
                       >
                         <List className="size-4" />
@@ -496,15 +551,14 @@ export default function HorokChat() {
                             className={cn(
                               "max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-6 shadow-sm",
                               isUser
-                                ? "rounded-br-lg bg-orange-500 text-white dark:bg-orange-500 dark:text-white"
-                                : "rounded-bl-lg border border-orange-100 bg-white text-slate-800 dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-100",
+                                ? platform === "cote"
+                                  ? "rounded-br-lg bg-[#06923E] text-white dark:bg-[#06923E] dark:text-white"
+                                  : "rounded-br-lg bg-orange-500 text-white dark:bg-orange-500 dark:text-white"
+                                : platform === "cote"
+                                  ? "rounded-bl-lg border border-[#06923E]/10 bg-white text-slate-800 dark:border-[#06923E]/20 dark:bg-zinc-900 dark:text-zinc-100"
+                                  : "rounded-bl-lg border border-orange-100 bg-white text-slate-800 dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-100",
                             )}
                           >
-                            {!isUser ? (
-                              <p className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-orange-500 dark:text-orange-300">
-                                HOROK
-                              </p>
-                            ) : null}
                             <p className="whitespace-pre-wrap">{text}</p>
                           </div>
                         </div>
@@ -518,7 +572,14 @@ export default function HorokChat() {
 
                   {isLoading ? (
                     <div className="flex justify-start">
-                      <div className="rounded-3xl rounded-bl-lg border border-orange-100 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-300">
+                      <div
+                        className={cn(
+                          "rounded-3xl rounded-bl-lg border bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:bg-zinc-900 dark:text-zinc-300",
+                          platform === "cote"
+                            ? "border-[#06923E]/10 dark:border-[#06923E]/20"
+                            : "border-orange-100 dark:border-orange-400/20",
+                        )}
+                      >
                         답변을 작성 중입니다...
                       </div>
                     </div>
@@ -543,9 +604,21 @@ export default function HorokChat() {
 
                 <form
                   onSubmit={handleSubmit}
-                  className="border-t border-orange-100 p-3 dark:border-orange-400/20"
+                  className={cn(
+                    "border-t p-3",
+                    platform === "cote"
+                      ? "border-[#06923E]/10 dark:border-[#06923E]/20"
+                      : "border-orange-100 dark:border-orange-400/20",
+                  )}
                 >
-                  <div className="flex items-end gap-2 rounded-3xl border border-orange-200 bg-white p-2 shadow-sm dark:border-orange-400/25 dark:bg-zinc-900">
+                  <div
+                    className={cn(
+                      "flex items-end gap-2 rounded-3xl border bg-white p-2 shadow-sm dark:bg-zinc-900",
+                      platform === "cote"
+                        ? "border-[#06923E]/25 dark:border-[#06923E]/30"
+                        : "border-orange-200 dark:border-orange-400/25",
+                    )}
+                  >
                     <input
                       ref={inputRef}
                       value={input}
@@ -560,7 +633,12 @@ export default function HorokChat() {
                     <Button
                       type="submit"
                       size="icon"
-                      className="size-10 rounded-full"
+                      className={cn(
+                        "size-10 rounded-full",
+                        platform === "cote"
+                          ? "bg-[#06923E] text-white hover:bg-[#047a33]"
+                          : undefined,
+                      )}
                       disabled={!input.trim() || isLoading}
                       aria-label="메시지 전송"
                     >
@@ -573,6 +651,21 @@ export default function HorokChat() {
           </div>
         </div>
 
+        {platform === "cote" ? (
+          <div
+            className={cn(
+              "pointer-events-none absolute right-2 bottom-[calc(100%+1rem)] transition-all duration-300",
+              isOpen ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100",
+            )}
+            aria-hidden="true"
+          >
+            <div className="relative min-w-[184px] rounded-2xl bg-[#06923E] px-2.5 py-2 text-center text-xs font-medium text-white shadow-lg">
+              잘 모르겠으면 나에게 물어봐!
+              <span className="absolute right-5 top-full h-0 w-0 border-x-[8px] border-t-[10px] border-x-transparent border-t-[#06923E]" />
+            </div>
+          </div>
+        ) : null}
+
         <button
           type="button"
           onClick={() => setIsOpen((open) => !open)}
@@ -584,7 +677,12 @@ export default function HorokChat() {
             alt="호록 챗봇"
             width={72}
             height={72}
-            className="size-full object-contain drop-shadow-[0_0_18px_rgba(255,154,0,0.82)] transition group-hover:drop-shadow-[0_0_28px_rgba(255,154,0,0.92)]"
+            className={cn(
+              "size-full object-contain transition",
+              platform === "cote"
+                ? "drop-shadow-[0_0_18px_rgba(6,146,62,0.72)] group-hover:drop-shadow-[0_0_28px_rgba(6,146,62,0.88)]"
+                : "drop-shadow-[0_0_18px_rgba(255,154,0,0.82)] group-hover:drop-shadow-[0_0_28px_rgba(255,154,0,0.92)]",
+            )}
             priority
           />
         </button>

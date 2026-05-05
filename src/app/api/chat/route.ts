@@ -15,6 +15,10 @@ import {
 
 export const maxDuration = 30;
 
+function resolveChatPlatform(value: string | null | undefined) {
+  return value === "cote" ? "cote" : "tech";
+}
+
 function isChatPersistenceError(error: unknown) {
   return (
     (error instanceof Error &&
@@ -40,7 +44,9 @@ function buildThreadTitle(text: string) {
 
 export async function GET(req: Request) {
   try {
-    const userId = await getDbUserIdFromSession();
+    const url = new URL(req.url);
+    const platform = resolveChatPlatform(url.searchParams.get("platform"));
+    const userId = await getDbUserIdFromSession(platform);
     if (!userId) {
       return Response.json({
         isAuthenticated: false,
@@ -50,7 +56,6 @@ export async function GET(req: Request) {
       });
     }
 
-    const url = new URL(req.url);
     const requestedThreadId = url.searchParams.get("threadId");
     const threads = await listChatThreadsByUserId(userId);
 
@@ -97,9 +102,11 @@ export async function POST(req: Request) {
     const {
       message,
       threadId,
+      platform,
     }: {
       message?: UIMessage;
       threadId?: string | null;
+      platform?: string | null;
     } = await req.json();
 
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -117,7 +124,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const userId = await getDbUserIdFromSession();
+    const userId = await getDbUserIdFromSession(resolveChatPlatform(platform));
     let persistedThreadId: string | null = null;
     let previousMessages: UIMessage[] = [];
 

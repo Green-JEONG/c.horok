@@ -1,8 +1,17 @@
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { coteAuth } from "@/app/api/cote-auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
 
-export async function requireDbUserId(): Promise<number> {
-  const session = await auth();
+type AuthPlatform = "tech" | "cote";
+
+async function getSessionByPlatform(platform: AuthPlatform) {
+  return platform === "cote" ? coteAuth() : auth();
+}
+
+export async function requireDbUserId(
+  platform: AuthPlatform = "tech",
+): Promise<number> {
+  const session = await getSessionByPlatform(platform);
   if (!session?.user?.email) {
     throw new Error("Unauthenticated");
   }
@@ -15,8 +24,8 @@ export async function requireDbUserId(): Promise<number> {
   return userId;
 }
 
-export async function getDbUserIdFromSession() {
-  const session = await auth();
+export async function getDbUserIdFromSession(platform: AuthPlatform = "tech") {
+  const session = await getSessionByPlatform(platform);
   if (!session?.user?.email) return null;
 
   return getUserIdByEmail(session.user.email);

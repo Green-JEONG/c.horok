@@ -92,13 +92,13 @@ export default function HorokCoteProblemQuickSearch({
           </button>
         </div>
         <div className="pointer-events-none absolute left-1 top-[calc(100%+8px)] z-20">
-          <span className="absolute -top-1 left-3 h-2 w-2 rotate-45 border-l border-t border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" />
           <button
             type="button"
             onDoubleClick={() => setIsEditing(true)}
-            className="pointer-events-auto whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-500 shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition hover:border-slate-300 hover:text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300 dark:shadow-[0_10px_22px_rgba(2,6,23,0.28)]"
+            className="pointer-events-auto relative whitespace-nowrap rounded-2xl bg-[#06923E] px-2.5 py-1 text-[11px] font-medium text-white shadow-lg transition hover:bg-[#047a33]"
           >
             더블클릭해 검색
+            <span className="absolute bottom-full left-3 h-0 w-0 border-x-[6px] border-b-[8px] border-x-transparent border-b-[#06923E]" />
           </button>
         </div>
       </div>
