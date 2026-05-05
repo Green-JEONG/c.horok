@@ -2,7 +2,7 @@
 
 import { ArrowLeft, X } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { markLoginWelcomeToast } from "@/components/layout/LoginWelcomeToast";
@@ -21,6 +21,8 @@ type AuthStep = "login" | "signup" | "magicLink";
 export default function LoginModal({ open, onClose }: Props) {
   const [step, setStep] = useState<AuthStep>("login");
   const router = useRouter();
+  const pathname = usePathname();
+  const platformLabel = pathname?.startsWith("/horok-cote") ? "cote" : "tech";
 
   // 로그인 입력 state
   const [email, setEmail] = useState("");
@@ -311,12 +313,17 @@ export default function LoginModal({ open, onClose }: Props) {
               height={60}
               style={{ width: "auto", height: "auto" }}
             />
-            <h2 className="text-lg font-bold mt-2">
-              {step === "login"
-                ? "c.horok"
-                : step === "signup"
-                  ? "회원가입"
-                  : "비밀번호를 잊으셨나요?"}
+            <h2 className="mt-2 text-center text-lg font-bold">
+              {step === "login" ? (
+                <span className="flex flex-col items-center leading-none">
+                  <span>horok</span>
+                  <span>{platformLabel}</span>
+                </span>
+              ) : step === "signup" ? (
+                "회원가입"
+              ) : (
+                "비밀번호를 잊으셨나요?"
+              )}
             </h2>
           </div>
 

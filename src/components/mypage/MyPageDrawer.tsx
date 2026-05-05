@@ -264,7 +264,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           {[
             isCote ? "푼 문제" : "글",
             isCote ? "틀린 문제" : "댓글",
-            isCote ? "즐겨 찾기" : "구독",
+            isCote ? "찜한 문제" : "구독",
           ].map((label, index) => {
             const value =
               index === 0
