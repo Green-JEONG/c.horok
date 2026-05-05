@@ -27,10 +27,10 @@ export default function HorokCoteLevelDropdown({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex min-w-[80px] items-center gap-0.5 rounded-[999px] border border-slate-200 bg-white py-2 pl-4 pr-2 text-sm font-semibold text-slate-950 outline-none transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:hover:border-slate-600"
+          className="inline-flex min-w-[80px] items-center gap-1.5 rounded-[999px] border border-slate-200 bg-white py-2 pl-4 pr-2 text-sm font-semibold text-slate-950 outline-none transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:hover:border-slate-600"
         >
           <span>{value}</span>
-          <ChevronDown className="ml-0.5 size-4 text-slate-400 dark:text-slate-500" />
+          <ChevronDown className="size-4 text-slate-400 dark:text-slate-500" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

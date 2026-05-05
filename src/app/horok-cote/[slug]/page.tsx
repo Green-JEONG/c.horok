@@ -72,42 +72,45 @@ export default async function HorokCoteProblemPage({
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
-                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1 dark:border-slate-800 dark:bg-slate-900">
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
                   <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                     제한사항
                   </h2>
                   <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                     {problem.constraints.map((constraint) => (
-                      <li key={constraint}>{constraint}</li>
+                      <li key={constraint}>- {constraint}</li>
                     ))}
                   </ul>
                 </article>
 
-                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1 dark:border-slate-800 dark:bg-slate-900">
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                    입력
-                  </h2>
-                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {problem.inputDescription.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </article>
-
-                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-1 dark:border-slate-800 dark:bg-slate-900">
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                    출력
-                  </h2>
-                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {problem.outputDescription.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
+                <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        입력
+                      </h2>
+                      <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        {problem.inputDescription.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        출력
+                      </h2>
+                      <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        {problem.outputDescription.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 </article>
               </div>
 
-              <div className="space-y-3">
+              <div className="mt-5 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
                   <Sparkles className="size-4" />
                   예제
@@ -117,11 +120,16 @@ export default async function HorokCoteProblemPage({
                     key={`${problem.slug}-${index + 1}`}
                     className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
                   >
-                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                      예제 {index + 1}
-                    </h3>
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-xl bg-white p-3 dark:bg-slate-950">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        예제 {index + 1}
+                      </h3>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                        입력 / 출력
+                      </p>
+                    </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
                         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                           입력
                         </p>
@@ -129,7 +137,7 @@ export default async function HorokCoteProblemPage({
                           {example.input}
                         </pre>
                       </div>
-                      <div className="rounded-xl bg-white p-3 dark:bg-slate-950">
+                      <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
                         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                           출력
                         </p>

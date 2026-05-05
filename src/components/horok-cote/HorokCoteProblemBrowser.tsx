@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import type { HorokCoteProblem } from "@/lib/horok-cote";
 import { cn } from "@/lib/utils";
 
@@ -107,52 +106,23 @@ export default function HorokCoteProblemBrowser({
                   href={`/horok-cote/${problem.number}`}
                   className="group rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 transition duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_16px_40px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)] dark:hover:border-slate-700 dark:hover:shadow-[0_18px_45px_rgba(2,6,23,0.5)]"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-slate-950 text-white hover:bg-slate-950 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-100">
-                      {problem.level}
-                    </Badge>
-                    <Badge variant="outline">{problem.category}</Badge>
-                    <span className="text-xs text-slate-400 dark:text-slate-500">
-                      정답률 {problem.acceptanceRate}
-                    </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#44bb68]">
+                      {problem.number}번
+                    </p>
+                    <h4 className="mt-1 text-xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
+                      {problem.title}
+                    </h4>
                   </div>
 
-                  <div className="mt-4 flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-[#44bb68]">
-                        {problem.number}번 문제
-                      </p>
-                      <h4 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
-                        {problem.title}
-                      </h4>
-                      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        {problem.summary}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                      {problem.duration}
-                    </span>
-                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    {problem.summary}
+                  </p>
 
-                  <div className="mt-5 flex flex-wrap items-center gap-2">
-                    {problem.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-[#eef7f1] px-3 py-1 text-xs font-medium text-[#2d8f52] dark:bg-emerald-500/10 dark:text-emerald-300"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 text-sm dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      문제 설명, 코드 에디터, 테스트 케이스 포함
-                    </span>
-                    <span className="inline-flex items-center gap-1 font-semibold text-slate-950 dark:text-slate-50">
-                      IDE 열기
-                      <ArrowRight className="size-4 transition group-hover:translate-x-1" />
-                    </span>
+                  <div className="mt-4 flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                    <span>{problem.level}</span>
+                    <span>•</span>
+                    <span>{problem.category}</span>
                   </div>
                 </Link>
               ))}

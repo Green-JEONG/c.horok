@@ -48,21 +48,16 @@ export const horokCoteProblems: HorokCoteProblem[] = [
     category: "출력",
     duration: "3분",
     acceptanceRate: "98%",
-    summary:
-      "가장 기초적인 출력 문제로, 정해진 문장을 그대로 화면에 출력하면 됩니다.",
-    prompt:
-      "프로그램을 실행했을 때 `Hello, Horok!` 문장을 정확히 한 줄 출력하세요. 공백, 쉼표, 느낌표까지 모두 같아야 합니다.",
-    constraints: [
-      "입력은 주어지지 않습니다.",
-      "출력은 대소문자와 문장부호까지 정확해야 합니다.",
-    ],
+    summary: "정해진 문장을 그대로 한 줄 출력하는 가장 기본적인 문제입니다.",
+    prompt: "`Hello, Horok!`를 한 줄 그대로 출력하세요.",
+    constraints: ["입력은 없습니다.", "공백과 문장부호까지 정확히 출력합니다."],
     inputDescription: ["이 문제는 입력이 없습니다."],
-    outputDescription: ["`Hello, Horok!` 를 한 줄 출력합니다."],
+    outputDescription: ["`Hello, Horok!`를 한 줄 출력합니다."],
     examples: [
       {
         input: "(입력 없음)",
         output: "Hello, Horok!",
-        explanation: "정해진 문자열을 그대로 한 줄 출력하면 정답입니다.",
+        explanation: "문자열을 바꾸지 않고 그대로 출력하면 됩니다.",
       },
     ],
     starterCodes: {
