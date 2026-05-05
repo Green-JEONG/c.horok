@@ -5,64 +5,78 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["public", "horok_tech", "horok_cote"]
 }
 
 enum Role {
   USER
   ADMIN
+
+  @@schema("public")
 }
 
 enum AuthProvider {
   credentials
   github
   google
+
+  @@schema("public")
 }
 
 enum ChatMessageRole {
   user
   assistant
+
+  @@schema("public")
 }
 
 model User {
-  id            BigInt      @id @default(autoincrement())
-  email         String      @unique @db.VarChar(255)
-  password      String?     @db.VarChar(255)
-  name          String?     @db.VarChar(100)
-  image         String?     @db.VarChar(512)
-  oauthImage    String?     @map("oauth_image") @db.VarChar(512)
-  role          Role        @default(USER)
-  provider      AuthProvider
-  snsId      String?     @unique @map("sns_id") @db.VarChar(50)
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
-  isBlocked     Boolean     @default(false) @map("is_blocked")
-  blockedAt     DateTime?   @map("blocked_at")
-  blockedReason String?     @map("blocked_reason") @db.VarChar(255)
-  
-  comments      Comment[]
-  receivedNotifications Notification[] @relation("NotificationRecipient")
-  notifications         Notification[] @relation("NotificationActor")
-  postLikes     PostLike[]
-  posts         Post[]
-  friendships   Friend[]    @relation("FriendUser")
-  followers     Friend[]    @relation("FriendFriendUser")
-  chatThreads   ChatThread[]
+  id                    BigInt                @id @default(autoincrement())
+  email                 String                @unique @db.VarChar(255)
+  password              String?               @db.VarChar(255)
+  name                  String?               @db.VarChar(100)
+  image                 String?               @db.VarChar(512)
+  oauthImage            String?               @map("oauth_image") @db.VarChar(512)
+  role                  Role                  @default(USER)
+  provider              AuthProvider
+  snsId                 String?               @unique @map("sns_id") @db.VarChar(50)
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @default(now()) @updatedAt @map("updated_at")
+  isBlocked             Boolean               @default(false) @map("is_blocked")
+  blockedAt             DateTime?             @map("blocked_at")
+  blockedReason         String?               @map("blocked_reason") @db.VarChar(255)
+
+  chatThreads           ChatThread[]
+  comments              Comment[]
+  coteMember            CoteMember?
+  coteProblemProgresses CoteProblemProgress[]
+  coteSavedCodes        CoteSavedCode[]
+  coteSubmissions       CoteSubmission[]
+  followers             Friend[]              @relation("FriendFriendUser")
+  friendships           Friend[]              @relation("FriendUser")
+  notifications         Notification[]        @relation("NotificationActor")
+  postLikes             PostLike[]
+  posts                 Post[]
+  receivedNotifications Notification[]        @relation("NotificationRecipient")
+  techMember            TechMember?
 
   @@map("users")
+  @@schema("public")
 }
 
 model ChatThread {
-  id        BigInt        @id @default(autoincrement())
-  userId    BigInt        @map("user_id")
-  title     String?       @db.VarChar(120)
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+  id        BigInt         @id @default(autoincrement())
+  userId    BigInt         @map("user_id")
+  title     String?        @db.VarChar(120)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at")
 
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  ChatMessage[]
 
   @@index([userId, updatedAt], map: "idx_chat_threads_user_updated_at")
   @@map("chat_threads")
+  @@schema("public")
 }
 
 model ChatMessage {
@@ -76,6 +90,7 @@ model ChatMessage {
 
   @@index([threadId, createdAt], map: "idx_chat_messages_thread_created_at")
   @@map("chat_messages")
+  @@schema("public")
 }
 
 model Category {
@@ -86,55 +101,58 @@ model Category {
   posts     Post[]
 
   @@map("categories")
+  @@schema("horok_tech")
 }
 
 model Post {
-  id          BigInt         @id @default(autoincrement())
-  userId      BigInt         @map("user_id")
-  categoryId  BigInt         @map("category_id")
-  title       String         @db.VarChar(200)
-  content     String         @db.Text
-  thumbnail   String?        @db.VarChar(255)
-  isBanner    Boolean        @default(false) @map("is_banner")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at")
-  isHidden    Boolean        @default(false) @map("is_hidden")
-  hiddenAt    DateTime?      @map("hidden_at")
-  isDeleted   Boolean        @default(false) @map("is_deleted")
-  deletedAt   DateTime?      @map("deleted_at")
-  deletedBy   Int?           @map("deleted_by")
-  
-  category    Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comments    Comment[]
-  likes       PostLike[]
-  views       PostView?
+  id            BigInt          @id @default(autoincrement())
+  userId        BigInt          @map("user_id")
+  categoryId    BigInt          @map("category_id")
+  title         String          @db.VarChar(200)
+  content       String          @db.Text
+  thumbnail     String?         @db.VarChar(255)
+  isBanner      Boolean         @default(false) @map("is_banner")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @default(now()) @updatedAt @map("updated_at")
+  isHidden      Boolean         @default(false) @map("is_hidden")
+  hiddenAt      DateTime?       @map("hidden_at")
+  isDeleted     Boolean         @default(false) @map("is_deleted")
+  deletedAt     DateTime?       @map("deleted_at")
+  deletedBy     Int?            @map("deleted_by")
+
+  category      Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  comments      Comment[]
+  likes         PostLike[]
+  views         PostView?
   notifications Notification[]
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([createdAt], map: "idx_posts_created_at")
   @@map("posts")
+  @@schema("horok_tech")
 }
 
 model Comment {
-  id            BigInt         @id @default(autoincrement())
-  postId        BigInt         @map("post_id")
-  userId        BigInt         @map("user_id")
-  parentId      BigInt?        @map("parent_id")
-  content       String         @db.Text
-  isDeleted     Boolean        @default(false) @map("is_deleted")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
-  
-  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies       Comment[]      @relation("CommentReplies")
-  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            BigInt          @id @default(autoincrement())
+  postId        BigInt          @map("post_id")
+  userId        BigInt          @map("user_id")
+  parentId      BigInt?         @map("parent_id")
+  content       String          @db.Text
+  isDeleted     Boolean         @default(false) @map("is_deleted")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @default(now()) @updatedAt @map("updated_at")
+
   notifications Notification[]
+  parent        Comment?        @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  post          Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  replies       Comment[]       @relation("CommentReplies")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([parentId], map: "fk_comments_parent")
   @@index([postId], map: "fk_comments_post")
   @@index([userId], map: "fk_comments_user")
   @@map("comments")
+  @@schema("horok_tech")
 }
 
 model PostLike {
@@ -147,6 +165,7 @@ model PostLike {
   @@id([postId, userId])
   @@index([userId], map: "fk_likes_user")
   @@map("post_likes")
+  @@schema("horok_tech")
 }
 
 model PostView {
@@ -156,12 +175,14 @@ model PostView {
   post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("post_views")
+  @@schema("horok_tech")
 }
 
 model StopWord {
   word String @id @db.VarChar(50)
 
   @@map("stop_words")
+  @@schema("horok_tech")
 }
 
 model Friend {
@@ -176,6 +197,7 @@ model Friend {
   @@unique([userId, friendUserId])
   @@index([friendUserId])
   @@map("friends")
+  @@schema("public")
 }
 
 model Notification {
@@ -199,6 +221,7 @@ model Notification {
   @@index([postId])
   @@index([userId])
   @@map("notifications")
+  @@schema("public")
 }
 
 model VerificationToken {
@@ -208,4 +231,92 @@ model VerificationToken {
 
   @@id([identifier, token])
   @@map("verification_tokens")
+  @@schema("public")
+}
+
+model TechMember {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @unique @map("user_id")
+  displayName String?   @map("display_name") @db.VarChar(100)
+  avatarUrl   String?   @map("avatar_url") @db.VarChar(512)
+  bio         String?   @db.VarChar(255)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("members")
+  @@schema("horok_tech")
+}
+
+model CoteMember {
+  id          BigInt                  @id @default(autoincrement())
+  userId      BigInt                  @unique @map("user_id")
+  nickname    String?                 @db.VarChar(50)
+  avatarUrl   String?                 @map("avatar_url") @db.VarChar(512)
+  tier        String?                 @db.VarChar(30)
+  rating      Int                     @default(0)
+  solvedCount Int                     @default(0) @map("solved_count")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @default(now()) @updatedAt @map("updated_at")
+
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("members")
+  @@schema("horok_cote")
+}
+
+model CoteProblemProgress {
+  id              BigInt                  @id @default(autoincrement())
+  userId          BigInt                  @map("user_id")
+  problemSlug     String                  @map("problem_slug") @db.VarChar(120)
+  problemNumber   Int?                    @map("problem_number")
+  status          String                  @default("not_started") @db.VarChar(20)
+  lastLanguage    String?                 @map("last_language") @db.VarChar(20)
+  lastCode        String?                 @map("last_code") @db.Text
+  lastSubmittedAt DateTime?               @map("last_submitted_at")
+  solvedAt        DateTime?               @map("solved_at")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @default(now()) @updatedAt @map("updated_at")
+
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemSlug])
+  @@map("problem_progress")
+  @@schema("horok_cote")
+}
+
+model CoteSubmission {
+  id             BigInt                  @id @default(autoincrement())
+  userId         BigInt                  @map("user_id")
+  problemSlug    String                  @map("problem_slug") @db.VarChar(120)
+  problemNumber  Int?                    @map("problem_number")
+  language       String                  @db.VarChar(20)
+  sourceCode     String                  @map("source_code") @db.Text
+  output         String?                 @db.Text
+  expectedOutput String?                 @map("expected_output") @db.Text
+  status         String                  @db.VarChar(20)
+  createdAt      DateTime                @default(now()) @map("created_at")
+
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("submissions")
+  @@schema("horok_cote")
+}
+
+model CoteSavedCode {
+  id            BigInt                  @id @default(autoincrement())
+  userId        BigInt                  @map("user_id")
+  problemSlug   String                  @map("problem_slug") @db.VarChar(120)
+  problemNumber Int?                    @map("problem_number")
+  language      String                  @db.VarChar(20)
+  sourceCode    String                  @map("source_code") @db.Text
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @default(now()) @updatedAt @map("updated_at")
+
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemSlug, language])
+  @@map("saved_codes")
+  @@schema("horok_cote")
 }

@@ -1,10 +1,15 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import LoginModal from "@/components/auth/LoginModal";
 import MyPageDrawer from "@/components/mypage/MyPageDrawer";
+import {
+  getPlatformFromPathname,
+  usePlatformProfile,
+} from "@/components/mypage/usePlatformProfile";
 import { Button } from "@/components/ui/button";
 
 type NotificationSummary = {
@@ -16,14 +21,18 @@ const NOTIFICATIONS_UPDATED_EVENT = "notifications-updated";
 
 export default function HeaderActions() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const platform = getPlatformFromPathname(pathname);
   const [open, setOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
   const isLoggedIn = status === "authenticated";
+  const isCote = platform === "cote";
+  const { profile: platformProfile } = usePlatformProfile(isLoggedIn);
   // const isAdmin = session?.user?.role === "ADMIN";
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || isCote) {
       setHasUnreadNotifications(false);
       return;
     }
@@ -67,12 +76,18 @@ export default function HeaderActions() {
         loadNotifications,
       );
     };
-  }, [isLoggedIn]);
+  }, [isCote, isLoggedIn]);
 
   if (!isLoggedIn) {
     return (
       <>
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button
+          size="sm"
+          onClick={() => setOpen(true)}
+          className={
+            isCote ? "bg-[#06923E] text-white hover:bg-[#047a33]" : undefined
+          }
+        >
           로그인
         </Button>
 
@@ -97,13 +112,17 @@ export default function HeaderActions() {
         aria-label="마이페이지 열기"
       >
         <Image
-          src={session?.user?.image ?? "/logo.svg"}
-          alt={session?.user?.name ? `${session.user.name} 프로필` : "profile"}
+          src={platformProfile?.image ?? session?.user?.image ?? "/logo.svg"}
+          alt={
+            (platformProfile?.name ?? session?.user?.name)
+              ? `${platformProfile?.name ?? session?.user?.name} 프로필`
+              : "profile"
+          }
           width={30}
           height={30}
           className="h-full w-full object-contain border rounded-full"
         />
-        {hasUnreadNotifications ? (
+        {!isCote && hasUnreadNotifications ? (
           <span className="absolute -right-0.5 top-0 h-2.5 w-2.5 rounded-full bg-red-500 ring-background" />
         ) : null}
       </Button>

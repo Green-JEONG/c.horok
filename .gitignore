@@ -47,3 +47,5 @@ storybook-static
 docker/*.sql
 
 docker-compose.yml
+
+backups/

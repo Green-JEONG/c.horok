@@ -2,10 +2,14 @@
 
 import { Circle, CircleCheckBig, Settings } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
+import {
+  getPlatformFromPathname,
+  usePlatformProfile,
+} from "@/components/mypage/usePlatformProfile";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -56,14 +60,18 @@ function renderNotificationMessage(n: Notification) {
 
 export default function MyPageDrawer({ open, onClose }: Props) {
   const { data: session } = useSession();
+  const pathname = usePathname();
+  const platform = getPlatformFromPathname(pathname);
+  const isCote = platform === "cote";
+  const { profile, refresh } = usePlatformProfile(open);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(open);
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState({
-    posts: 0,
-    comments: 0,
-    friends: 0,
+    first: 0,
+    second: 0,
+    third: 0,
   });
   const getCallbackUrl = useCallback(() => {
     if (typeof window === "undefined") {
@@ -79,11 +87,11 @@ export default function MyPageDrawer({ open, onClose }: Props) {
 
   // ESC 닫기
   useEffect(() => {
-    if (!open) return;
+    if (!open || isCote) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [isCote, onClose, open]);
 
   // 드로어가 닫히면 설정 모달도 닫기(자연스럽게)
   useEffect(() => {
@@ -104,7 +112,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || isCote) return;
 
     const loadNotifications = async () => {
       try {
@@ -136,14 +144,14 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     };
 
     loadNotifications();
-  }, [open]);
+  }, [isCote, open]);
 
   useEffect(() => {
     if (!open) return;
 
     const loadStats = async () => {
       try {
-        const res = await fetch("/api/mypage/stats");
+        const res = await fetch(`/api/mypage/stats?platform=${platform}`);
         if (!res.ok) return;
 
         const data = await res.json();
@@ -154,7 +162,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     };
 
     loadStats();
-  }, [open]);
+  }, [open, platform]);
 
   if (!isVisible) return null;
 
@@ -178,7 +186,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
 
       <aside
         className={cn(
-          "absolute left-0 top-0 flex h-full w-87.5 flex-col bg-background text-foreground shadow-xl transition-transform duration-300 ease-out",
+          "absolute left-0 top-0 flex h-full w-87.5 flex-col shadow-xl transition-transform duration-300 ease-out",
+          isCote
+            ? "bg-white text-slate-900 dark:bg-[#111727] dark:text-white"
+            : "bg-background text-foreground",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -201,7 +212,12 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             type="button"
             aria-label="설정 열기"
             onClick={() => setSettingsOpen(true)}
-            className="rounded-md p-2 hover:bg-muted"
+            className={cn(
+              "rounded-md p-2",
+              isCote
+                ? "hover:bg-slate-900/6 dark:hover:bg-white/10"
+                : "hover:bg-muted",
+            )}
           >
             <Settings size={18} />
           </button>
@@ -210,145 +226,204 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         {/* profile */}
         <div className="px-4 flex flex-col items-center gap-3">
           <Image
-            src={session?.user?.image ?? "/logo.svg"}
+            src={profile?.image ?? session?.user?.image ?? "/logo.svg"}
             alt="profile"
             width={100}
             height={100}
-            className="rounded-full border"
-            style={{ width: "auto", height: "auto" }}
+            className={cn(
+              "h-[100px] w-[100px] rounded-full border p-1",
+              isCote
+                ? "border-slate-200 object-contain dark:border-white/15"
+                : "border-border object-contain",
+            )}
           />
           <div className="flex flex-col items-center">
-            <p className="text-2xl font-semibold text-foreground">
-              {session?.user?.name ?? "사용자"}
+            <p
+              className={cn(
+                "text-2xl font-semibold",
+                isCote ? "text-slate-900 dark:text-white" : "text-foreground",
+              )}
+            >
+              {profile?.name ?? session?.user?.name ?? "사용자"}
             </p>
-            <p className="text-xs text-muted-foreground">
-              {session?.user?.email}
+            <p
+              className={cn(
+                "text-xs",
+                isCote
+                  ? "text-slate-500 dark:text-white/75"
+                  : "text-muted-foreground",
+              )}
+            >
+              {profile?.email ?? session?.user?.email}
             </p>
           </div>
         </div>
 
-        {/* 글, 댓글, 구독 갯수 */}
+        {/* platform stats */}
         <div className="flex justify-around mx-4 gap-2 items-center">
-          <button
-            type="button"
-            className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
-            onClick={() => {
-              onClose();
-              router.push("/mypage?tab=posts");
-            }}
-          >
-            <p className="font-light text-white">글</p>
-            <p className="font-extrabold text-white">{stats.posts}</p>
-          </button>
-          <button
-            type="button"
-            className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
-            onClick={() => {
-              onClose();
-              router.push("/mypage?tab=comments");
-            }}
-          >
-            <p className="font-light text-white">댓글</p>
-            <p className="font-extrabold text-white">{stats.comments}</p>
-          </button>
-          <button
-            type="button"
-            className="bg-primary text-primary-foreground shadow-sm border border-border rounded-lg w-full py-2 my-6"
-            onClick={() => {
-              onClose();
-              router.push("/mypage?tab=friends");
-            }}
-          >
-            <p className="font-light text-white">구독</p>
-            <p className="font-extrabold text-white">{stats.friends}</p>
-          </button>
+          {[
+            isCote ? "푼 문제" : "글",
+            isCote ? "틀린 문제" : "댓글",
+            isCote ? "즐겨 찾기" : "구독",
+          ].map((label, index) => {
+            const value =
+              index === 0
+                ? stats.first
+                : index === 1
+                  ? stats.second
+                  : stats.third;
+            const sharedClass = cn(
+              "shadow-sm rounded-lg w-full py-2 my-6",
+              isCote
+                ? "border border-[#06923E] bg-[#06923E] text-white"
+                : "bg-primary text-primary-foreground border border-border",
+            );
+
+            if (isCote) {
+              return (
+                <div
+                  key={label}
+                  className={cn(sharedClass, "flex flex-col items-center")}
+                >
+                  <p className="font-light text-white">{label}</p>
+                  <p className="font-extrabold text-white">{value}</p>
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={label}
+                type="button"
+                className={sharedClass}
+                onClick={() => {
+                  onClose();
+                  router.push(
+                    index === 0
+                      ? "/mypage?tab=posts"
+                      : index === 1
+                        ? "/mypage?tab=comments"
+                        : "/mypage?tab=friends",
+                  );
+                }}
+              >
+                <p className="font-light text-white">{label}</p>
+                <p className="font-extrabold text-white">{value}</p>
+              </button>
+            );
+          })}
         </div>
 
-        {/* notifications */}
-        <div className="flex-1 overflow-y-auto p-6 mx-4 border border-border shadow-md rounded-3xl bg-muted text-foreground">
-          <h3 className="mb-5 text-xl font-semibold">알림</h3>
+        {!isCote ? (
+          <div className="flex-1 overflow-y-auto p-6 mx-4 border border-border shadow-md rounded-3xl bg-muted text-foreground">
+            <h3 className="mb-5 text-xl font-semibold">알림</h3>
 
-          <ul className="flex flex-col text-sm gap-3">
-            {notifications.length === 0 && (
-              <li className="text-muted-foreground">알림이 없습니다.</li>
-            )}
+            <ul className="flex flex-col text-sm gap-3">
+              {notifications.length === 0 && (
+                <li className="text-muted-foreground">알림이 없습니다.</li>
+              )}
 
-            <ul className="flex flex-col gap-2">
-              {notifications.map((n) => (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 text-left hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70"
-                    onClick={async () => {
-                      if (!n.is_read) {
-                        try {
-                          const response = await fetch(
-                            `/api/notifications/${n.id}/read`,
-                            {
-                              method: "PATCH",
-                            },
-                          );
-
-                          if (response.ok) {
-                            setNotifications((current) =>
-                              current.map((notification) =>
-                                notification.id === n.id
-                                  ? { ...notification, is_read: 1 }
-                                  : notification,
-                              ),
+              <ul className="flex flex-col gap-2">
+                {notifications.map((n) => (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 text-left hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70"
+                      onClick={async () => {
+                        if (!n.is_read) {
+                          try {
+                            const response = await fetch(
+                              `/api/notifications/${n.id}/read`,
+                              {
+                                method: "PATCH",
+                              },
                             );
-                            notifyNotificationsUpdated();
+
+                            if (response.ok) {
+                              setNotifications((current) =>
+                                current.map((notification) =>
+                                  notification.id === n.id
+                                    ? { ...notification, is_read: 1 }
+                                    : notification,
+                                ),
+                              );
+                              notifyNotificationsUpdated();
+                            }
+                          } catch (error) {
+                            console.error("알림 읽음 처리 실패", error);
                           }
-                        } catch (error) {
-                          console.error("알림 읽음 처리 실패", error);
                         }
-                      }
 
-                      onClose();
-                      if (n.type === "NEW_FOLLOWER") {
-                        router.push("/mypage?tab=friends");
-                        return;
-                      }
+                        onClose();
+                        if (n.type === "NEW_FOLLOWER") {
+                          router.push("/mypage?tab=friends");
+                          return;
+                        }
 
-                      if (n.post_path && !n.is_post_deleted) {
-                        const targetPath = n.comment_id
-                          ? `${n.post_path}?commentId=${n.comment_id}`
-                          : n.post_path;
-                        router.push(targetPath);
-                      }
-                    }}
-                    disabled={n.is_post_deleted}
-                  >
-                    {n.is_read ? (
-                      <CircleCheckBig color="#4CB975" width={18} />
-                    ) : (
-                      <Circle color="#ccc" width={18} />
-                    )}
-                    {renderNotificationMessage(n)}
-                  </button>
-                </li>
-              ))}
+                        if (n.post_path && !n.is_post_deleted) {
+                          const targetPath = n.comment_id
+                            ? `${n.post_path}?commentId=${n.comment_id}`
+                            : n.post_path;
+                          router.push(targetPath);
+                        }
+                      }}
+                      disabled={n.is_post_deleted}
+                    >
+                      {n.is_read ? (
+                        <CircleCheckBig color="#4CB975" width={18} />
+                      ) : (
+                        <Circle color="#ccc" width={18} />
+                      )}
+                      {renderNotificationMessage(n)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </ul>
-          </ul>
-        </div>
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
 
-        <p className="text-center text-xs font-light my-4 text-muted-foreground">
+        <p
+          className={cn(
+            "text-center text-xs font-light my-4",
+            isCote
+              ? "text-slate-500 dark:text-white/70"
+              : "text-muted-foreground",
+          )}
+        >
           Developed by{" "}
           <a
             href="https://github.com/Green-JEONG/horok-dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-foreground"
+            className={cn(
+              "underline",
+              isCote
+                ? "hover:text-slate-900 dark:hover:text-white"
+                : "hover:text-foreground",
+            )}
           >
             Green_JEONG
           </a>
         </p>
 
         {/* footer */}
-        <div className="flex border-t border-border py-6 mx-6">
+        <div
+          className={cn(
+            "flex border-t py-6 mx-6",
+            isCote ? "border-slate-200 dark:border-white/10" : "border-border",
+          )}
+        >
           <button
             type="button"
-            className="w-full border-r text-sm text-red-400 hover:underline"
+            className={cn(
+              "w-full border-r text-sm hover:underline",
+              isCote
+                ? "border-slate-200 text-red-500 dark:border-white/10 dark:text-red-300"
+                : "text-red-400",
+            )}
             onClick={async () => {
               const ok = confirm("정말 회원탈퇴를 하시겠습니까?");
               if (!ok) return;
@@ -370,7 +445,12 @@ export default function MyPageDrawer({ open, onClose }: Props) {
 
           <button
             type="button"
-            className="w-full rounded-md text-sm text-muted-foreground"
+            className={cn(
+              "w-full rounded-md text-sm",
+              isCote
+                ? "text-[#06923E] dark:text-[#06923E]"
+                : "text-muted-foreground",
+            )}
             onClick={() => signOut({ callbackUrl: getCallbackUrl() })}
           >
             로그아웃
@@ -382,6 +462,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
       <AccountSettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        onSaved={refresh}
       />
     </div>
   );

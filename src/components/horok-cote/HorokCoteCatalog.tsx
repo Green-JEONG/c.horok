@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import HorokCoteLevelDropdown from "@/components/horok-cote/HorokCoteLevelDropdown";
+import HeaderActions from "@/components/layout/HeaderActions";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { HOROK_COTE_LEVELS, type HorokCoteProblem } from "@/lib/horok-cote";
 import HorokCoteProblemBrowser from "./HorokCoteProblemBrowser";
@@ -42,8 +43,11 @@ export default function HorokCoteCatalog({
               onChange={setSelectedLevel}
             />
           </div>
-          <div className="rounded-full border border-slate-200 bg-slate-50 p-1 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-            <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <HeaderActions />
+            <div className="rounded-full border border-slate-200 bg-slate-50 p-1 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import HorokCoteLevelDropdown from "@/components/horok-cote/HorokCoteLevelDropdown";
 import HorokCoteProblemQuickSearch from "@/components/horok-cote/HorokCoteProblemQuickSearch";
+import HeaderActions from "@/components/layout/HeaderActions";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { HOROK_COTE_LEVELS } from "@/lib/horok-cote";
 
@@ -47,8 +48,11 @@ export default function HorokCoteProblemHeader({
           <ChevronRight className="size-4 text-slate-300 dark:text-slate-600" />
           <HorokCoteProblemQuickSearch number={number} title={title} />
         </div>
-        <div className="rounded-full border border-slate-200 bg-slate-50 p-1 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-          <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <HeaderActions />
+          <div className="rounded-full border border-slate-200 bg-slate-50 p-1 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </div>

@@ -134,7 +134,7 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
           <Button
             size="sm"
             onClick={handleRun}
-            className="bg-[#44bb68] text-white hover:bg-[#389d58]"
+            className="bg-[#06923E] text-white hover:bg-[#047a33]"
           >
             <Play className="size-4" />
             실행

@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { coteAuth } from "@/app/api/cote-auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/rate-limit";
 
@@ -11,7 +12,9 @@ const VERIFY_PASSWORD_RATE_LIMIT = {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
+    const body = await req.json().catch(() => ({}));
+    const platform = body?.platform === "cote" ? "cote" : "tech";
+    const session = await (platform === "cote" ? coteAuth() : auth());
     if (!session?.user?.id) {
       return NextResponse.json(
         { message: "인증이 필요합니다." },
@@ -22,7 +25,7 @@ export async function POST(req: Request) {
     const forwardedFor = req.headers.get("x-forwarded-for");
     const ip = forwardedFor?.split(",")[0]?.trim() || "unknown";
     const rateLimit = consumeRateLimit({
-      key: `verify-password:${session.user.id}:${ip}`,
+      key: `verify-password:${platform}:${session.user.id}:${ip}`,
       limit: VERIFY_PASSWORD_RATE_LIMIT.limit,
       windowMs: VERIFY_PASSWORD_RATE_LIMIT.windowMs,
     });
@@ -41,7 +44,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json().catch(() => ({}));
     const currentPassword =
       typeof body?.currentPassword === "string" ? body.currentPassword : "";
 

@@ -2,9 +2,14 @@
 
 import { X } from "lucide-react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNicknameAvailability } from "@/components/auth/useNicknameAvailability";
+import {
+  getPlatformFromPathname,
+  usePlatformProfile,
+} from "@/components/mypage/usePlatformProfile";
 import { validatePassword } from "@/lib/password";
 import {
   createProfileImagePath,
@@ -17,21 +22,29 @@ import { cn } from "@/lib/utils";
 type Props = {
   open: boolean;
   onClose: () => void;
+  onSaved?: () => void | Promise<void>;
 };
 
-export default function AccountSettingsModal({ open, onClose }: Props) {
-  const { data: session, update } = useSession();
+export default function AccountSettingsModal({
+  open,
+  onClose,
+  onSaved,
+}: Props) {
+  const pathname = usePathname();
+  const platform = getPlatformFromPathname(pathname);
+  const { data: session } = useSession();
+  const { profile, refresh } = usePlatformProfile(open);
   const isSocialAccount =
     session?.user?.provider === "github" ||
     session?.user?.provider === "google";
 
   const initialName = useMemo(
-    () => session?.user?.name ?? "",
-    [session?.user?.name],
+    () => profile?.name ?? session?.user?.name ?? "",
+    [profile?.name, session?.user?.name],
   );
   const initialImage = useMemo(
-    () => session?.user?.image ?? null,
-    [session?.user?.image],
+    () => profile?.image ?? session?.user?.image ?? null,
+    [profile?.image, session?.user?.image],
   );
   const initialOauthImage = useMemo(
     () => session?.user?.oauthImage ?? null,
@@ -64,6 +77,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
     excludeUserId: session?.user?.id,
     initialNickname: initialName,
     enabled: open,
+    platform,
   });
   const isNicknameUnavailable =
     nickname.status === "taken" ||
@@ -160,7 +174,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
         const response = await fetch("/api/user/verify-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ currentPassword }),
+          body: JSON.stringify({ currentPassword, platform }),
           signal: controller.signal,
         });
 
@@ -199,7 +213,7 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [currentPassword, hasCurrentPasswordInput, open]);
+  }, [currentPassword, hasCurrentPasswordInput, open, platform]);
 
   // ESC 닫기
   useEffect(() => {
@@ -334,10 +348,11 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
         message?: string;
       };
 
-      const res = await fetch("/api/user/update", {
+      const res = await fetch("/api/platform-profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          platform,
           name,
           image: imageUrl ?? undefined,
           removeImage: !resetImageRequested && !imageUrl,
@@ -367,11 +382,12 @@ export default function AccountSettingsModal({ open, onClose }: Props) {
       const nextImageUrl =
         data.image !== undefined ? (data.image ?? null) : imageUrl;
 
-      await update?.({ name, image: nextImageUrl });
       setImageUrl(nextImageUrl);
       setSavedImageUrl(nextImageUrl);
       setImagePath(getProfileImageStoragePathFromPublicUrl(nextImageUrl));
       setResetImageRequested(false);
+      await refresh();
+      await onSaved?.();
 
       setMessage("저장되었습니다.");
       onClose();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { PlatformKind } from "@/components/mypage/usePlatformProfile";
 import { normalizeNickname, validateNickname } from "@/lib/nickname";
 
 type NicknameStatus =
@@ -16,6 +17,7 @@ type UseNicknameAvailabilityParams = {
   excludeUserId?: string;
   initialNickname?: string;
   enabled?: boolean;
+  platform?: PlatformKind;
 };
 
 export function useNicknameAvailability({
@@ -23,6 +25,7 @@ export function useNicknameAvailability({
   excludeUserId,
   initialNickname,
   enabled = true,
+  platform,
 }: UseNicknameAvailabilityParams) {
   const normalizedNickname = useMemo(
     () => normalizeNickname(nickname),
@@ -69,12 +72,12 @@ export function useNicknameAvailability({
           params.set("excludeUserId", excludeUserId);
         }
 
-        const response = await fetch(
-          `/api/users/check-name?${params.toString()}`,
-          {
-            signal: controller.signal,
-          },
-        );
+        const endpoint = platform
+          ? `/api/platform-profile/check-name?${params.toString()}&platform=${platform}`
+          : `/api/users/check-name?${params.toString()}`;
+        const response = await fetch(endpoint, {
+          signal: controller.signal,
+        });
         const data = (await response.json().catch(() => ({}))) as {
           available?: boolean;
           message?: string;
@@ -112,7 +115,13 @@ export function useNicknameAvailability({
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [enabled, excludeUserId, normalizedInitialNickname, normalizedNickname]);
+  }, [
+    enabled,
+    excludeUserId,
+    normalizedInitialNickname,
+    normalizedNickname,
+    platform,
+  ]);
 
   return {
     normalizedNickname,
