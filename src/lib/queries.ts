@@ -1,10 +1,15 @@
+import type { Prisma } from "@prisma/client";
+import {
+  isNoticeCategoryName,
+  NOTICE_TAG_OPTIONS,
+} from "@/lib/notice-categories";
 import {
   comparePostMetrics,
   DEFAULT_SORT,
   type SortType,
 } from "@/lib/post-sort";
 import { prisma } from "@/lib/prisma";
-import { NOTICE_TAG_OPTIONS } from "./notice-categories";
+import { normalizeSearchText, tokenizeSearchQuery } from "@/lib/search";
 
 export type DbPost = {
   id: number;
@@ -44,28 +49,90 @@ function mapPost(post: {
   };
 }
 
+function buildSearchWhere(
+  tokens: string[],
+  includeNotices: boolean,
+): Prisma.PostWhereInput {
+  const baseWhere: Prisma.PostWhereInput = {
+    isDeleted: false,
+    isHidden: false,
+    OR: tokens.flatMap((token) => [
+      { title: { contains: token, mode: "insensitive" } },
+      { content: { contains: token, mode: "insensitive" } },
+      { category: { is: { name: { contains: token, mode: "insensitive" } } } },
+    ]),
+  };
+
+  if (includeNotices) {
+    return baseWhere;
+  }
+
+  return {
+    ...baseWhere,
+    category: {
+      is: {
+        name: {
+          notIn: [...NOTICE_TAG_OPTIONS],
+        },
+      },
+    },
+  };
+}
+
+function scoreSearchMatch(
+  post: {
+    title: string;
+    content: string;
+    category: { name: string };
+  },
+  keyword: string,
+  tokens: string[],
+) {
+  const normalizedKeyword = normalizeSearchText(keyword);
+  const normalizedTitle = normalizeSearchText(post.title);
+  const normalizedContent = normalizeSearchText(post.content);
+  const normalizedCategory = normalizeSearchText(post.category.name);
+
+  let score = 0;
+
+  if (normalizedKeyword.length > 0) {
+    if (normalizedTitle === normalizedKeyword) score += 120;
+    if (normalizedTitle.startsWith(normalizedKeyword)) score += 80;
+    if (normalizedTitle.includes(normalizedKeyword)) score += 60;
+    if (normalizedCategory.includes(normalizedKeyword)) score += 30;
+    if (normalizedContent.includes(normalizedKeyword)) score += 20;
+  }
+
+  for (const token of tokens) {
+    if (normalizedTitle.startsWith(token)) score += 14;
+    else if (normalizedTitle.includes(token)) score += 10;
+
+    if (normalizedCategory.includes(token)) score += 6;
+    if (normalizedContent.includes(token)) score += 4;
+  }
+
+  return score;
+}
+
 export async function searchPosts(
   keyword: string,
   limit: number,
   offset: number,
   sort: SortType = DEFAULT_SORT,
+  options?: {
+    includeNotices?: boolean;
+  },
 ): Promise<DbPost[]> {
+  const tokens = tokenizeSearchQuery(keyword);
+  const includeNotices = options?.includeNotices ?? true;
+
+  if (tokens.length === 0) {
+    return [];
+  }
+
   const posts = await prisma.post.findMany({
-    where: {
-      isDeleted: false,
-      isHidden: false,
-      category: {
-        is: {
-          name: {
-            notIn: [...NOTICE_TAG_OPTIONS],
-          },
-        },
-      },
-      OR: [
-        { title: { contains: keyword, mode: "insensitive" } },
-        { content: { contains: keyword, mode: "insensitive" } },
-      ],
-    },
+    where: buildSearchWhere(tokens, includeNotices),
+    take: Math.max(limit + offset, 48),
     include: {
       user: { select: { name: true } },
       category: { select: { name: true } },
@@ -83,6 +150,14 @@ export async function searchPosts(
 
   return posts
     .sort((a, b) => {
+      const scoreDiff =
+        scoreSearchMatch(b, keyword, tokens) -
+        scoreSearchMatch(a, keyword, tokens);
+
+      if (scoreDiff !== 0) {
+        return scoreDiff;
+      }
+
       return comparePostMetrics(
         sort,
         {
@@ -102,7 +177,10 @@ export async function searchPosts(
       );
     })
     .slice(offset, offset + limit)
-    .map(mapPost);
+    .map(mapPost)
+    .filter(
+      (post) => includeNotices || !isNoticeCategoryName(post.category_name),
+    );
 }
 
 export async function getPostsByCategorySlug(
