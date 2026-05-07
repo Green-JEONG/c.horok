@@ -7,6 +7,7 @@ import {
   getTechLikesPostPath,
   getTechNoticePath,
 } from "@/lib/routes";
+import { formatSeoulDate } from "@/lib/utils";
 
 type Props = {
   id: number;
@@ -144,7 +145,7 @@ export default function PostCard({
             </span>
           </div>
           <span className="shrink-0 whitespace-nowrap">
-            {new Date(createdAt).toLocaleDateString("ko-KR")}
+            {formatSeoulDate(createdAt)}
           </span>
         </div>
       </div>

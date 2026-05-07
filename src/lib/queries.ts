@@ -468,7 +468,7 @@ export async function getRandomPosts(
       },
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       _count: {
         select: {

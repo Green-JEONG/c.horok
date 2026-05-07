@@ -4,7 +4,7 @@ import { ChevronDown, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import SectionPagination from "@/components/mypage/sections/SectionPagination";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import PostEditor from "@/components/posts/PostEditor";
@@ -57,6 +57,42 @@ export default function NoticeListInfinite({
   const [openFaqIds, setOpenFaqIds] = useState<number[]>(
     Number.isFinite(initialOpenFaqId) ? [initialOpenFaqId] : [],
   );
+  const [viewCounts, setViewCounts] = useState<Record<number, number>>(() =>
+    Object.fromEntries(notices.map((notice) => [notice.id, notice.viewCount])),
+  );
+
+  useEffect(() => {
+    setViewCounts(
+      Object.fromEntries(
+        notices.map((notice) => [notice.id, notice.viewCount]),
+      ),
+    );
+  }, [notices]);
+
+  const trackFaqView = useCallback(async (id: number) => {
+    setViewCounts((current) => ({
+      ...current,
+      [id]: (current[id] ?? 0) + 1,
+    }));
+
+    try {
+      const response = await fetch(`/api/posts/${id}/view`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        setViewCounts((current) => ({
+          ...current,
+          [id]: Math.max((current[id] ?? 1) - 1, 0),
+        }));
+      }
+    } catch {
+      setViewCounts((current) => ({
+        ...current,
+        [id]: Math.max((current[id] ?? 1) - 1, 0),
+      }));
+    }
+  }, []);
 
   useEffect(() => {
     if (!isFaqCategory) {
@@ -71,6 +107,7 @@ export default function NoticeListInfinite({
     }
 
     setOpenFaqIds([openFaqId]);
+    void trackFaqView(openFaqId);
 
     const element = document.getElementById(`faq-notice-${openFaqId}`);
     if (element) {
@@ -81,7 +118,7 @@ export default function NoticeListInfinite({
         });
       });
     }
-  }, [isFaqCategory, searchParams]);
+  }, [isFaqCategory, searchParams, trackFaqView]);
 
   function buildPageHref(page: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -101,7 +138,7 @@ export default function NoticeListInfinite({
   }
 
   function getQnaStatusLabel(isResolved: boolean) {
-    return isResolved ? "완료" : "미답변";
+    return isResolved ? "답변완료" : "미답변";
   }
 
   function getQnaStatusSizeClassName(_isResolved: boolean, isMobile: boolean) {
@@ -109,11 +146,17 @@ export default function NoticeListInfinite({
   }
 
   function toggleFaq(id: number) {
+    const isOpening = !openFaqIds.includes(id);
+
     setOpenFaqIds((current) =>
       current.includes(id)
         ? current.filter((faqId) => faqId !== id)
         : [...current, id],
     );
+
+    if (isOpening) {
+      void trackFaqView(id);
+    }
   }
 
   if (notices.length === 0) {
@@ -134,7 +177,7 @@ export default function NoticeListInfinite({
           <span>작성자</span>
           <span>작성일</span>
           <span>조회</span>
-          {isQnaCategory ? <span>답변</span> : null}
+          {isQnaCategory ? <span>상태</span> : null}
         </div>
 
         {notices.map((notice) => {
@@ -194,7 +237,7 @@ export default function NoticeListInfinite({
                     <span>{notice.authorName}</span>
                   </span>
                   <span>{notice.publishedAt}</span>
-                  <span>조회 {notice.viewCount}</span>
+                  <span>조회 {viewCounts[notice.id] ?? notice.viewCount}</span>
                   {isQnaCategory ? (
                     <span
                       className={`${getQnaStatusSizeClassName(notice.isResolved, true)} font-semibold ${getQnaStatusClassName(notice.isResolved)}`}
@@ -222,7 +265,7 @@ export default function NoticeListInfinite({
                 {notice.publishedAt}
               </span>
               <div className="hidden text-center text-sm text-muted-foreground md:block">
-                {notice.viewCount}
+                {viewCounts[notice.id] ?? notice.viewCount}
               </div>
               {isQnaCategory ? (
                 <div

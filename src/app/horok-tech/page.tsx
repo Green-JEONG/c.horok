@@ -39,9 +39,14 @@ export default async function HorokTechPage({
   const randomPostsSection =
     randomPosts.length > 0 ? (
       <section className="mt-15 space-y-3">
-        <h2 className="text-lg font-bold tracking-tight text-foreground">
-          맛보기
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-bold tracking-tight text-foreground">
+            맛보기
+          </h2>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/horok-tech/feeds">더보기</Link>
+          </Button>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
           {randomPosts.map((post) => (
             <PostCard
