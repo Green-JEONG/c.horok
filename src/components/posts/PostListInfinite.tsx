@@ -17,6 +17,8 @@ type PostListItem = {
   category_name: string;
   likes_count: number;
   comments_count: number;
+  is_secret?: boolean;
+  can_view_secret?: boolean;
 };
 
 type Props = {
@@ -176,6 +178,8 @@ export default function PostListInfinite({
               likes={post.likes_count}
               comments={post.comments_count}
               createdAt={new Date(post.created_at)}
+              isSecret={post.is_secret}
+              canViewSecret={post.can_view_secret}
               postRouteSection={postRouteSection}
             />
           ))}

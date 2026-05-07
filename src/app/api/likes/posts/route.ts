@@ -22,7 +22,9 @@ export async function GET(request: Request) {
   const limit = 12;
   const offset = Math.max(page - 1, 0) * limit;
 
-  const posts = await getLikedPosts(userId, sort, limit, offset);
+  const posts = await getLikedPosts(userId, sort, limit, offset, {
+    isAdmin: session.user.role === "ADMIN",
+  });
 
   return NextResponse.json(posts);
 }

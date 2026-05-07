@@ -1,12 +1,18 @@
+import { ensureCategoryByName } from "@/lib/categories";
+import {
+  ALL_NOTICE_TAG_OPTIONS,
+  getNoticeCategoryQueryNames,
+  isNoticeCategoryName,
+  type NoticeTag,
+  normalizeNoticeCategory,
+} from "@/lib/notice-categories";
 import {
   comparePostMetrics,
   DEFAULT_SORT,
   type SortType,
 } from "@/lib/post-sort";
-import { ensureCategoryByName } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 import { getTechNoticePath } from "@/lib/routes";
-import { NOTICE_TAG_OPTIONS, type NoticeTag } from "./notice-categories";
 
 export const LEGACY_NOTICE_SEED = [
   {
@@ -51,7 +57,8 @@ export const LEGACY_NOTICE_SEED = [
 
 export const LEGACY_BANNER_NOTICE_SEED = [
   {
-    title: "호록 기술 블로그가 2026년 1월 6일부로 개설되었어요! 많은 관심 가져 주세요.  🎉",
+    title:
+      "호록 기술 블로그가 2026년 1월 6일부로 개설되었어요! 많은 관심 가져 주세요.  🎉",
     summary:
       "호록 기술 블로그 오픈 소식을 배너에서 보셨던 문구 그대로 공지사항에도 남겨둡니다.",
     publishedAt: "2026-01-06T00:00:00.000Z",
@@ -64,8 +71,7 @@ export const LEGACY_BANNER_NOTICE_SEED = [
   },
   {
     title: "2026년 붉은🔥 말🐴의 해가 밝았어요. 새해 복 많이 받으세요!",
-    summary:
-      "기존 새해 배너 문구를 공지사항 게시물로 옮겨 보관합니다.",
+    summary: "기존 새해 배너 문구를 공지사항 게시물로 옮겨 보관합니다.",
     publishedAt: "2026-01-01T00:00:00.000Z",
     categoryName: "공지" as NoticeTag,
     content: [
@@ -82,7 +88,12 @@ export type NoticeListItem = {
   categoryName: NoticeTag;
   summary: string;
   publishedAt: string;
+  authorName: string;
   isPinned: boolean;
+  isLocked: boolean;
+  isSecret: boolean;
+  canViewSecret: boolean;
+  isResolved: boolean;
   likesCount: number;
   commentsCount: number;
   viewCount: number;
@@ -105,6 +116,9 @@ export type NoticeDetail = {
   isBanner: boolean;
   userId: number;
   isPinned: boolean;
+  isSecret: boolean;
+  canViewSecret: boolean;
+  isResolved: boolean;
 };
 
 export type NoticeBannerItem = {
@@ -133,7 +147,7 @@ function getSummary(markdown: string) {
 function stripLegacyNoticePrefix(title: string) {
   const match = title.match(/^\[([^\]]+)\]\s*(.+)$/);
 
-  if (match && NOTICE_TAG_OPTIONS.includes(match[1] as NoticeTag)) {
+  if (match && isNoticeCategoryName(match[1])) {
     return match[2];
   }
 
@@ -145,20 +159,33 @@ export function isPinnedNotice(categoryName: string, title: string) {
   return categoryName !== "공지" || normalizedTitle === "c.horok 오픈 안내";
 }
 
-export async function findNotices(sort: SortType = DEFAULT_SORT) {
+export async function findNotices(
+  sort: SortType = DEFAULT_SORT,
+  category?: NoticeTag,
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
+) {
   const notices = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       isDeleted: false,
       isHidden: false,
       category: {
         is: {
           name: {
-            in: [...NOTICE_TAG_OPTIONS],
+            in: getNoticeCategoryQueryNames(category),
           },
         },
       },
     },
     include: {
+      user: {
+        select: { name: true },
+      },
       category: {
         select: { name: true },
       },
@@ -177,6 +204,21 @@ export async function findNotices(sort: SortType = DEFAULT_SORT) {
   });
 
   return notices
+    .filter((notice) => {
+      const normalizedCategory = normalizeNoticeCategory(notice.category.name);
+
+      if (normalizedCategory !== "QnA") {
+        return true;
+      }
+
+      if (options?.isAdmin) {
+        return true;
+      }
+
+      return options?.viewerUserId
+        ? Number(notice.userId) === options.viewerUserId
+        : false;
+    })
     .sort((a, b) =>
       comparePostMetrics(
         sort,
@@ -196,21 +238,39 @@ export async function findNotices(sort: SortType = DEFAULT_SORT) {
         },
       ),
     )
-    .map<NoticeListItem>((notice) => ({
-      id: Number(notice.id),
-      title: stripLegacyNoticePrefix(notice.title),
-      categoryName: notice.category.name as NoticeTag,
-      summary: getSummary(notice.content),
-      publishedAt: notice.createdAt.toISOString().slice(0, 10),
-      isPinned: isPinnedNotice(notice.category.name, notice.title),
-      likesCount: notice._count.likes,
-      commentsCount: notice._count.comments,
-      viewCount: Number(notice.views?.viewCount ?? 0),
-    }));
+    .map<NoticeListItem>((notice) => {
+      const normalizedCategory =
+        normalizeNoticeCategory(notice.category.name) ?? "공지";
+      const canViewSecret =
+        !notice.isSecret ||
+        Boolean(options?.isAdmin) ||
+        (typeof options?.viewerUserId === "number" &&
+          Number(notice.userId) === options.viewerUserId);
+
+      return {
+        id: Number(notice.id),
+        title: stripLegacyNoticePrefix(notice.title),
+        categoryName: normalizedCategory,
+        summary: canViewSecret ? getSummary(notice.content) : "비밀글입니다.",
+        publishedAt: notice.createdAt.toISOString().slice(0, 10),
+        authorName: notice.user.name ?? "c.horok 운영팀",
+        isPinned: isPinnedNotice(normalizedCategory, notice.title),
+        isLocked: normalizedCategory === "QnA" || notice.isSecret,
+        isSecret: notice.isSecret,
+        canViewSecret,
+        isResolved: false,
+        likesCount: notice._count.likes,
+        commentsCount: notice._count.comments,
+        viewCount: Number(notice.views?.viewCount ?? 0),
+      };
+    });
 }
 
 export async function findBannerNotices(limit = 5) {
   const notices = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       isDeleted: false,
       isHidden: false,
@@ -218,7 +278,7 @@ export async function findBannerNotices(limit = 5) {
       category: {
         is: {
           name: {
-            in: [...NOTICE_TAG_OPTIONS],
+            in: [...ALL_NOTICE_TAG_OPTIONS],
           },
         },
       },
@@ -232,13 +292,11 @@ export async function findBannerNotices(limit = 5) {
     take: limit,
   });
 
-  return notices
-    .slice(0, limit)
-    .map<NoticeBannerItem>((notice) => ({
-      id: Number(notice.id),
-      title: stripLegacyNoticePrefix(notice.title),
-      href: getTechNoticePath(Number(notice.id)),
-    }));
+  return notices.slice(0, limit).map<NoticeBannerItem>((notice) => ({
+    id: Number(notice.id),
+    title: stripLegacyNoticePrefix(notice.title),
+    href: getTechNoticePath(Number(notice.id)),
+  }));
 }
 
 export async function seedLegacyBannerNotices(userId: number) {
@@ -301,16 +359,20 @@ export async function findNoticeById(
   id: number,
   options?: {
     includeHiddenForUserId?: number | null;
+    isAdmin?: boolean;
   },
 ) {
   const notice = await prisma.post.findFirst({
+    omit: {
+      isResolved: true,
+    },
     where: {
       id: BigInt(id),
       isDeleted: false,
       category: {
         is: {
           name: {
-            in: [...NOTICE_TAG_OPTIONS],
+            in: [...ALL_NOTICE_TAG_OPTIONS],
           },
         },
       },
@@ -346,22 +408,46 @@ export async function findNoticeById(
     return null;
   }
 
+  const normalizedCategory = normalizeNoticeCategory(notice.category.name);
+  const isPrivateQna = normalizedCategory === "QnA";
+  const canAccessPrivateQna =
+    options?.isAdmin ||
+    (options?.includeHiddenForUserId
+      ? Number(notice.userId) === options.includeHiddenForUserId
+      : false);
+  const canViewSecret =
+    !notice.isSecret ||
+    options?.isAdmin ||
+    (options?.includeHiddenForUserId
+      ? Number(notice.userId) === options.includeHiddenForUserId
+      : false);
+
+  if (isPrivateQna && !canAccessPrivateQna) {
+    return null;
+  }
+
   return {
     id: Number(notice.id),
     title: stripLegacyNoticePrefix(notice.title),
-    content: notice.content,
-    summary: getSummary(notice.content),
+    content: canViewSecret ? notice.content : "비밀글입니다.",
+    summary: canViewSecret ? getSummary(notice.content) : "비밀글입니다.",
     publishedAt: notice.createdAt,
     updatedAt: notice.updatedAt,
     authorName: notice.user.name ?? "c.horok 운영팀",
-    categoryName: notice.category.name,
-    thumbnail: notice.thumbnail,
+    categoryName: normalizedCategory ?? "공지",
+    thumbnail: canViewSecret ? notice.thumbnail : null,
     viewCount: Number(notice.views?.viewCount ?? 0),
     likesCount: notice._count.likes,
     commentsCount: notice._count.comments,
     isHidden: notice.isHidden,
     isBanner: notice.isBanner,
     userId: Number(notice.userId),
-    isPinned: isPinnedNotice(notice.category.name, notice.title),
+    isPinned: isPinnedNotice(
+      normalizedCategory ?? notice.category.name,
+      notice.title,
+    ),
+    isSecret: notice.isSecret,
+    canViewSecret,
+    isResolved: false,
   } satisfies NoticeDetail;
 }

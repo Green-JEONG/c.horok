@@ -96,6 +96,9 @@ export async function getPostsByCategory(params: {
 
   const [posts, total] = await Promise.all([
     prisma.post.findMany({
+      omit: {
+        isResolved: true,
+      },
       where,
       orderBy: { createdAt: "desc" },
       skip: offset,

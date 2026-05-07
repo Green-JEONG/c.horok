@@ -50,12 +50,16 @@ type PostEditorProps = {
   initialCategoryName?: string;
   initialThumbnail?: string | null;
   initialIsBanner?: boolean;
+  initialIsResolved?: boolean;
+  initialIsSecret?: boolean;
   cancelLabel?: string;
   submitLabel?: string;
   submittingLabel?: string;
   categoryLocked?: boolean;
   successPathPrefix?: string;
   fixedTagOptions?: string[];
+  showThumbnailTab?: boolean;
+  showBannerOption?: boolean;
   onCancel?: () => void;
   onSuccess?: (payload: unknown) => void;
 };
@@ -68,12 +72,16 @@ export default function PostEditor({
   initialCategoryName = "",
   initialThumbnail = null,
   initialIsBanner = false,
+  initialIsResolved = false,
+  initialIsSecret = false,
   cancelLabel = "취소",
   submitLabel = mode === "edit" ? "수정 저장" : "게시하기",
   submittingLabel = mode === "edit" ? "저장 중..." : "게시 중...",
   categoryLocked = false,
   successPathPrefix = "/horok-tech/feeds/posts",
   fixedTagOptions = [],
+  showThumbnailTab = true,
+  showBannerOption = true,
   onCancel,
   onSuccess,
 }: PostEditorProps) {
@@ -102,6 +110,8 @@ export default function PostEditor({
     getStorageObjectPathFromPublicUrl(initialThumbnail),
   );
   const [isBanner, setIsBanner] = useState(initialIsBanner);
+  const [isResolved, setIsResolved] = useState(initialIsResolved);
+  const [isSecret, setIsSecret] = useState(initialIsSecret);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -113,6 +123,7 @@ export default function PostEditor({
   const currentCategoryName =
     categoryLocked && fixedTagOptions.length > 0 ? selectedFixedTag : tags[0];
   const isNoticeCategory = isNoticeCategoryName(currentCategoryName);
+  const canShowBannerOption = showBannerOption && isNoticeCategory;
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -544,6 +555,8 @@ export default function PostEditor({
           content: trimmedContent,
           categoryName,
           isBanner,
+          isResolved,
+          isSecret,
           thumbnailUrl,
         }),
       });
@@ -696,17 +709,19 @@ export default function PostEditor({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center border-b border-border/70">
-            <button
-              type="button"
-              onClick={() => setActiveTab("thumbnail")}
-              className={`w-20 border-b-2 px-1 pb-2 text-center text-sm font-medium transition ${
-                activeTab === "thumbnail"
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground"
-              }`}
-            >
-              썸네일
-            </button>
+            {showThumbnailTab ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab("thumbnail")}
+                className={`w-20 border-b-2 px-1 pb-2 text-center text-sm font-medium transition ${
+                  activeTab === "thumbnail"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground"
+                }`}
+              >
+                썸네일
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setActiveTab("write")}
@@ -752,7 +767,7 @@ export default function PostEditor({
             activeTab === "preview" ? "" : "h-[420px]"
           }`}
         >
-          {activeTab === "thumbnail" ? (
+          {showThumbnailTab && activeTab === "thumbnail" ? (
             <div className="flex h-full flex-col px-5 py-5">
               <div className="flex-1">
                 {thumbnailUrl ? (
@@ -823,9 +838,9 @@ export default function PostEditor({
             </div>
           ) : activeTab === "preview" ? (
             <div className="px-5 py-5">
-              {content.trim() || thumbnailUrl ? (
+              {content.trim() || (showThumbnailTab && thumbnailUrl) ? (
                 <div className="space-y-5">
-                  {thumbnailUrl ? (
+                  {showThumbnailTab && thumbnailUrl ? (
                     <div className="relative h-56 overflow-hidden rounded-md sm:h-72">
                       <Image
                         src={thumbnailUrl}
@@ -865,7 +880,7 @@ export default function PostEditor({
         </div>
       </div>
 
-      {isNoticeCategory ? (
+      {canShowBannerOption ? (
         <label className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/20 px-3 py-3 text-sm">
           <input
             type="checkbox"
@@ -876,6 +891,45 @@ export default function PostEditor({
           <span>이 공지사항을 배너에 노출</span>
         </label>
       ) : null}
+
+      {currentCategoryName === "QnA" ? (
+        <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 px-3 py-3">
+          <p className="text-sm font-medium text-foreground">상태</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "답변 전", value: false },
+              { label: "답변 완료", value: true },
+            ].map((option) => {
+              const isActive = isResolved === option.value;
+
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => setIsResolved(option.value)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                    isActive
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <label className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/20 px-3 py-3 text-sm">
+        <input
+          type="checkbox"
+          checked={isSecret}
+          onChange={(event) => setIsSecret(event.target.checked)}
+          className="h-4 w-4"
+        />
+        <span>비밀글로 작성</span>
+      </label>
 
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">

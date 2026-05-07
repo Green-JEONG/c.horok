@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import NoticeListInfinite from "@/components/posts/NoticeListInfinite";
 import PostListHeader from "@/components/posts/PostListHeader";
-import PostListInfinite from "@/components/posts/PostListInfinite";
+import {
+  NOTICE_TAG_OPTIONS,
+  parseNoticeCategory,
+} from "@/lib/notice-categories";
 import { findNotices } from "@/lib/notices";
 import { parseSortType } from "@/lib/post-sort";
 
@@ -16,47 +21,84 @@ export const metadata: Metadata = {
 export default async function HorokTechNoticesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; category?: string; page?: string }>;
 }) {
-  const { sort } = await searchParams;
+  const { sort, category, page } = await searchParams;
   const parsedSort = parseSortType(sort);
+  const parsedCategory = parseNoticeCategory(category) ?? NOTICE_TAG_OPTIONS[0];
+  const parsedPage = Number(page ?? "1");
+  const currentPage =
+    Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const session = await auth();
-  const notices = await findNotices(parsedSort);
-  const initialNotices = notices.slice(0, 12);
+  const sessionUserId =
+    typeof session?.user?.id === "string" ? Number(session.user.id) : null;
+  const notices = await findNotices(parsedSort, parsedCategory, {
+    viewerUserId:
+      typeof sessionUserId === "number" && !Number.isNaN(sessionUserId)
+        ? sessionUserId
+        : null,
+    isAdmin: session?.user?.role === "ADMIN",
+  });
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(notices.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedNotices = notices.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize,
+  );
+  const isQnaCategory = parsedCategory === "QnA";
+  const isAdmin = session?.user?.role === "ADMIN";
+  const canWriteNotice = isAdmin || (Boolean(session?.user) && isQnaCategory);
+  const categoryTabs = NOTICE_TAG_OPTIONS.map((value) => ({
+    label: value,
+    value,
+  }));
 
   return (
     <section className="space-y-4">
       <PostListHeader
         title="공지사항"
-        showWriteButton={session?.user?.role === "ADMIN"}
+        showWriteButton={canWriteNotice}
         writeButtonHref="/horok-tech/notices/new"
-        writeButtonLabel="공지 작성"
+        writeButtonLabel={isQnaCategory ? "질문하기" : "공지 작성"}
       />
 
-      {notices.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          아직 등록된 공지사항이 없습니다.
-        </p>
-      ) : null}
+      <div className="flex flex-wrap gap-2">
+        {categoryTabs.map((tab) => {
+          const params = new URLSearchParams();
 
-      <PostListInfinite
-        initialPosts={initialNotices.map((notice) => ({
-          id: notice.id,
-          title: notice.title,
-          content: notice.summary,
-          thumbnail: null,
-          created_at: notice.publishedAt,
-          author_name: "horok-tech",
-          category_name: notice.categoryName,
-          likes_count: notice.likesCount,
-          comments_count: notice.commentsCount,
-          view_count: notice.viewCount,
-          updated_at: notice.publishedAt,
-        }))}
-        endpoint={`/api/notices?sort=${encodeURIComponent(parsedSort)}`}
-        gridClassName="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4"
+          if (sort) {
+            params.set("sort", sort);
+          }
+
+          params.set("category", tab.value);
+
+          const href = params.toString()
+            ? `/horok-tech/notices?${params.toString()}`
+            : "/horok-tech/notices";
+          const isActive = parsedCategory === tab.value;
+
+          return (
+            <Link
+              key={tab.label}
+              href={href}
+              className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                isActive
+                  ? "border-primary bg-background text-primary"
+                  : "border-border bg-background text-foreground hover:border-muted-foreground"
+              }`}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
+      </div>
+      <NoticeListInfinite
+        notices={pagedNotices}
+        currentPage={safePage}
+        totalPages={totalPages}
+        isQnaCategory={isQnaCategory}
         emptyMessage="아직 등록된 공지사항이 없습니다."
-        loadingMessage="공지사항을 불러오는 중..."
       />
     </section>
   );

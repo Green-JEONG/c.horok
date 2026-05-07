@@ -10,6 +10,8 @@ export type CommentNode = {
   parent_id: number | null;
   content: string;
   is_deleted: boolean;
+  is_secret: boolean;
+  can_view_secret: boolean;
   is_edited: boolean;
   created_at: string;
   author: string;
@@ -32,13 +34,17 @@ export default function CommentItem({
   const [isEditing, setIsEditing] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [content, setContent] = useState(comment.content);
+  const [isSecret, setIsSecret] = useState(comment.is_secret);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFocusedComment, setIsFocusedComment] = useState(false);
   const canManage = comment.user_id === currentUserId && !comment.is_deleted;
   const canReply =
-    isLoggedIn && comment.parent_id === null && !comment.is_deleted;
+    isLoggedIn &&
+    comment.parent_id === null &&
+    !comment.is_deleted &&
+    (!comment.is_secret || comment.can_view_secret);
   const targetCommentId = Number(searchParams.get("commentId") ?? "");
 
   useEffect(() => {
@@ -86,7 +92,7 @@ export default function CommentItem({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content: trimmedContent }),
+        body: JSON.stringify({ content: trimmedContent, isSecret }),
       });
       const payload = await response.json().catch(() => null);
 
@@ -138,7 +144,10 @@ export default function CommentItem({
       }`}
     >
       <div className="flex justify-between text-sm">
-        <span className="font-medium">{comment.author}</span>
+        <span className="font-medium">
+          {comment.author}
+          {comment.is_secret ? " · 비밀댓글" : ""}
+        </span>
         <span className="text-muted-foreground">
           {new Date(comment.created_at).toLocaleString("ko-KR")}
           {comment.is_edited ? " (수정)" : ""}
@@ -153,6 +162,15 @@ export default function CommentItem({
             rows={4}
             className="w-full rounded-md border p-3 text-sm"
           />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={isSecret}
+              onChange={(event) => setIsSecret(event.target.checked)}
+              className="h-4 w-4"
+            />
+            <span>비밀댓글</span>
+          </label>
 
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
@@ -162,6 +180,7 @@ export default function CommentItem({
               disabled={isSubmitting}
               onClick={() => {
                 setContent(comment.content);
+                setIsSecret(comment.is_secret);
                 setIsEditing(false);
                 setError(null);
               }}

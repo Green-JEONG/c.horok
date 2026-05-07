@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const userId = await requireDbUserId();
 
     const body = await req.json();
-    const { postId, content, parentId } = body;
+    const { postId, content, parentId, isSecret } = body;
 
     if (!postId || !content) {
       return NextResponse.json({ message: "Invalid input" }, { status: 400 });
@@ -20,6 +20,10 @@ export async function POST(req: Request) {
     });
     if (!post) {
       return NextResponse.json({ message: "Post not found" }, { status: 404 });
+    }
+
+    if (post.is_secret && !post.can_view_secret) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     if (parentId) {
@@ -46,6 +50,7 @@ export async function POST(req: Request) {
       userId, // number로 일치
       content,
       parentId: parentId ? Number(parentId) : null,
+      isSecret: Boolean(isSecret),
     });
 
     // 2) 알림 생성 (실패해도 댓글은 성공)

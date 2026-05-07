@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import PostEditor from "@/components/posts/PostEditor";
+import PostHeader from "@/components/posts/PostHeader";
+import type { DbPost } from "@/lib/db";
 import {
   getStorageObjectPathFromPublicUrl,
   POST_THUMBNAIL_BUCKET,
@@ -17,11 +19,16 @@ type Props = {
   initialCategoryName: string;
   initialThumbnail: string | null;
   initialIsHidden: boolean;
+  initialIsSecret?: boolean;
   initialIsBanner?: boolean;
+  initialIsResolved?: boolean;
   isOwner: boolean;
+  headerPost?: DbPost;
   redirectPath?: string;
   categoryLocked?: boolean;
   fixedTagOptions?: string[];
+  showThumbnailTab?: boolean;
+  showBannerOption?: boolean;
   children?: ReactNode;
 };
 
@@ -32,11 +39,16 @@ export default function PostActions({
   initialCategoryName,
   initialThumbnail,
   initialIsHidden,
+  initialIsSecret = false,
   initialIsBanner = false,
+  initialIsResolved = false,
   isOwner,
+  headerPost,
   redirectPath = "/horok-tech/feeds",
   categoryLocked = false,
   fixedTagOptions,
+  showThumbnailTab = true,
+  showBannerOption = true,
   children,
 }: Props) {
   const router = useRouter();
@@ -45,10 +57,6 @@ export default function PostActions({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isHidden, setIsHidden] = useState(initialIsHidden);
   const [isTogglingHidden, setIsTogglingHidden] = useState(false);
-
-  if (!isOwner) {
-    return children ?? null;
-  }
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -123,47 +131,53 @@ export default function PostActions({
     }
   }
 
+  const actionSlot = isOwner ? (
+    <div className="flex flex-wrap justify-end gap-2 text-sm">
+      <button
+        type="button"
+        disabled={isDeleting || isTogglingHidden}
+        onClick={() => {
+          setIsEditing((prev) => !prev);
+          setError(null);
+        }}
+        className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isEditing ? "닫기" : "수정"}
+      </button>
+
+      <button
+        type="button"
+        disabled={isDeleting || isTogglingHidden}
+        onClick={handleToggleHidden}
+        className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isTogglingHidden
+          ? isHidden
+            ? "공개 중..."
+            : "숨김 중..."
+          : isHidden
+            ? "숨김 해제"
+            : "숨김"}
+      </button>
+
+      <button
+        type="button"
+        disabled={isDeleting || isTogglingHidden}
+        onClick={handleDelete}
+        className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isDeleting ? "삭제 중..." : "삭제"}
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="mb-6 space-y-3">
-      <div className="flex justify-end gap-2 text-sm">
-        <button
-          type="button"
-          disabled={isDeleting || isTogglingHidden}
-          onClick={() => {
-            setIsEditing((prev) => !prev);
-            setError(null);
-          }}
-          className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isEditing ? "닫기" : "수정"}
-        </button>
+      {headerPost ? (
+        <PostHeader post={headerPost} actionSlot={actionSlot} />
+      ) : null}
 
-        <button
-          type="button"
-          disabled={isDeleting || isTogglingHidden}
-          onClick={handleToggleHidden}
-          className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isTogglingHidden
-            ? isHidden
-              ? "공개 중..."
-              : "숨김 중..."
-            : isHidden
-              ? "숨김 해제"
-              : "숨김"}
-        </button>
-
-        <button
-          type="button"
-          disabled={isDeleting || isTogglingHidden}
-          onClick={handleDelete}
-          className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isDeleting ? "삭제 중..." : "삭제"}
-        </button>
-      </div>
-
-      {isEditing ? (
+      {isOwner && isEditing ? (
         <div className="rounded-xl border bg-muted/20 p-4">
           <PostEditor
             mode="edit"
@@ -173,8 +187,12 @@ export default function PostActions({
             initialCategoryName={initialCategoryName}
             initialThumbnail={initialThumbnail}
             initialIsBanner={initialIsBanner}
+            initialIsResolved={initialIsResolved}
+            initialIsSecret={initialIsSecret}
             categoryLocked={categoryLocked}
             fixedTagOptions={fixedTagOptions}
+            showThumbnailTab={showThumbnailTab}
+            showBannerOption={showBannerOption}
             onCancel={() => {
               setIsEditing(false);
               setError(null);

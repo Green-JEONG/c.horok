@@ -50,7 +50,9 @@ export default async function MyPostList({
     );
   }
 
-  const posts = await getUserPosts(userId, parseSortType(sort));
+  const posts = await getUserPosts(userId, parseSortType(sort), undefined, 0, {
+    isAdmin: session?.user?.role === "ADMIN",
+  });
   const limitedPosts =
     typeof limit === "number" ? posts.slice(0, limit) : posts;
 
@@ -78,6 +80,8 @@ export default async function MyPostList({
             comments={post.comments_count}
             createdAt={new Date(post.created_at)}
             isHidden={post.is_hidden}
+            isSecret={post.is_secret}
+            canViewSecret={post.can_view_secret}
           />
         ))}
       </div>

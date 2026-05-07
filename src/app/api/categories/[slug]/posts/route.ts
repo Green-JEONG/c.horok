@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { parseSortType } from "@/lib/post-sort";
 import { getPostsByCategorySlug } from "@/lib/queries";
 
@@ -6,6 +7,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  const session = await auth();
   const { slug } = await params;
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? "1");
@@ -25,6 +27,11 @@ export async function GET(
     limit,
     offset,
     sort,
+    {
+      viewerUserId:
+        typeof session?.user?.id === "string" ? Number(session.user.id) : null,
+      isAdmin: session?.user?.role === "ADMIN",
+    },
   );
 
   if (!categoryName) {

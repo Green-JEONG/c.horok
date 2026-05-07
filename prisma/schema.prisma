@@ -112,9 +112,11 @@ model Post {
   content       String          @db.Text
   thumbnail     String?         @db.VarChar(255)
   isBanner      Boolean         @default(false) @map("is_banner")
+  isResolved    Boolean         @default(false) @map("is_resolved")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @default(now()) @updatedAt @map("updated_at")
   isHidden      Boolean         @default(false) @map("is_hidden")
+  isSecret      Boolean         @default(false) @map("is_secret")
   hiddenAt      DateTime?       @map("hidden_at")
   isDeleted     Boolean         @default(false) @map("is_deleted")
   deletedAt     DateTime?       @map("deleted_at")
@@ -139,6 +141,7 @@ model Comment {
   parentId      BigInt?         @map("parent_id")
   content       String          @db.Text
   isDeleted     Boolean         @default(false) @map("is_deleted")
+  isSecret      Boolean         @default(false) @map("is_secret")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @default(now()) @updatedAt @map("updated_at")
 

@@ -39,7 +39,7 @@ export async function PUT(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const { content } = await req.json();
+  const { content, isSecret } = await req.json();
   if (!content || typeof content !== "string") {
     return NextResponse.json({ message: "Content required" }, { status: 400 });
   }
@@ -47,6 +47,7 @@ export async function PUT(
   const updated = await updateComment({
     commentId,
     content,
+    isSecret: typeof isSecret === "boolean" ? isSecret : undefined,
   });
 
   return NextResponse.json(updated);

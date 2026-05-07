@@ -1,3 +1,4 @@
+import { List } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
@@ -52,9 +53,10 @@ export default async function PostFooter({
 
       <Link
         href={backHref}
-        className="text-sm text-muted-foreground hover:underline"
+        aria-label="목록으로"
+        className="text-muted-foreground transition-colors hover:text-foreground"
       >
-        ← 목록으로
+        <List className="h-5 w-5" />
       </Link>
     </footer>
   );

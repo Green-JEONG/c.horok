@@ -3,13 +3,16 @@ import { getCommentsByPost } from "@/lib/comments";
 import CommentItem, { type CommentNode } from "./CommentItem";
 
 export default async function CommentList({ postId }: { postId: number }) {
-  const comments = await getCommentsByPost(postId);
   const session = await auth();
   const isLoggedIn = Boolean(session?.user?.email);
   const currentUserId =
     typeof session?.user?.id === "string" && /^\d+$/.test(session.user.id)
       ? Number(session.user.id)
       : null;
+  const comments = await getCommentsByPost(postId, {
+    viewerUserId: currentUserId,
+    isAdmin: session?.user?.role === "ADMIN",
+  });
   const commentMap = new Map<number, CommentNode>();
   const rootComments: CommentNode[] = [];
 

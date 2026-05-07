@@ -1,5 +1,5 @@
 import { deleteUnusedCategories, ensureCategoryByName } from "@/lib/categories";
-import { NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
+import { ALL_NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
 export type PostRow = {
@@ -9,6 +9,9 @@ export type PostRow = {
   title: string;
   content: string;
   is_banner: boolean;
+  is_resolved: boolean;
+  is_secret: boolean;
+  can_view_secret: boolean;
   created_at: string;
   updated_at: string;
   is_hidden: boolean;
@@ -21,25 +24,42 @@ export type PopularPostRow = {
   viewCount: number;
 };
 
-function mapPost(post: {
-  id: bigint;
-  userId: bigint;
-  categoryId: bigint;
-  title: string;
-  content: string;
-  isBanner: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  isHidden: boolean;
-  isDeleted: boolean;
-}) {
+function mapPost(
+  post: {
+    id: bigint;
+    userId: bigint;
+    categoryId: bigint;
+    title: string;
+    content: string;
+    isBanner: boolean;
+    isResolved?: boolean;
+    isSecret: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    isHidden: boolean;
+    isDeleted: boolean;
+  },
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
+) {
+  const ownerUserId = Number(post.userId);
+  const canViewSecret =
+    !post.isSecret ||
+    Boolean(options?.isAdmin) ||
+    ownerUserId === options?.viewerUserId;
+
   return {
     id: Number(post.id),
-    user_id: Number(post.userId),
+    user_id: ownerUserId,
     category_id: Number(post.categoryId),
     title: post.title,
     content: post.content,
     is_banner: post.isBanner,
+    is_resolved: post.isResolved ?? false,
+    is_secret: post.isSecret,
+    can_view_secret: canViewSecret,
     created_at: post.createdAt.toISOString(),
     updated_at: post.updatedAt.toISOString(),
     is_hidden: post.isHidden,
@@ -55,6 +75,9 @@ export async function getPostById(
   },
 ) {
   const post = await prisma.post.findFirst({
+    omit: {
+      isResolved: true,
+    },
     where: {
       id: BigInt(id),
       isDeleted: false,
@@ -68,7 +91,12 @@ export async function getPostById(
     },
   });
 
-  return post ? mapPost(post) : null;
+  return post
+    ? mapPost(post, {
+        viewerUserId: options?.includeHiddenForUserId ?? null,
+        isAdmin: options?.includeHiddenForAdmin,
+      })
+    : null;
 }
 
 export async function incrementPostViews(postId: number) {
@@ -88,13 +116,16 @@ export async function incrementPostViews(postId: number) {
 
 export async function getPopularPosts(limit = 5): Promise<PopularPostRow[]> {
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       isDeleted: false,
       isHidden: false,
       category: {
         is: {
           name: {
-            notIn: [...NOTICE_TAG_OPTIONS],
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
           },
         },
       },
@@ -124,6 +155,8 @@ export async function createPost(params: {
   content: string;
   thumbnailUrl?: string | null;
   isBanner?: boolean;
+  isResolved?: boolean;
+  isSecret?: boolean;
 }) {
   const {
     userId,
@@ -132,6 +165,7 @@ export async function createPost(params: {
     content,
     thumbnailUrl = null,
     isBanner = false,
+    isSecret = false,
   } = params;
   const category = await ensureCategoryByName(categoryName);
 
@@ -143,6 +177,7 @@ export async function createPost(params: {
       content,
       thumbnail: thumbnailUrl,
       isBanner,
+      isSecret,
     },
   });
 
@@ -171,9 +206,18 @@ export async function updatePost(params: {
   content: string;
   thumbnailUrl?: string | null;
   isBanner?: boolean;
+  isResolved?: boolean;
+  isSecret?: boolean;
 }) {
-  const { postId, categoryName, title, content, thumbnailUrl, isBanner } =
-    params;
+  const {
+    postId,
+    categoryName,
+    title,
+    content,
+    thumbnailUrl,
+    isBanner,
+    isSecret,
+  } = params;
   const category = categoryName
     ? await ensureCategoryByName(categoryName)
     : null;
@@ -184,6 +228,7 @@ export async function updatePost(params: {
       title,
       content,
       ...(isBanner !== undefined ? { isBanner } : {}),
+      ...(isSecret !== undefined ? { isSecret } : {}),
       ...(category ? { categoryId: BigInt(category.id) } : {}),
       ...(thumbnailUrl !== undefined ? { thumbnail: thumbnailUrl } : {}),
     },

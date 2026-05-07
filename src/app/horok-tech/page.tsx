@@ -26,7 +26,15 @@ export default async function HorokTechPage({
 }) {
   const { sort } = await searchParams;
   const session = await auth();
-  const randomPosts = await getRandomPosts(6);
+  const viewerUserId =
+    typeof session?.user?.id === "string" ? Number(session.user.id) : null;
+  const randomPosts = await getRandomPosts(6, {
+    viewerUserId:
+      typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
+        ? viewerUserId
+        : null,
+    isAdmin: session?.user?.role === "ADMIN",
+  });
 
   const randomPostsSection =
     randomPosts.length > 0 ? (

@@ -31,7 +31,10 @@ export type DbPost = {
   likes_count: number;
   comments_count: number;
   is_banner: boolean;
+  is_resolved: boolean;
   is_hidden: boolean;
+  is_secret: boolean;
+  can_view_secret: boolean;
   user_id?: number;
 };
 
@@ -80,26 +83,42 @@ function mapUser(user: {
   };
 }
 
-function mapPost(post: {
-  id: bigint;
-  title: string;
-  content: string;
-  thumbnail: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  isBanner: boolean;
-  isHidden: boolean;
-  userId?: bigint;
-  user: { name: string | null };
-  category: { name: string };
-  views?: { viewCount: bigint | number } | null;
-  _count?: { likes?: number; comments?: number };
-}): DbPost {
+function mapPost(
+  post: {
+    id: bigint;
+    title: string;
+    content: string;
+    thumbnail: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    isBanner: boolean;
+    isResolved?: boolean;
+    isHidden: boolean;
+    isSecret: boolean;
+    userId?: bigint;
+    user: { name: string | null };
+    category: { name: string };
+    views?: { viewCount: bigint | number } | null;
+    _count?: { likes?: number; comments?: number };
+  },
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
+): DbPost {
+  const ownerUserId = post.userId ? bigintToNumber(post.userId) : undefined;
+  const canViewSecret =
+    !post.isSecret ||
+    Boolean(options?.isAdmin) ||
+    (typeof ownerUserId === "number" &&
+      typeof options?.viewerUserId === "number" &&
+      ownerUserId === options.viewerUserId);
+
   return {
     id: bigintToNumber(post.id),
     title: post.title,
-    content: post.content,
-    thumbnail: post.thumbnail,
+    content: canViewSecret ? post.content : "비밀글입니다.",
+    thumbnail: canViewSecret ? post.thumbnail : null,
     created_at: post.createdAt,
     updated_at: post.updatedAt,
     author_name: post.user.name ?? "Unknown",
@@ -108,8 +127,11 @@ function mapPost(post: {
     likes_count: post._count?.likes ?? 0,
     comments_count: post._count?.comments ?? 0,
     is_banner: post.isBanner,
+    is_resolved: post.isResolved ?? false,
     is_hidden: post.isHidden,
-    user_id: post.userId ? bigintToNumber(post.userId) : undefined,
+    is_secret: post.isSecret,
+    can_view_secret: canViewSecret,
+    user_id: ownerUserId,
   };
 }
 
@@ -254,8 +276,15 @@ export async function findPostsPaged(
   limit: number,
   offset: number,
   sort: SortType = DEFAULT_SORT,
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
 ): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       isDeleted: false,
       isHidden: false,
@@ -296,21 +325,26 @@ export async function findPostsPaged(
       );
     })
     .slice(offset, offset + limit)
-    .map(mapPost);
+    .map((post) => mapPost(post, options));
 }
 
 export async function findPostById(
   id: number,
   options?: {
     includeHiddenForUserId?: number | null;
+    includeHiddenForAdmin?: boolean;
   },
 ) {
   const post = await prisma.post.findFirst({
+    omit: {
+      isResolved: true,
+    },
     where: {
       id: BigInt(id),
       isDeleted: false,
       OR: [
         { isHidden: false },
+        ...(options?.includeHiddenForAdmin ? [{}] : []),
         ...(options?.includeHiddenForUserId
           ? [{ userId: BigInt(options.includeHiddenForUserId) }]
           : []),
@@ -331,7 +365,12 @@ export async function findPostById(
     },
   });
 
-  return post ? mapPost(post) : null;
+  return post
+    ? mapPost(post, {
+        viewerUserId: options?.includeHiddenForUserId ?? null,
+        isAdmin: options?.includeHiddenForAdmin,
+      })
+    : null;
 }
 
 async function searchPostsInternal(
@@ -349,6 +388,9 @@ async function searchPostsInternal(
   };
 
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where,
     orderBy: { createdAt: "desc" },
     skip: offset,
@@ -367,7 +409,7 @@ async function searchPostsInternal(
     },
   });
 
-  return posts.map(mapPost);
+  return posts.map((post) => mapPost(post));
 }
 
 export async function findPostsByKeywordPaged(

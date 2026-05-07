@@ -1,3 +1,4 @@
+import { Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { isNoticeCategoryName } from "@/lib/notice-categories";
@@ -18,25 +19,27 @@ type Props = {
   createdAt: Date;
   thumbnail?: string | null;
   isHidden?: boolean;
+  isSecret?: boolean;
+  canViewSecret?: boolean;
   categoryBadgeText?: string;
   categoryBadgeClassName?: string;
   postRouteSection?: "feeds" | "likes";
 };
 
 function getDefaultNoticeBadge(category: string) {
-  if (category === "긴급") {
+  if (category === "QnA") {
     return {
-      text: "#긴급",
+      text: "#QnA",
       className:
-        "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
+        "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300",
     };
   }
 
-  if (category === "중요") {
+  if (category === "FAQ") {
     return {
-      text: "#중요",
+      text: "#FAQ",
       className:
-        "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300",
+        "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
     };
   }
 
@@ -58,6 +61,8 @@ export default function PostCard({
   comments,
   createdAt,
   isHidden = false,
+  isSecret = false,
+  canViewSecret = true,
   categoryBadgeText,
   categoryBadgeClassName,
   postRouteSection = "feeds",
@@ -103,12 +108,18 @@ export default function PostCard({
         </div>
 
         <h3 className="mb-1 line-clamp-1 text-sm font-semibold">{title}</h3>
+        {isSecret ? (
+          <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" />
+            <span>비밀글</span>
+          </div>
+        ) : null}
         {isHidden ? (
           <p className="mb-2 text-xs font-medium text-amber-600">숨김 처리됨</p>
         ) : null}
 
         <p className="mb-3 line-clamp-1 text-xs text-muted-foreground">
-          {description}
+          {isSecret && !canViewSecret ? "비밀글입니다." : description}
         </p>
 
         <div className="mt-auto flex items-center justify-between gap-2 text-xs text-muted-foreground">

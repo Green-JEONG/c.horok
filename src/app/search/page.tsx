@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 
 export const metadata: Metadata = {
   title: "검색 결과 | c.horok",
@@ -22,6 +23,9 @@ export default async function SearchPage({ searchParams }: Props) {
   const categorySlug = category?.trim();
   const keyword = q?.trim();
   const parsedSort = parseSortType(sort);
+  const session = await auth();
+  const viewerUserId =
+    typeof session?.user?.id === "string" ? Number(session.user.id) : null;
 
   if (!keyword && !categorySlug) {
     return (
@@ -35,6 +39,13 @@ export default async function SearchPage({ searchParams }: Props) {
       12,
       0,
       parsedSort,
+      {
+        viewerUserId:
+          typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
+            ? viewerUserId
+            : null,
+        isAdmin: session?.user?.role === "ADMIN",
+      },
     );
 
     if (!categoryName) {
@@ -69,7 +80,13 @@ export default async function SearchPage({ searchParams }: Props) {
     );
   }
 
-  const posts = await searchPosts(keyword ?? "", 12, 0, parsedSort);
+  const posts = await searchPosts(keyword ?? "", 12, 0, parsedSort, {
+    viewerUserId:
+      typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
+        ? viewerUserId
+        : null,
+    isAdmin: session?.user?.role === "ADMIN",
+  });
 
   if (posts.length === 0) {
     return (

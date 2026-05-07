@@ -26,7 +26,9 @@ export default async function LikedPostList({ sort }: { sort?: string }) {
   }
 
   const parsedSort = parseSortType(sort);
-  const posts = await getLikedPosts(userId, parsedSort, 12, 0);
+  const posts = await getLikedPosts(userId, parsedSort, 12, 0, {
+    isAdmin: session.user.role === "ADMIN",
+  });
 
   if (posts.length === 0) {
     return (
