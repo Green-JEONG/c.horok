@@ -4,6 +4,7 @@ import { Lock } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatSeoulDateTime } from "@/lib/utils";
 import CommentForm from "./CommentForm";
 
 export type CommentNode = {
@@ -176,7 +177,7 @@ export default function CommentItem({
           ) : null}
         </span>
         <span className="text-muted-foreground">
-          {new Date(comment.created_at).toLocaleString("ko-KR")}
+          {formatSeoulDateTime(comment.created_at)}
           {comment.is_edited ? " (수정)" : ""}
         </span>
       </div>

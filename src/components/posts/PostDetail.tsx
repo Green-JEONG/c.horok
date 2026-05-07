@@ -1,8 +1,9 @@
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeSanitize from "rehype-sanitize";
 import rehypeHighlight from "rehype-highlight";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
 import type { DbPost } from "@/lib/db";
+import { formatSeoulDateTime } from "@/lib/utils";
 
 export default function PostDetail({ post }: { post: DbPost }) {
   return (
@@ -14,7 +15,7 @@ export default function PostDetail({ post }: { post: DbPost }) {
         <span>·</span>
         <span>{post.author_name}</span>
         <span>·</span>
-        <span>{new Date(post.created_at).toLocaleString("ko-KR")}</span>
+        <span>{formatSeoulDateTime(post.created_at)}</span>
       </div>
 
       <hr />

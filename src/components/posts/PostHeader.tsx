@@ -2,6 +2,7 @@ import { Lock } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import type { DbPost } from "@/lib/db";
+import { formatSeoulDateTime } from "@/lib/utils";
 
 export default function PostHeader({
   post,
@@ -37,7 +38,7 @@ export default function PostHeader({
           </span>
           <span>·</span>
           <span>
-            <time>{new Date(post.created_at).toLocaleString("ko-KR")}</time>
+            <time>{formatSeoulDateTime(post.created_at)}</time>
             {post.updated_at.getTime() > post.created_at.getTime()
               ? " (수정)"
               : ""}
