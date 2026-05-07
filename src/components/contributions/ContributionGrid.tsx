@@ -7,6 +7,14 @@ type Contribution = {
   count: number;
 };
 
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function getColor(count: number) {
   if (count === 0) return "bg-muted";
   if (count < 2) return "bg-emerald-200";
@@ -36,7 +44,7 @@ export default function ContributionGrid({ userId }: { userId?: number }) {
     for (let i = DAYS - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      result.push(d.toISOString().slice(0, 10));
+      result.push(formatLocalDate(d));
     }
     return result;
   }, []);

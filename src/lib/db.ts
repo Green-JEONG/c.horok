@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { ALL_NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
 import {
   comparePostMetrics,
   DEFAULT_SORT,
@@ -26,6 +27,7 @@ export type DbPost = {
   created_at: Date;
   updated_at: Date;
   author_name: string;
+  author_image: string | null;
   category_name: string;
   view_count: number;
   likes_count: number;
@@ -96,8 +98,8 @@ function mapPost(
     isHidden: boolean;
     isSecret: boolean;
     userId?: bigint;
-    user: { name: string | null };
-    category: { name: string };
+    user: { name: string | null; image?: string | null };
+    category: { name: string } | null;
     views?: { viewCount: bigint | number } | null;
     _count?: { likes?: number; comments?: number };
   },
@@ -107,12 +109,13 @@ function mapPost(
   },
 ): DbPost {
   const ownerUserId = post.userId ? bigintToNumber(post.userId) : undefined;
+  const isSecretQna = post.category?.name === "QnA" && post.isSecret;
   const canViewSecret =
     !post.isSecret ||
-    Boolean(options?.isAdmin) ||
     (typeof ownerUserId === "number" &&
       typeof options?.viewerUserId === "number" &&
-      ownerUserId === options.viewerUserId);
+      ownerUserId === options.viewerUserId) ||
+    (isSecretQna && Boolean(options?.isAdmin));
 
   return {
     id: bigintToNumber(post.id),
@@ -122,7 +125,8 @@ function mapPost(
     created_at: post.createdAt,
     updated_at: post.updatedAt,
     author_name: post.user.name ?? "Unknown",
-    category_name: post.category.name,
+    author_image: post.user.image ?? null,
+    category_name: post.category?.name ?? "",
     view_count: Number(post.views?.viewCount ?? 0),
     likes_count: post._count?.likes ?? 0,
     comments_count: post._count?.comments ?? 0,
@@ -288,9 +292,16 @@ export async function findPostsPaged(
     where: {
       isDeleted: false,
       isHidden: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       views: { select: { viewCount: true } },
       _count: {
@@ -351,7 +362,7 @@ export async function findPostById(
       ],
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       views: { select: { viewCount: true } },
       _count: {
@@ -381,6 +392,13 @@ async function searchPostsInternal(
   const where: Prisma.PostWhereInput = {
     isDeleted: false,
     isHidden: false,
+    category: {
+      is: {
+        name: {
+          notIn: [...ALL_NOTICE_TAG_OPTIONS],
+        },
+      },
+    },
     OR: [
       { title: { contains: keyword, mode: "insensitive" } },
       { content: { contains: keyword, mode: "insensitive" } },
@@ -425,6 +443,13 @@ export async function findUserContributions(userId: number) {
     where: {
       userId: BigInt(userId),
       isDeleted: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
     },
     select: { createdAt: true },
     orderBy: { createdAt: "asc" },
@@ -433,11 +458,19 @@ export async function findUserContributions(userId: number) {
   const counts = new Map<string, number>();
 
   for (const post of posts) {
-    const date = post.createdAt.toISOString().slice(0, 10);
+    const date = formatLocalDate(post.createdAt);
     counts.set(date, (counts.get(date) ?? 0) + 1);
   }
 
   return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 export async function searchPosts(

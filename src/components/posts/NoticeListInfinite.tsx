@@ -1,9 +1,13 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { ChevronDown, Lock } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import SectionPagination from "@/components/mypage/sections/SectionPagination";
+import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
+import PostEditor from "@/components/posts/PostEditor";
 import { getTechNoticePath } from "@/lib/routes";
 
 type NoticeListItem = {
@@ -11,10 +15,18 @@ type NoticeListItem = {
   title: string;
   categoryName: string;
   summary: string;
+  content: string;
+  thumbnail: string | null;
   publishedAt: string;
   authorName: string;
+  authorImage: string | null;
   isPinned: boolean;
   isLocked: boolean;
+  isSecret: boolean;
+  canViewSecret: boolean;
+  isBanner: boolean;
+  isOwner: boolean;
+  canManageBanner: boolean;
   isResolved: boolean;
   likesCount: number;
   commentsCount: number;
@@ -27,6 +39,7 @@ type Props = {
   currentPage: number;
   totalPages: number;
   isQnaCategory?: boolean;
+  isFaqCategory?: boolean;
 };
 
 export default function NoticeListInfinite({
@@ -35,10 +48,40 @@ export default function NoticeListInfinite({
   currentPage,
   totalPages,
   isQnaCategory = false,
+  isFaqCategory = false,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const initialOpenFaqId = Number(searchParams.get("open") ?? "");
+  const [openFaqIds, setOpenFaqIds] = useState<number[]>(
+    Number.isFinite(initialOpenFaqId) ? [initialOpenFaqId] : [],
+  );
+
+  useEffect(() => {
+    if (!isFaqCategory) {
+      return;
+    }
+
+    const openFaqId = Number(searchParams.get("open") ?? "");
+
+    if (!Number.isFinite(openFaqId)) {
+      setOpenFaqIds([]);
+      return;
+    }
+
+    setOpenFaqIds([openFaqId]);
+
+    const element = document.getElementById(`faq-notice-${openFaqId}`);
+    if (element) {
+      requestAnimationFrame(() => {
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }, [isFaqCategory, searchParams]);
 
   function buildPageHref(page: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -53,6 +96,26 @@ export default function NoticeListInfinite({
     return query ? `${pathname}?${query}` : pathname;
   }
 
+  function getQnaStatusClassName(isResolved: boolean) {
+    return isResolved ? "text-blue-500" : "text-red-500";
+  }
+
+  function getQnaStatusLabel(isResolved: boolean) {
+    return isResolved ? "완료" : "미답변";
+  }
+
+  function getQnaStatusSizeClassName(_isResolved: boolean, isMobile: boolean) {
+    return isMobile ? "text-xs" : "text-sm";
+  }
+
+  function toggleFaq(id: number) {
+    setOpenFaqIds((current) =>
+      current.includes(id)
+        ? current.filter((faqId) => faqId !== id)
+        : [...current, id],
+    );
+  }
+
   if (notices.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
@@ -60,69 +123,289 @@ export default function NoticeListInfinite({
   return (
     <div className="space-y-4">
       <div className="overflow-hidden border-y bg-background">
-        <div className="hidden grid-cols-[minmax(0,1fr)_88px_92px_56px] items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground md:grid">
+        <div
+          className={`hidden items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground md:grid ${
+            isQnaCategory
+              ? "grid-cols-[minmax(0,1fr)_88px_92px_56px_56px]"
+              : "grid-cols-[minmax(0,1fr)_88px_92px_56px]"
+          }`}
+        >
           <span>제목</span>
           <span>작성자</span>
           <span>작성일</span>
-          <span>{isQnaCategory ? "상태" : "조회"}</span>
+          <span>조회</span>
+          {isQnaCategory ? <span>답변</span> : null}
         </div>
 
-        {notices.map((notice) => (
-          <Link
-            key={notice.id}
-            href={getTechNoticePath(notice.id)}
-            className="block border-b last:border-b-0 transition-colors hover:bg-muted/30"
-          >
-            <div className="flex flex-col gap-3 px-4 py-4 md:grid md:grid-cols-[minmax(0,1fr)_88px_92px_56px] md:items-center md:gap-3 md:px-5">
+        {notices.map((notice) => {
+          const isFaqOpen = openFaqIds.includes(notice.id);
+          const titleNode = isFaqCategory ? (
+            <button
+              type="button"
+              onClick={() => toggleFaq(notice.id)}
+              className="flex w-full min-w-0 items-center gap-1.5 text-left"
+              aria-expanded={isFaqOpen}
+            >
+              <span className="shrink-0 text-sm font-semibold text-primary">
+                Q.
+              </span>
+              <p className="truncate text-sm font-semibold text-foreground">
+                {notice.title}
+              </p>
+              {notice.isLocked ? (
+                <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : null}
+              <ChevronDown
+                className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                  isFaqOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          ) : (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {notice.title}
+              </p>
+              {notice.isLocked ? (
+                <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : null}
+            </div>
+          );
+
+          const rowContent = (
+            <div
+              className={`flex flex-col gap-3 px-4 py-4 md:grid md:items-center md:gap-3 md:px-5 ${
+                isQnaCategory
+                  ? "md:grid-cols-[minmax(0,1fr)_88px_92px_56px_56px]"
+                  : "md:grid-cols-[minmax(0,1fr)_88px_92px_56px]"
+              }`}
+            >
               <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {notice.title}
-                  </p>
-                  {notice.isLocked ? (
-                    <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  ) : null}
-                </div>
+                {titleNode}
                 <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground md:hidden">
-                  <span>{notice.authorName}</span>
-                  <span>{notice.publishedAt}</span>
-                  <span>
-                    {isQnaCategory
-                      ? notice.isResolved
-                        ? "답변 완료"
-                        : "답변 전"
-                      : `조회 ${notice.viewCount}`}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Image
+                      src={notice.authorImage ?? "/logo.svg"}
+                      alt={`${notice.authorName} 프로필`}
+                      width={18}
+                      height={18}
+                      className="h-4.5 w-4.5 rounded-full border object-cover"
+                    />
+                    <span>{notice.authorName}</span>
                   </span>
+                  <span>{notice.publishedAt}</span>
+                  <span>조회 {notice.viewCount}</span>
+                  {isQnaCategory ? (
+                    <span
+                      className={`${getQnaStatusSizeClassName(notice.isResolved, true)} font-semibold ${getQnaStatusClassName(notice.isResolved)}`}
+                      title={getQnaStatusLabel(notice.isResolved)}
+                    >
+                      {getQnaStatusLabel(notice.isResolved)}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
-              <span className="hidden truncate text-center text-sm text-muted-foreground md:block">
-                {notice.authorName}
-              </span>
+              <div className="hidden md:flex md:items-center md:justify-center md:gap-2">
+                <Image
+                  src={notice.authorImage ?? "/logo.svg"}
+                  alt={`${notice.authorName} 프로필`}
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 rounded-full border object-cover"
+                />
+                <span className="truncate text-sm text-muted-foreground">
+                  {notice.authorName}
+                </span>
+              </div>
               <span className="hidden text-center text-sm text-muted-foreground md:block">
                 {notice.publishedAt}
               </span>
               <div className="hidden text-center text-sm text-muted-foreground md:block">
-                {isQnaCategory
-                  ? notice.isResolved
-                    ? "답변 완료"
-                    : "답변 전"
-                  : notice.viewCount}
+                {notice.viewCount}
               </div>
+              {isQnaCategory ? (
+                <div
+                  className={`hidden text-center font-semibold md:block ${getQnaStatusSizeClassName(notice.isResolved, false)} ${getQnaStatusClassName(notice.isResolved)}`}
+                  title={getQnaStatusLabel(notice.isResolved)}
+                >
+                  {getQnaStatusLabel(notice.isResolved)}
+                </div>
+              ) : null}
             </div>
-          </Link>
-        ))}
+          );
+
+          if (!isFaqCategory) {
+            return (
+              <Link
+                key={notice.id}
+                href={getTechNoticePath(notice.id)}
+                className="block border-b last:border-b-0 transition-colors hover:bg-muted/30"
+              >
+                {rowContent}
+              </Link>
+            );
+          }
+
+          return (
+            <div
+              key={notice.id}
+              id={`faq-notice-${notice.id}`}
+              className="border-b last:border-b-0 transition-colors hover:bg-muted/20"
+            >
+              {rowContent}
+              {isFaqOpen ? (
+                <div className="border-t bg-muted/10 px-4 py-4 md:px-5">
+                  <FaqInlineActions notice={notice} />
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
-      {totalPages > 1 ? (
-        <SectionPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => {
-            router.push(buildPageHref(page));
-          }}
-        />
+      <SectionPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={(page) => {
+          router.push(buildPageHref(page));
+        }}
+      />
+    </div>
+  );
+}
+
+function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
+  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isTogglingHidden, setIsTogglingHidden] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    const confirmed = window.confirm("이 게시글을 삭제할까요?");
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/posts/${notice.id}`, {
+        method: "DELETE",
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setError(payload?.message ?? "게시글 삭제에 실패했습니다.");
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      setError("게시글 삭제 중 오류가 발생했습니다.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  async function handleToggleHidden() {
+    const confirmed = window.confirm(
+      "이 게시글을 숨김 처리할까요? 숨김 처리하면 다른 사용자는 볼 수 없습니다.",
+    );
+    if (!confirmed) return;
+
+    setIsTogglingHidden(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/posts/${notice.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isHidden: true }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setError(payload?.message ?? "게시글 숨김 처리에 실패했습니다.");
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      setError("게시글 숨김 처리 중 오류가 발생했습니다.");
+    } finally {
+      setIsTogglingHidden(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {notice.isOwner ? (
+        <div className="flex flex-wrap justify-end gap-2 text-sm">
+          <button
+            type="button"
+            disabled={isDeleting || isTogglingHidden}
+            onClick={() => {
+              setIsEditing((prev) => !prev);
+              setError(null);
+            }}
+            className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isEditing ? "닫기" : "수정"}
+          </button>
+          <button
+            type="button"
+            disabled={isDeleting || isTogglingHidden}
+            onClick={handleToggleHidden}
+            className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isTogglingHidden ? "숨김 중..." : "숨김"}
+          </button>
+          <button
+            type="button"
+            disabled={isDeleting || isTogglingHidden}
+            onClick={handleDelete}
+            className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isDeleting ? "삭제 중..." : "삭제"}
+          </button>
+        </div>
       ) : null}
+
+      {notice.isOwner && isEditing ? (
+        <div className="rounded-xl border bg-background p-4">
+          <PostEditor
+            mode="edit"
+            postId={notice.id}
+            initialTitle={notice.title}
+            initialContent={notice.content}
+            initialCategoryName={notice.categoryName}
+            initialThumbnail={notice.thumbnail}
+            initialIsBanner={notice.isBanner}
+            initialIsSecret={notice.isSecret}
+            initialIsResolved={notice.isResolved}
+            categoryLocked
+            fixedTagOptions={["FAQ"]}
+            showBannerOption={notice.canManageBanner}
+            allowNoticeBannerForAllCategories={notice.canManageBanner}
+            onCancel={() => {
+              setIsEditing(false);
+              setError(null);
+            }}
+            onSuccess={() => {
+              setIsEditing(false);
+              setError(null);
+              router.refresh();
+            }}
+          />
+        </div>
+      ) : (
+        <MarkdownRenderer content={notice.content} />
+      )}
+
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
     </div>
   );
 }

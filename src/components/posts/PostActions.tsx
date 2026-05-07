@@ -29,6 +29,7 @@ type Props = {
   fixedTagOptions?: string[];
   showThumbnailTab?: boolean;
   showBannerOption?: boolean;
+  allowNoticeBannerForAllCategories?: boolean;
   children?: ReactNode;
 };
 
@@ -49,6 +50,7 @@ export default function PostActions({
   fixedTagOptions,
   showThumbnailTab = true,
   showBannerOption = true,
+  allowNoticeBannerForAllCategories = false,
   children,
 }: Props) {
   const router = useRouter();
@@ -172,13 +174,13 @@ export default function PostActions({
   ) : null;
 
   return (
-    <div className="mb-6 space-y-3">
+    <div className="space-y-3">
       {headerPost ? (
         <PostHeader post={headerPost} actionSlot={actionSlot} />
       ) : null}
 
       {isOwner && isEditing ? (
-        <div className="rounded-xl border bg-muted/20 p-4">
+        <div className="mb-3 rounded-xl border bg-muted/20 p-4">
           <PostEditor
             mode="edit"
             postId={postId}
@@ -193,6 +195,9 @@ export default function PostActions({
             fixedTagOptions={fixedTagOptions}
             showThumbnailTab={showThumbnailTab}
             showBannerOption={showBannerOption}
+            allowNoticeBannerForAllCategories={
+              allowNoticeBannerForAllCategories
+            }
             onCancel={() => {
               setIsEditing(false);
               setError(null);

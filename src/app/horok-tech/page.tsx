@@ -39,7 +39,9 @@ export default async function HorokTechPage({
   const randomPostsSection =
     randomPosts.length > 0 ? (
       <section className="mt-15 space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">맛보기</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground">
+          맛보기
+        </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
           {randomPosts.map((post) => (
             <PostCard
@@ -50,6 +52,7 @@ export default async function HorokTechPage({
               thumbnail={post.thumbnail}
               category={post.category_name}
               author={post.author_name}
+              authorImage={post.author_image}
               likes={post.likes_count}
               comments={post.comments_count}
               createdAt={post.created_at}

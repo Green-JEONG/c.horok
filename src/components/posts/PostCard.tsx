@@ -1,8 +1,8 @@
-import { Lock } from "lucide-react";
+import { EyeOff, Heart, Lock, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { isNoticeCategoryName } from "@/lib/notice-categories";
 import {
+  getTechFaqPath,
   getTechFeedPostPath,
   getTechLikesPostPath,
   getTechNoticePath,
@@ -14,6 +14,7 @@ type Props = {
   description: string;
   category: string;
   author: string;
+  authorImage?: string | null;
   likes: number;
   comments: number;
   createdAt: Date;
@@ -23,32 +24,14 @@ type Props = {
   canViewSecret?: boolean;
   categoryBadgeText?: string;
   categoryBadgeClassName?: string;
+  showCategoryBadge?: boolean;
+  statusBadges?: Array<{
+    text: string;
+    className: string;
+  }>;
   postRouteSection?: "feeds" | "likes";
+  hrefOverride?: string;
 };
-
-function getDefaultNoticeBadge(category: string) {
-  if (category === "QnA") {
-    return {
-      text: "#QnA",
-      className:
-        "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300",
-    };
-  }
-
-  if (category === "FAQ") {
-    return {
-      text: "#FAQ",
-      className:
-        "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
-    };
-  }
-
-  return {
-    text: "#공지",
-    className:
-      "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
-  };
-}
 
 export default function PostCard({
   id,
@@ -57,6 +40,7 @@ export default function PostCard({
   description,
   category,
   author,
+  authorImage = null,
   likes,
   comments,
   createdAt,
@@ -65,20 +49,36 @@ export default function PostCard({
   canViewSecret = true,
   categoryBadgeText,
   categoryBadgeClassName,
+  showCategoryBadge = true,
+  statusBadges = [],
   postRouteSection = "feeds",
+  hrefOverride,
 }: Props) {
-  const isNotice = isNoticeCategoryName(category);
-  const href = isNotice
-    ? getTechNoticePath(id)
-    : postRouteSection === "likes"
-      ? getTechLikesPostPath(id)
-      : getTechFeedPostPath(id);
-  const defaultBadge = isNotice
-    ? getDefaultNoticeBadge(category)
+  const isNotice = ["공지", "FAQ", "QnA"].includes(category);
+  const isUncategorized = !category || category === "미분류";
+  const href =
+    hrefOverride ??
+    (category === "FAQ"
+      ? getTechFaqPath(id)
+      : isNotice
+        ? getTechNoticePath(id)
+        : postRouteSection === "likes"
+          ? getTechLikesPostPath(id)
+          : getTechFeedPostPath(id));
+  const defaultBadge = isUncategorized
+    ? null
     : {
         text: `#${category}`,
         className: "border-border bg-background text-foreground",
       };
+  const primaryBadge = statusBadges[0]
+    ? statusBadges[0]
+    : showCategoryBadge && defaultBadge
+      ? {
+          text: categoryBadgeText ?? defaultBadge.text,
+          className: categoryBadgeClassName ?? defaultBadge.className,
+        }
+      : null;
 
   return (
     <Link
@@ -97,35 +97,51 @@ export default function PostCard({
 
       <div className="flex min-w-0 flex-1 flex-col p-3">
         <div className="mb-2 flex min-w-0 items-center gap-2">
-          <span
-            className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-              categoryBadgeClassName ?? defaultBadge.className
-            }`}
-          >
-            {categoryBadgeText ?? defaultBadge.text}
-          </span>
-          <p className="truncate text-xs text-muted-foreground">{author}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <Image
+              src={authorImage ?? "/logo.svg"}
+              alt={`${author} 프로필`}
+              width={20}
+              height={20}
+              className="h-5 w-5 shrink-0 rounded-full border object-cover"
+            />
+            <p className="truncate text-xs text-muted-foreground">{author}</p>
+            {primaryBadge ? (
+              <span
+                className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${primaryBadge.className}`}
+              >
+                {primaryBadge.text}
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        <h3 className="mb-1 line-clamp-1 text-sm font-semibold">{title}</h3>
-        {isSecret ? (
-          <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5" />
-            <span>비밀글</span>
-          </div>
-        ) : null}
-        {isHidden ? (
-          <p className="mb-2 text-xs font-medium text-amber-600">숨김 처리됨</p>
-        ) : null}
+        <div className="mb-1 flex items-center gap-1.5">
+          <h3 className="line-clamp-1 min-w-0 text-sm font-semibold">
+            {title}
+          </h3>
+          {isHidden ? (
+            <EyeOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : null}
+          {isSecret ? (
+            <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : null}
+        </div>
 
         <p className="mb-3 line-clamp-1 text-xs text-muted-foreground">
           {isSecret && !canViewSecret ? "비밀글입니다." : description}
         </p>
 
         <div className="mt-auto flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex min-w-0 items-center gap-1">
-            <span>❤️ {likes}</span>
-            <span>💬 {comments}</span>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex items-center gap-1">
+              <Heart className="h-3.5 w-3.5 fill-current text-rose-500" />
+              {likes}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <MessageCircle className="h-3.5 w-3.5" />
+              {comments}
+            </span>
           </div>
           <span className="shrink-0 whitespace-nowrap">
             {new Date(createdAt).toLocaleDateString("ko-KR")}

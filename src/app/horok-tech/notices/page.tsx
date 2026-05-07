@@ -47,8 +47,9 @@ export default async function HorokTechNoticesPage({
     safePage * pageSize,
   );
   const isQnaCategory = parsedCategory === "QnA";
+  const isFaqCategory = parsedCategory === "FAQ";
   const isAdmin = session?.user?.role === "ADMIN";
-  const canWriteNotice = isAdmin || (Boolean(session?.user) && isQnaCategory);
+  const canWriteNotice = isQnaCategory ? Boolean(session?.user) : isAdmin;
   const categoryTabs = NOTICE_TAG_OPTIONS.map((value) => ({
     label: value,
     value,
@@ -59,8 +60,16 @@ export default async function HorokTechNoticesPage({
       <PostListHeader
         title="공지사항"
         showWriteButton={canWriteNotice}
-        writeButtonHref="/horok-tech/notices/new"
-        writeButtonLabel={isQnaCategory ? "질문하기" : "공지 작성"}
+        writeButtonHref={
+          isQnaCategory
+            ? "/horok-tech/notices/new?category=QnA"
+            : isFaqCategory
+              ? "/horok-tech/notices/new?category=FAQ"
+              : "/horok-tech/notices/new"
+        }
+        writeButtonLabel={
+          isQnaCategory ? "질문하기" : isFaqCategory ? "FAQ 작성" : "공지 작성"
+        }
       />
 
       <div className="flex flex-wrap gap-2">
@@ -98,7 +107,12 @@ export default async function HorokTechNoticesPage({
         currentPage={safePage}
         totalPages={totalPages}
         isQnaCategory={isQnaCategory}
-        emptyMessage="아직 등록된 공지사항이 없습니다."
+        isFaqCategory={isFaqCategory}
+        emptyMessage={
+          isFaqCategory
+            ? "아직 등록된 FAQ 게시물이 없습니다."
+            : "아직 등록된 공지사항이 없습니다."
+        }
       />
     </section>
   );

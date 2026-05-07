@@ -13,17 +13,30 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HorokTechNewNoticePage() {
+export default async function HorokTechNewNoticePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ category?: string }>;
+}) {
   const session = await auth();
 
   if (!session) {
     redirect("/horok-tech/notices");
   }
 
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const isAdmin = session.user.role === "ADMIN";
   const fixedTagOptions = isAdmin ? [...NOTICE_TAG_OPTIONS] : ["QnA"];
-  const initialCategoryName = isAdmin ? NOTICE_TAG_OPTIONS[0] : "QnA";
-  const isUserQnaMode = !isAdmin;
+  const requestedCategory =
+    typeof resolvedSearchParams?.category === "string"
+      ? resolvedSearchParams.category
+      : null;
+  const initialCategoryName =
+    requestedCategory && fixedTagOptions.includes(requestedCategory as never)
+      ? requestedCategory
+      : isAdmin
+        ? NOTICE_TAG_OPTIONS[0]
+        : "QnA";
 
   return (
     <main className="mx-auto max-w-3xl">
@@ -32,8 +45,9 @@ export default async function HorokTechNewNoticePage() {
         categoryLocked
         successPathPrefix="/horok-tech/notices"
         fixedTagOptions={fixedTagOptions}
-        showThumbnailTab={!isUserQnaMode}
-        showBannerOption={!isUserQnaMode}
+        showThumbnailTab
+        showBannerOption
+        allowNoticeBannerForAllCategories={isAdmin}
       />
     </main>
   );

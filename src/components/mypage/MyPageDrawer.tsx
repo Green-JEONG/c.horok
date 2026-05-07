@@ -1,6 +1,6 @@
 "use client";
 
-import { Circle, CircleCheckBig, Settings } from "lucide-react";
+import { Circle, CircleCheckBig, Settings, X } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -83,6 +83,30 @@ export default function MyPageDrawer({ open, onClose }: Props) {
 
   const notifyNotificationsUpdated = () => {
     window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT));
+  };
+
+  const removeNotification = async (notificationId: number) => {
+    const confirmed = window.confirm("정말 삭제하시겠습니까?");
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("알림 삭제 실패");
+      }
+
+      setNotifications((current) =>
+        current.filter((notification) => notification.id !== notificationId),
+      );
+      notifyNotificationsUpdated();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   // ESC 닫기
@@ -315,7 +339,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         </div>
 
         {!isCote ? (
-          <div className="flex-1 overflow-y-auto p-6 mx-4 border border-border shadow-md rounded-3xl bg-muted text-foreground">
+          <div className="flex-1 overflow-y-auto px-5 py-4 mx-4 border border-border shadow-md rounded-3xl bg-muted text-foreground">
             <h3 className="mb-5 text-xl font-semibold">알림</h3>
 
             <ul className="flex flex-col text-sm gap-3">
@@ -326,56 +350,69 @@ export default function MyPageDrawer({ open, onClose }: Props) {
               <ul className="flex flex-col gap-2">
                 {notifications.map((n) => (
                   <li key={n.id}>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 text-left hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70"
-                      onClick={async () => {
-                        if (!n.is_read) {
-                          try {
-                            const response = await fetch(
-                              `/api/notifications/${n.id}/read`,
-                              {
-                                method: "PATCH",
-                              },
-                            );
-
-                            if (response.ok) {
-                              setNotifications((current) =>
-                                current.map((notification) =>
-                                  notification.id === n.id
-                                    ? { ...notification, is_read: 1 }
-                                    : notification,
-                                ),
+                    <div className="group flex items-start gap-2">
+                      <button
+                        type="button"
+                        className="flex flex-1 items-center gap-2 text-left hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70"
+                        onClick={async () => {
+                          if (!n.is_read) {
+                            try {
+                              const response = await fetch(
+                                `/api/notifications/${n.id}/read`,
+                                {
+                                  method: "PATCH",
+                                },
                               );
-                              notifyNotificationsUpdated();
+
+                              if (response.ok) {
+                                setNotifications((current) =>
+                                  current.map((notification) =>
+                                    notification.id === n.id
+                                      ? { ...notification, is_read: 1 }
+                                      : notification,
+                                  ),
+                                );
+                                notifyNotificationsUpdated();
+                              }
+                            } catch (error) {
+                              console.error("알림 읽음 처리 실패", error);
                             }
-                          } catch (error) {
-                            console.error("알림 읽음 처리 실패", error);
                           }
-                        }
 
-                        onClose();
-                        if (n.type === "NEW_FOLLOWER") {
-                          router.push("/mypage?tab=friends");
-                          return;
-                        }
+                          onClose();
+                          if (n.type === "NEW_FOLLOWER") {
+                            router.push("/mypage?tab=friends");
+                            return;
+                          }
 
-                        if (n.post_path && !n.is_post_deleted) {
-                          const targetPath = n.comment_id
-                            ? `${n.post_path}?commentId=${n.comment_id}`
-                            : n.post_path;
-                          router.push(targetPath);
-                        }
-                      }}
-                      disabled={n.is_post_deleted}
-                    >
-                      {n.is_read ? (
-                        <CircleCheckBig color="#4CB975" width={18} />
-                      ) : (
-                        <Circle color="#ccc" width={18} />
-                      )}
-                      {renderNotificationMessage(n)}
-                    </button>
+                          if (n.post_path && !n.is_post_deleted) {
+                            const targetPath = n.comment_id
+                              ? `${n.post_path}?commentId=${n.comment_id}`
+                              : n.post_path;
+                            router.push(targetPath);
+                          }
+                        }}
+                        disabled={n.is_post_deleted}
+                      >
+                        {n.is_read ? (
+                          <CircleCheckBig color="#4CB975" width={18} />
+                        ) : (
+                          <Circle color="#ccc" width={18} />
+                        )}
+                        <span>{renderNotificationMessage(n)}</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="알림 삭제"
+                        className="shrink-0 rounded-sm p-0.5 text-muted-foreground opacity-0 transition-[opacity,color] group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground focus-visible:opacity-100"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void removeNotification(n.id);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

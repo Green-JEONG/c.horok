@@ -2,7 +2,23 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getCommentsByPost } from "@/lib/comments";
 import CommentItem, { type CommentNode } from "./CommentItem";
 
-export default async function CommentList({ postId }: { postId: number }) {
+export default async function CommentList({
+  postId,
+  headingLabel = "댓글",
+  emptyMessage = "아직 댓글이 없습니다. 첫 댓글을 남겨보세요.",
+  replyButtonLabel = "답글 달기",
+  replyCloseLabel = "답글 닫기",
+  replyPlaceholder = "대댓글을 작성하세요",
+  replySubmitLabel = "등록",
+}: {
+  postId: number;
+  headingLabel?: string;
+  emptyMessage?: string;
+  replyButtonLabel?: string;
+  replyCloseLabel?: string;
+  replyPlaceholder?: string;
+  replySubmitLabel?: string;
+}) {
   const session = await auth();
   const isLoggedIn = Boolean(session?.user?.email);
   const currentUserId =
@@ -37,12 +53,12 @@ export default async function CommentList({ postId }: { postId: number }) {
 
   return (
     <section className="mt-10">
-      <h3 className="mb-6 text-lg font-semibold">댓글 {comments.length}</h3>
+      <h3 className="mb-6 text-lg font-semibold">
+        {headingLabel} {comments.length}
+      </h3>
 
       {rootComments.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          아직 댓글이 없습니다. 첫 댓글을 남겨보세요.
-        </p>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
         <ul className="space-y-4">
           {rootComments.map((comment) => (
@@ -52,6 +68,10 @@ export default async function CommentList({ postId }: { postId: number }) {
                 postId={postId}
                 currentUserId={currentUserId}
                 isLoggedIn={isLoggedIn}
+                replyButtonLabel={replyButtonLabel}
+                replyCloseLabel={replyCloseLabel}
+                replyPlaceholder={replyPlaceholder}
+                replySubmitLabel={replySubmitLabel}
               />
             </li>
           ))}

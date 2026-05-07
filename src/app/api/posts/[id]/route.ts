@@ -68,11 +68,14 @@ export async function PUT(
     where: { id: BigInt(postId) },
     select: { category: { select: { name: true } } },
   });
-  const isNotice = isNoticeCategoryName(postCategory?.category.name);
+  const postCategoryName = postCategory?.category?.name;
+  const isNotice = isNoticeCategoryName(postCategoryName);
+  const isQnaNotice = postCategoryName === "QnA";
   const isOwner = isNotice
-    ? session?.user?.role === "ADMIN" ||
-      (isPublicNoticeCategory(postCategory?.category.name) &&
-        post.user_id === dbUserId)
+    ? isQnaNotice
+      ? post.user_id === dbUserId
+      : session?.user?.role === "ADMIN" ||
+        (isPublicNoticeCategory(postCategoryName) && post.user_id === dbUserId)
     : post.user_id === dbUserId;
 
   if (!isOwner) {
@@ -156,15 +159,17 @@ export async function PATCH(
     where: { id: BigInt(postId) },
     select: { category: { select: { name: true } } },
   });
-  const isNotice = isNoticeCategoryName(postCategory?.category.name);
+  const categoryName = postCategory?.category?.name;
+  const isNotice = isNoticeCategoryName(categoryName);
+  const isQnaNotice = categoryName === "QnA";
+  const canManage = isNotice
+    ? isQnaNotice
+      ? post.user_id === dbUserId
+      : session?.user?.role === "ADMIN" ||
+        (isPublicNoticeCategory(categoryName) && post.user_id === dbUserId)
+    : post.user_id === dbUserId;
 
-  if (
-    isNotice
-      ? session?.user?.role !== "ADMIN" &&
-        (!isPublicNoticeCategory(postCategory?.category.name) ||
-          post.user_id !== dbUserId)
-      : post.user_id !== dbUserId
-  ) {
+  if (!canManage) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
@@ -208,11 +213,14 @@ export async function DELETE(
     where: { id: BigInt(postId) },
     select: { category: { select: { name: true } } },
   });
-  const isNotice = isNoticeCategoryName(postCategory?.category.name);
+  const categoryName = postCategory?.category?.name;
+  const isNotice = isNoticeCategoryName(categoryName);
+  const isQnaNotice = categoryName === "QnA";
   const isOwner = isNotice
-    ? session?.user?.role === "ADMIN" ||
-      (isPublicNoticeCategory(postCategory?.category.name) &&
-        post.user_id === dbUserId)
+    ? isQnaNotice
+      ? post.user_id === dbUserId
+      : session?.user?.role === "ADMIN" ||
+        (isPublicNoticeCategory(categoryName) && post.user_id === dbUserId)
     : post.user_id === dbUserId;
 
   if (!isOwner) {

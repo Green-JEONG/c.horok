@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const offset = (page - 1) * limit;
 
   const rows = await searchPosts(raw, limit, offset, sort, {
-    includeNotices: true,
+    includeNotices: false,
     viewerUserId:
       typeof session?.user?.id === "string" ? Number(session.user.id) : null,
     isAdmin: session?.user?.role === "ADMIN",

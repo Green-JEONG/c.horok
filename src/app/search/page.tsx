@@ -81,6 +81,7 @@ export default async function SearchPage({ searchParams }: Props) {
   }
 
   const posts = await searchPosts(keyword ?? "", 12, 0, parsedSort, {
+    includeNotices: false,
     viewerUserId:
       typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
         ? viewerUserId

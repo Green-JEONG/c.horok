@@ -12,6 +12,18 @@ export type CommentRow = {
   is_edited: boolean;
   created_at: string;
   updated_at: string;
+  author_image: string | null;
+};
+
+export type AdminAnswer = {
+  id: number;
+  user_id: number;
+  content: string;
+  author: string;
+  author_image: string | null;
+  created_at: string;
+  updated_at: string;
+  is_edited: boolean;
 };
 
 function mapComment(
@@ -35,7 +47,6 @@ function mapComment(
   const commentUserId = Number(comment.userId);
   const canViewSecret =
     !comment.isSecret ||
-    Boolean(options?.isAdmin) ||
     commentUserId === options?.viewerUserId ||
     options?.postOwnerUserId === options?.viewerUserId;
 
@@ -51,6 +62,7 @@ function mapComment(
     is_edited: comment.updatedAt.getTime() > comment.createdAt.getTime(),
     created_at: comment.createdAt.toISOString(),
     updated_at: comment.updatedAt.toISOString(),
+    author_image: null,
   };
 }
 
@@ -68,7 +80,7 @@ export async function getCommentsByPost(
     orderBy: { createdAt: "asc" },
     include: {
       user: {
-        select: { email: true, name: true },
+        select: { email: true, name: true, image: true },
       },
       post: {
         select: { userId: true },
@@ -85,13 +97,64 @@ export async function getCommentsByPost(
     author:
       comment.isSecret &&
       !(
-        options?.isAdmin ||
         Number(comment.userId) === options?.viewerUserId ||
         Number(comment.post.userId) === options?.viewerUserId
       )
         ? "비공개"
         : (comment.user.name ?? comment.user.email),
+    author_image:
+      comment.isSecret &&
+      !(
+        Number(comment.userId) === options?.viewerUserId ||
+        Number(comment.post.userId) === options?.viewerUserId
+      )
+        ? null
+        : (comment.user.image ?? null),
   }));
+}
+
+export async function getAdminAnswerByPost(
+  postId: number,
+  options?: {
+    viewerUserId?: number | null;
+    postOwnerUserId?: number | null;
+    isAdmin?: boolean;
+  },
+) {
+  const comment = await prisma.comment.findFirst({
+    where: {
+      postId: BigInt(postId),
+      isDeleted: false,
+      user: {
+        is: {
+          role: "ADMIN",
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+    include: {
+      user: {
+        select: { name: true, email: true, image: true },
+      },
+    },
+  });
+
+  if (!comment) {
+    return null;
+  }
+
+  const mappedComment = mapComment(comment, options);
+
+  return {
+    id: mappedComment.id,
+    user_id: Number(comment.userId),
+    content: mappedComment.content,
+    author: comment.user.name ?? comment.user.email,
+    author_image: comment.user.image ?? null,
+    created_at: mappedComment.created_at,
+    updated_at: mappedComment.updated_at,
+    is_edited: mappedComment.is_edited,
+  } satisfies AdminAnswer;
 }
 
 export async function getCommentById(id: number) {

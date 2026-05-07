@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   }
 
   const rows = await searchPosts(q, 5, 0, "latest", {
-    includeNotices: true,
+    includeNotices: false,
     viewerUserId:
       typeof session?.user?.id === "string" ? Number(session.user.id) : null,
     isAdmin: session?.user?.role === "ADMIN",
