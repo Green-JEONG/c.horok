@@ -8,11 +8,13 @@ import LikeButton from "./LikeButton";
 type Props = {
   postId: number;
   backHref?: string;
+  showLikeButton?: boolean;
 };
 
 export default async function PostFooter({
   postId,
   backHref = "/horok-tech/feeds",
+  showLikeButton = true,
 }: Props) {
   const [likeCount, session] = await Promise.all([
     prisma.postLike.count({
@@ -41,15 +43,21 @@ export default async function PostFooter({
   }
 
   return (
-    <footer className="flex items-center justify-between border-t pt-4">
-      <div className="space-y-1">
-        <LikeButton
-          postId={postId}
-          initialLiked={liked}
-          initialCount={likeCount}
-          disabled={!session?.user?.email}
-        />
-      </div>
+    <footer
+      className={`flex items-center border-t pt-4 ${
+        showLikeButton ? "justify-between" : "justify-end"
+      }`}
+    >
+      {showLikeButton ? (
+        <div className="space-y-1">
+          <LikeButton
+            postId={postId}
+            initialLiked={liked}
+            initialCount={likeCount}
+            disabled={!session?.user?.email}
+          />
+        </div>
+      ) : null}
 
       <Link
         href={backHref}

@@ -50,6 +50,7 @@ export default async function UserPage({ params, searchParams }: Props) {
       <MyPostList
         sort={sort}
         userId={Number(id)}
+        infiniteEndpoint={`/api/users/${id}/posts`}
         emptyMessage="아직 작성한 게시글이 없습니다."
       />
     </div>

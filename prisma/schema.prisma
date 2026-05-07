@@ -107,7 +107,7 @@ model Category {
 model Post {
   id            BigInt          @id @default(autoincrement())
   userId        BigInt          @map("user_id")
-  categoryId    BigInt          @map("category_id")
+  categoryId    BigInt?         @map("category_id")
   title         String          @db.VarChar(200)
   content       String          @db.Text
   thumbnail     String?         @db.VarChar(255)
@@ -122,7 +122,7 @@ model Post {
   deletedAt     DateTime?       @map("deleted_at")
   deletedBy     Int?            @map("deleted_by")
 
-  category      Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category      Category?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   comments      Comment[]
   likes         PostLike[]
   views         PostView?

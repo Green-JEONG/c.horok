@@ -47,7 +47,6 @@ export default function BannerBarClient({
             href={activeNotice.href}
             className="block break-keep text-sm leading-5 font-medium text-primary-foreground transition-opacity hover:opacity-90 sm:whitespace-nowrap"
           >
-            <span className="mr-2">[공지]</span>
             <span>{activeNotice.title}</span>
           </Link>
         </div>

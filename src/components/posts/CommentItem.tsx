@@ -1,5 +1,7 @@
 "use client";
 
+import { Lock } from "lucide-react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import CommentForm from "./CommentForm";
@@ -15,6 +17,7 @@ export type CommentNode = {
   is_edited: boolean;
   created_at: string;
   author: string;
+  author_image: string | null;
   replies: CommentNode[];
 };
 
@@ -23,11 +26,21 @@ export default function CommentItem({
   postId,
   currentUserId,
   isLoggedIn,
+  replyButtonLabel = "답글 달기",
+  replyCloseLabel = "답글 닫기",
+  replyPlaceholder = "대댓글을 작성하세요",
+  replySubmitLabel = "등록",
+  showReplyButton = true,
 }: {
   comment: CommentNode;
   postId: number;
   currentUserId: number | null;
   isLoggedIn: boolean;
+  replyButtonLabel?: string;
+  replyCloseLabel?: string;
+  replyPlaceholder?: string;
+  replySubmitLabel?: string;
+  showReplyButton?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,7 +53,12 @@ export default function CommentItem({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFocusedComment, setIsFocusedComment] = useState(false);
   const canManage = comment.user_id === currentUserId && !comment.is_deleted;
+  const showSecretLock =
+    comment.is_secret &&
+    comment.user_id === currentUserId &&
+    !comment.is_deleted;
   const canReply =
+    showReplyButton &&
     isLoggedIn &&
     comment.parent_id === null &&
     !comment.is_deleted &&
@@ -143,10 +161,19 @@ export default function CommentItem({
         isFocusedComment ? "border-primary bg-primary/5" : ""
       }`}
     >
-      <div className="flex justify-between text-sm">
-        <span className="font-medium">
-          {comment.author}
-          {comment.is_secret ? " · 비밀댓글" : ""}
+      <div className="flex justify-between gap-3 text-sm">
+        <span className="inline-flex min-w-0 items-center gap-2 font-medium">
+          <Image
+            src={comment.author_image ?? "/logo.svg"}
+            alt={`${comment.author} 프로필`}
+            width={24}
+            height={24}
+            className="h-6 w-6 shrink-0 rounded-full border object-cover"
+          />
+          <span className="truncate">{comment.author}</span>
+          {showSecretLock ? (
+            <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : null}
         </span>
         <span className="text-muted-foreground">
           {new Date(comment.created_at).toLocaleString("ko-KR")}
@@ -218,7 +245,7 @@ export default function CommentItem({
             }}
             className="rounded-md border px-3 py-1.5 hover:bg-muted"
           >
-            {isReplying ? "답글 닫기" : "답글 달기"}
+            {isReplying ? replyCloseLabel : replyButtonLabel}
           </button>
         ) : null}
 
@@ -252,7 +279,8 @@ export default function CommentItem({
           <CommentForm
             postId={postId}
             parentId={comment.id}
-            placeholder="대댓글을 작성하세요"
+            placeholder={replyPlaceholder}
+            submitLabel={replySubmitLabel}
           />
         </div>
       ) : null}
@@ -266,6 +294,10 @@ export default function CommentItem({
                 postId={postId}
                 currentUserId={currentUserId}
                 isLoggedIn={isLoggedIn}
+                replyButtonLabel={replyButtonLabel}
+                replyCloseLabel={replyCloseLabel}
+                replyPlaceholder={replyPlaceholder}
+                replySubmitLabel={replySubmitLabel}
               />
             </li>
           ))}

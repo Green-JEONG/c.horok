@@ -35,7 +35,7 @@ function FriendList({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">{title}</h3>
+      <h2 className="text-lg font-semibold">{title}</h2>
 
       {friends.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
@@ -102,20 +102,29 @@ export default function MyFriendsSection() {
   }, []);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">불러오는 중…</p>;
+    return (
+      <section className="space-y-16">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">나를 구독하는 유저</h2>
+          <p className="text-sm text-muted-foreground">불러오는 중…</p>
+        </div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">내가 구독하는 유저</h2>
+          <p className="text-sm text-muted-foreground">불러오는 중…</p>
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-xl font-semibold">구독</h2>
-
+    <section className="space-y-16">
       <FriendList
-        title="구독자"
+        title="나를 구독하는 유저"
         friends={friends.followers}
         emptyMessage="나를 구독한 유저가 없습니다."
       />
       <FriendList
-        title="구독 중"
+        title="내가 구독하는 유저"
         friends={friends.following}
         emptyMessage="구독 중인 유저가 없습니다."
       />

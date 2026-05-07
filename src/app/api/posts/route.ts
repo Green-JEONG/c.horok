@@ -7,6 +7,7 @@ import {
 } from "@/lib/notice-categories";
 import { parseSortType } from "@/lib/post-sort";
 import { createPost } from "@/lib/posts";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -51,27 +52,30 @@ export async function POST(req: Request) {
     isResolved,
     isSecret,
   } = body;
+  const normalizedCategoryName =
+    typeof categoryName === "string" ? categoryName.trim() : "";
 
-  if (!categoryName || !title || !content) {
+  if (!title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
   }
 
   if (
-    isNoticeCategoryName(categoryName) &&
+    normalizedCategoryName &&
+    isNoticeCategoryName(normalizedCategoryName) &&
     session.user.role !== "ADMIN" &&
-    !isPublicNoticeCategory(categoryName)
+    !isPublicNoticeCategory(normalizedCategoryName)
   ) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const post = await createPost({
     userId,
-    categoryName,
+    categoryName: normalizedCategoryName || undefined,
     title,
     content,
-    isBanner: Boolean(isBanner) && isNoticeCategoryName(categoryName),
+    isBanner: Boolean(isBanner) && isNoticeCategoryName(normalizedCategoryName),
     isResolved:
-      categoryName === "QnA" && typeof isResolved === "boolean"
+      normalizedCategoryName === "QnA" && typeof isResolved === "boolean"
         ? isResolved
         : false,
     isSecret: Boolean(isSecret),
@@ -80,6 +84,87 @@ export async function POST(req: Request) {
         ? thumbnailUrl.trim()
         : null,
   });
+
+  if (normalizedCategoryName === "QnA" && session.user.role !== "ADMIN") {
+    try {
+      const adminUsers = await prisma.user.findMany({
+        where: {
+          role: "ADMIN",
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (adminUsers.length > 0) {
+        await prisma.notification.createMany({
+          data: adminUsers.map((adminUser) => ({
+            userId: adminUser.id,
+            actorId: BigInt(userId),
+            postId: BigInt(post.id),
+            type: "NEW_COMMENT",
+            content: "QnA에 새로운 질문이 등록되었어요",
+          })),
+        });
+      }
+    } catch (error) {
+      console.error("🔔 QnA 질문 알림 생성 실패", error);
+    }
+  }
+
+  if (normalizedCategoryName === "공지") {
+    try {
+      const recipients = await prisma.user.findMany({
+        where: {
+          id: {
+            not: BigInt(userId),
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (recipients.length > 0) {
+        await prisma.notification.createMany({
+          data: recipients.map((recipient) => ({
+            userId: recipient.id,
+            actorId: BigInt(userId),
+            postId: BigInt(post.id),
+            type: "NEW_POST",
+            content: "새 공지사항이 등록되었어요",
+          })),
+        });
+      }
+    } catch (error) {
+      console.error("🔔 공지사항 알림 생성 실패", error);
+    }
+  }
+
+  try {
+    const followers = await prisma.friend.findMany({
+      where: {
+        friendUserId: BigInt(userId),
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    if (followers.length > 0) {
+      await prisma.notification.createMany({
+        data: followers.map((follower) => ({
+          userId: follower.userId,
+          actorId: BigInt(userId),
+          postId: BigInt(post.id),
+          type: "NEW_POST",
+          content: "구독한 유저가 새 글을 작성했어요",
+        })),
+      });
+    }
+  } catch (error) {
+    console.error("🔔 구독 유저 새 글 알림 생성 실패", error);
+  }
 
   return NextResponse.json(post, { status: 201 });
 }

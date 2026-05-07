@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import ErrorState from "@/components/common/ErrorState";
 import CommentForm from "@/components/posts/CommentForm";
 import CommentList from "@/components/posts/CommentList";
 import PostActions from "@/components/posts/PostActions";
@@ -29,6 +30,12 @@ export default async function HorokTechLikedPostPage({ params }: Props) {
   });
   if (!post) {
     notFound();
+  }
+
+  if (post.is_secret && !post.can_view_secret) {
+    return (
+      <ErrorState code={403} message="이 게시물은 작성자만 볼 수 있습니다." />
+    );
   }
 
   const isOwner =

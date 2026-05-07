@@ -19,6 +19,10 @@ export function getTechFeedNewPostPath() {
   return "/horok-tech/feeds/posts/new";
 }
 
+export function getTechFaqPath(postId: number | string) {
+  return `/horok-tech/notices?category=FAQ&open=${postId}`;
+}
+
 export function getTechNoticePath(postId: number | string) {
   return `/horok-tech/notices/${postId}`;
 }

@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   {
     href: "/horok-tech/feeds",
-    label: "피드",
+    label: "소식",
     match: (p: string) =>
       p === "/horok-tech/feeds" || p.startsWith("/horok-tech/feeds/"),
   },
@@ -15,6 +15,11 @@ const navItems = [
     href: "/horok-tech/likes",
     label: "좋아요",
     match: (p: string) => p.startsWith("/horok-tech/likes"),
+  },
+  {
+    href: "/horok-cote",
+    label: "코딩테스트",
+    match: (p: string) => p === "/horok-cote" || p.startsWith("/horok-cote/"),
   },
   {
     href: "/horok-tech/notices",
@@ -28,7 +33,7 @@ export default function HeaderNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="grid w-full grid-cols-3 gap-2 text-sm font-medium md:flex md:w-auto md:grid-cols-none md:items-center md:gap-5">
+    <nav className="grid w-full grid-cols-4 gap-2 text-sm font-medium md:flex md:w-auto md:grid-cols-none md:items-center md:gap-5">
       {navItems.map((item) => {
         const isActive = item.match(pathname);
 

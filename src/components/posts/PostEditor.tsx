@@ -2,11 +2,18 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isNoticeCategoryName } from "@/lib/notice-categories";
+import {
+  clearPostDraft,
+  getPostDraftStorageKey,
+  loadPostDraft,
+  type PostDraftPayload,
+  savePostDraft,
+} from "@/lib/post-drafts";
 import {
   createPostContentImagePath,
   createPostThumbnailPath,
@@ -60,6 +67,7 @@ type PostEditorProps = {
   fixedTagOptions?: string[];
   showThumbnailTab?: boolean;
   showBannerOption?: boolean;
+  allowNoticeBannerForAllCategories?: boolean;
   onCancel?: () => void;
   onSuccess?: (payload: unknown) => void;
 };
@@ -82,6 +90,7 @@ export default function PostEditor({
   fixedTagOptions = [],
   showThumbnailTab = true,
   showBannerOption = true,
+  allowNoticeBannerForAllCategories = false,
   onCancel,
   onSuccess,
 }: PostEditorProps) {
@@ -110,20 +119,61 @@ export default function PostEditor({
     getStorageObjectPathFromPublicUrl(initialThumbnail),
   );
   const [isBanner, setIsBanner] = useState(initialIsBanner);
-  const [isResolved, setIsResolved] = useState(initialIsResolved);
+  const [isResolved] = useState(initialIsResolved);
   const [isSecret, setIsSecret] = useState(initialIsSecret);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [activeTab, setActiveTab] = useState<EditorTab>("write");
   const [error, setError] = useState<string | null>(null);
+  const hasCheckedDraftRef = useRef(false);
   const shouldShowCategoryBadge = !(
     categoryLocked && fixedTagOptions.length > 0
   );
   const currentCategoryName =
     categoryLocked && fixedTagOptions.length > 0 ? selectedFixedTag : tags[0];
   const isNoticeCategory = isNoticeCategoryName(currentCategoryName);
-  const canShowBannerOption = showBannerOption && isNoticeCategory;
+  const canShowBannerOption =
+    showBannerOption &&
+    isNoticeCategory &&
+    (currentCategoryName === "공지" || allowNoticeBannerForAllCategories);
+  const draftStorageKey = getPostDraftStorageKey({
+    successPathPrefix,
+    fixedTagOptions,
+    categoryLocked,
+  });
+
+  useEffect(() => {
+    if (mode !== "create" || hasCheckedDraftRef.current) {
+      return;
+    }
+
+    hasCheckedDraftRef.current = true;
+
+    const draft = loadPostDraft(draftStorageKey);
+    if (!draft) {
+      return;
+    }
+
+    const shouldRestore = window.confirm(
+      "임시저장된 글이 있습니다. 이어서 작성하시겠습니까?",
+    );
+
+    if (!shouldRestore) {
+      clearPostDraft(draftStorageKey);
+      return;
+    }
+
+    setTitle(draft.title ?? "");
+    setContent(draft.content ?? "");
+    setTags(Array.isArray(draft.tags) ? draft.tags : []);
+    setSelectedFixedTag(draft.selectedFixedTag ?? fixedTagOptions[0] ?? "");
+    setThumbnailUrl(draft.thumbnailUrl ?? null);
+    setThumbnailPath(getStorageObjectPathFromPublicUrl(draft.thumbnailUrl));
+    setIsBanner(Boolean(draft.isBanner));
+    setIsSecret(Boolean(draft.isSecret));
+  }, [draftStorageKey, fixedTagOptions, mode]);
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -533,9 +583,18 @@ export default function PostEditor({
     const trimmedContent = content.trim();
     const categoryName =
       categoryLocked && fixedTagOptions.length > 0 ? selectedFixedTag : tags[0];
+    const resolvedCategoryName = categoryName || "";
 
-    if (!trimmedTitle || !trimmedContent || !categoryName) {
-      setError("제목, 태그, 내용을 모두 입력해주세요.");
+    if (
+      !trimmedTitle ||
+      !trimmedContent ||
+      (categoryLocked && !resolvedCategoryName)
+    ) {
+      setError(
+        categoryLocked
+          ? "제목과 내용을 모두 입력해주세요."
+          : "제목과 내용을 모두 입력해주세요.",
+      );
       return;
     }
 
@@ -553,7 +612,7 @@ export default function PostEditor({
         body: JSON.stringify({
           title: trimmedTitle,
           content: trimmedContent,
-          categoryName,
+          categoryName: resolvedCategoryName,
           isBanner,
           isResolved,
           isSecret,
@@ -580,6 +639,10 @@ export default function PostEditor({
         }
       }
 
+      if (mode === "create") {
+        clearPostDraft(draftStorageKey);
+      }
+
       onSuccess?.(payload);
 
       if (mode === "edit") {
@@ -599,6 +662,36 @@ export default function PostEditor({
       setError("게시글 저장 중 오류가 발생했습니다.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  function handleSaveDraft() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    setIsSavingDraft(true);
+    setError(null);
+
+    try {
+      const payload: PostDraftPayload = {
+        title,
+        content,
+        tags,
+        selectedFixedTag,
+        thumbnailUrl,
+        isBanner,
+        isSecret,
+        savedAt: new Date().toISOString(),
+      };
+
+      savePostDraft(draftStorageKey, payload);
+    } catch {
+      setError("임시저장 중 오류가 발생했습니다.");
+    } finally {
+      window.setTimeout(() => {
+        setIsSavingDraft(false);
+      }, 800);
     }
   }
 
@@ -880,56 +973,33 @@ export default function PostEditor({
         </div>
       </div>
 
-      {canShowBannerOption ? (
+      <div
+        className={`grid gap-3 ${
+          canShowBannerOption ? "md:grid-cols-2" : "grid-cols-1"
+        }`}
+      >
+        {canShowBannerOption ? (
+          <label className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/20 px-3 py-3 text-sm">
+            <input
+              type="checkbox"
+              checked={isBanner}
+              onChange={(event) => setIsBanner(event.target.checked)}
+              className="h-4 w-4"
+            />
+            <span>배너 노출</span>
+          </label>
+        ) : null}
+
         <label className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/20 px-3 py-3 text-sm">
           <input
             type="checkbox"
-            checked={isBanner}
-            onChange={(event) => setIsBanner(event.target.checked)}
+            checked={isSecret}
+            onChange={(event) => setIsSecret(event.target.checked)}
             className="h-4 w-4"
           />
-          <span>이 공지사항을 배너에 노출</span>
+          <span>비밀글로 작성</span>
         </label>
-      ) : null}
-
-      {currentCategoryName === "QnA" ? (
-        <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 px-3 py-3">
-          <p className="text-sm font-medium text-foreground">상태</p>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "답변 전", value: false },
-              { label: "답변 완료", value: true },
-            ].map((option) => {
-              const isActive = isResolved === option.value;
-
-              return (
-                <button
-                  key={option.label}
-                  type="button"
-                  onClick={() => setIsResolved(option.value)}
-                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                    isActive
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border bg-background text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      <label className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/20 px-3 py-3 text-sm">
-        <input
-          type="checkbox"
-          checked={isSecret}
-          onChange={(event) => setIsSecret(event.target.checked)}
-          className="h-4 w-4"
-        />
-        <span>비밀글로 작성</span>
-      </label>
+      </div>
 
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -958,21 +1028,40 @@ export default function PostEditor({
           {cancelLabel}
         </Button>
 
-        <Button
-          type="button"
-          size="lg"
-          disabled={
-            isSubmitting || isUploadingThumbnail || isUploadingContentImage
-          }
-          onClick={handleSubmit}
-          className="min-w-28"
-        >
-          {isSubmitting
-            ? submittingLabel
-            : isUploadingThumbnail || isUploadingContentImage
-              ? "업로드 중..."
-              : submitLabel}
-        </Button>
+        <div className="flex items-center gap-2">
+          {mode === "create" ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              disabled={
+                isSubmitting ||
+                isUploadingThumbnail ||
+                isUploadingContentImage ||
+                isSavingDraft
+              }
+              onClick={handleSaveDraft}
+              className="min-w-28"
+            >
+              {isSavingDraft ? "임시저장 완료" : "임시저장"}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            size="lg"
+            disabled={
+              isSubmitting || isUploadingThumbnail || isUploadingContentImage
+            }
+            onClick={handleSubmit}
+            className="min-w-28 text-white dark:text-white"
+          >
+            {isSubmitting
+              ? submittingLabel
+              : isUploadingThumbnail || isUploadingContentImage
+                ? "업로드 중..."
+                : submitLabel}
+          </Button>
+        </div>
       </div>
     </section>
   );

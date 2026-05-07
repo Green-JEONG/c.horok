@@ -60,7 +60,7 @@ export default function PostListHeader({
       : isLikesPage
         ? "좋아요"
         : isFeedPage
-          ? "피드"
+          ? "소식"
           : "내 글");
 
   const canShowWriteButton = showWriteButton ?? !isLikesPage;
