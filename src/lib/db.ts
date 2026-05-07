@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { ALL_NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
 import {
   comparePostMetrics,
   DEFAULT_SORT,
@@ -26,12 +27,16 @@ export type DbPost = {
   created_at: Date;
   updated_at: Date;
   author_name: string;
+  author_image: string | null;
   category_name: string;
   view_count: number;
   likes_count: number;
   comments_count: number;
   is_banner: boolean;
+  is_resolved: boolean;
   is_hidden: boolean;
+  is_secret: boolean;
+  can_view_secret: boolean;
   user_id?: number;
 };
 
@@ -80,36 +85,57 @@ function mapUser(user: {
   };
 }
 
-function mapPost(post: {
-  id: bigint;
-  title: string;
-  content: string;
-  thumbnail: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  isBanner: boolean;
-  isHidden: boolean;
-  userId?: bigint;
-  user: { name: string | null };
-  category: { name: string };
-  views?: { viewCount: bigint | number } | null;
-  _count?: { likes?: number; comments?: number };
-}): DbPost {
+function mapPost(
+  post: {
+    id: bigint;
+    title: string;
+    content: string;
+    thumbnail: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    isBanner: boolean;
+    isResolved?: boolean;
+    isHidden: boolean;
+    isSecret: boolean;
+    userId?: bigint;
+    user: { name: string | null; image?: string | null };
+    category: { name: string } | null;
+    views?: { viewCount: bigint | number } | null;
+    _count?: { likes?: number; comments?: number };
+  },
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
+): DbPost {
+  const ownerUserId = post.userId ? bigintToNumber(post.userId) : undefined;
+  const isSecretQna = post.category?.name === "QnA" && post.isSecret;
+  const canViewSecret =
+    !post.isSecret ||
+    (typeof ownerUserId === "number" &&
+      typeof options?.viewerUserId === "number" &&
+      ownerUserId === options.viewerUserId) ||
+    (isSecretQna && Boolean(options?.isAdmin));
+
   return {
     id: bigintToNumber(post.id),
     title: post.title,
-    content: post.content,
-    thumbnail: post.thumbnail,
+    content: canViewSecret ? post.content : "비밀글입니다.",
+    thumbnail: canViewSecret ? post.thumbnail : null,
     created_at: post.createdAt,
     updated_at: post.updatedAt,
     author_name: post.user.name ?? "Unknown",
-    category_name: post.category.name,
+    author_image: post.user.image ?? null,
+    category_name: post.category?.name ?? "",
     view_count: Number(post.views?.viewCount ?? 0),
     likes_count: post._count?.likes ?? 0,
     comments_count: post._count?.comments ?? 0,
     is_banner: post.isBanner,
+    is_resolved: post.isResolved ?? false,
     is_hidden: post.isHidden,
-    user_id: post.userId ? bigintToNumber(post.userId) : undefined,
+    is_secret: post.isSecret,
+    can_view_secret: canViewSecret,
+    user_id: ownerUserId,
   };
 }
 
@@ -254,14 +280,28 @@ export async function findPostsPaged(
   limit: number,
   offset: number,
   sort: SortType = DEFAULT_SORT,
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
 ): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       isDeleted: false,
       isHidden: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       views: { select: { viewCount: true } },
       _count: {
@@ -296,28 +336,33 @@ export async function findPostsPaged(
       );
     })
     .slice(offset, offset + limit)
-    .map(mapPost);
+    .map((post) => mapPost(post, options));
 }
 
 export async function findPostById(
   id: number,
   options?: {
     includeHiddenForUserId?: number | null;
+    includeHiddenForAdmin?: boolean;
   },
 ) {
   const post = await prisma.post.findFirst({
+    omit: {
+      isResolved: true,
+    },
     where: {
       id: BigInt(id),
       isDeleted: false,
       OR: [
         { isHidden: false },
+        ...(options?.includeHiddenForAdmin ? [{}] : []),
         ...(options?.includeHiddenForUserId
           ? [{ userId: BigInt(options.includeHiddenForUserId) }]
           : []),
       ],
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       views: { select: { viewCount: true } },
       _count: {
@@ -331,7 +376,12 @@ export async function findPostById(
     },
   });
 
-  return post ? mapPost(post) : null;
+  return post
+    ? mapPost(post, {
+        viewerUserId: options?.includeHiddenForUserId ?? null,
+        isAdmin: options?.includeHiddenForAdmin,
+      })
+    : null;
 }
 
 async function searchPostsInternal(
@@ -342,6 +392,13 @@ async function searchPostsInternal(
   const where: Prisma.PostWhereInput = {
     isDeleted: false,
     isHidden: false,
+    category: {
+      is: {
+        name: {
+          notIn: [...ALL_NOTICE_TAG_OPTIONS],
+        },
+      },
+    },
     OR: [
       { title: { contains: keyword, mode: "insensitive" } },
       { content: { contains: keyword, mode: "insensitive" } },
@@ -349,6 +406,9 @@ async function searchPostsInternal(
   };
 
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where,
     orderBy: { createdAt: "desc" },
     skip: offset,
@@ -367,7 +427,7 @@ async function searchPostsInternal(
     },
   });
 
-  return posts.map(mapPost);
+  return posts.map((post) => mapPost(post));
 }
 
 export async function findPostsByKeywordPaged(
@@ -383,6 +443,13 @@ export async function findUserContributions(userId: number) {
     where: {
       userId: BigInt(userId),
       isDeleted: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
     },
     select: { createdAt: true },
     orderBy: { createdAt: "asc" },
@@ -391,11 +458,19 @@ export async function findUserContributions(userId: number) {
   const counts = new Map<string, number>();
 
   for (const post of posts) {
-    const date = post.createdAt.toISOString().slice(0, 10);
+    const date = formatLocalDate(post.createdAt);
     counts.set(date, (counts.get(date) ?? 0) + 1);
   }
 
   return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 export async function searchPosts(

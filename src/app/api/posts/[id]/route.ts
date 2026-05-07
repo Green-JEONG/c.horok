@@ -2,7 +2,10 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getDbUserIdFromSession } from "@/lib/auth-db";
-import { isNoticeCategoryName } from "@/lib/notice-categories";
+import {
+  isNoticeCategoryName,
+  isPublicNoticeCategory,
+} from "@/lib/notice-categories";
 import {
   deletePost,
   getPostById,
@@ -65,23 +68,39 @@ export async function PUT(
     where: { id: BigInt(postId) },
     select: { category: { select: { name: true } } },
   });
-  const isNotice = isNoticeCategoryName(postCategory?.category.name);
+  const postCategoryName = postCategory?.category?.name;
+  const isNotice = isNoticeCategoryName(postCategoryName);
+  const isQnaNotice = postCategoryName === "QnA";
   const isOwner = isNotice
-    ? session?.user?.role === "ADMIN"
+    ? isQnaNotice
+      ? post.user_id === dbUserId
+      : session?.user?.role === "ADMIN" ||
+        (isPublicNoticeCategory(postCategoryName) && post.user_id === dbUserId)
     : post.user_id === dbUserId;
 
   if (!isOwner) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const { title, content, categoryName, thumbnailUrl, isBanner } =
-    await req.json();
+  const {
+    title,
+    content,
+    categoryName,
+    thumbnailUrl,
+    isBanner,
+    isResolved,
+    isSecret,
+  } = await req.json();
 
   if (!title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
   }
 
-  if (isNoticeCategoryName(categoryName) && session?.user?.role !== "ADMIN") {
+  if (
+    isNoticeCategoryName(categoryName) &&
+    session?.user?.role !== "ADMIN" &&
+    !isPublicNoticeCategory(categoryName)
+  ) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
@@ -94,6 +113,11 @@ export async function PUT(
       typeof isBanner === "boolean" && isNoticeCategoryName(categoryName)
         ? isBanner
         : false,
+    isResolved:
+      categoryName === "QnA" && typeof isResolved === "boolean"
+        ? isResolved
+        : false,
+    isSecret: typeof isSecret === "boolean" ? isSecret : undefined,
     thumbnailUrl:
       typeof thumbnailUrl === "string"
         ? thumbnailUrl.trim() || null
@@ -135,9 +159,17 @@ export async function PATCH(
     where: { id: BigInt(postId) },
     select: { category: { select: { name: true } } },
   });
-  const isNotice = isNoticeCategoryName(postCategory?.category.name);
+  const categoryName = postCategory?.category?.name;
+  const isNotice = isNoticeCategoryName(categoryName);
+  const isQnaNotice = categoryName === "QnA";
+  const canManage = isNotice
+    ? isQnaNotice
+      ? post.user_id === dbUserId
+      : session?.user?.role === "ADMIN" ||
+        (isPublicNoticeCategory(categoryName) && post.user_id === dbUserId)
+    : post.user_id === dbUserId;
 
-  if (isNotice ? session?.user?.role !== "ADMIN" : post.user_id !== dbUserId) {
+  if (!canManage) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
@@ -181,9 +213,14 @@ export async function DELETE(
     where: { id: BigInt(postId) },
     select: { category: { select: { name: true } } },
   });
-  const isNotice = isNoticeCategoryName(postCategory?.category.name);
+  const categoryName = postCategory?.category?.name;
+  const isNotice = isNoticeCategoryName(categoryName);
+  const isQnaNotice = categoryName === "QnA";
   const isOwner = isNotice
-    ? session?.user?.role === "ADMIN"
+    ? isQnaNotice
+      ? post.user_id === dbUserId
+      : session?.user?.role === "ADMIN" ||
+        (isPublicNoticeCategory(categoryName) && post.user_id === dbUserId)
     : post.user_id === dbUserId;
 
   if (!isOwner) {

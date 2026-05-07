@@ -26,12 +26,27 @@ export default async function HorokTechPage({
 }) {
   const { sort } = await searchParams;
   const session = await auth();
-  const randomPosts = await getRandomPosts(6);
+  const viewerUserId =
+    typeof session?.user?.id === "string" ? Number(session.user.id) : null;
+  const randomPosts = await getRandomPosts(6, {
+    viewerUserId:
+      typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
+        ? viewerUserId
+        : null,
+    isAdmin: session?.user?.role === "ADMIN",
+  });
 
   const randomPostsSection =
     randomPosts.length > 0 ? (
       <section className="mt-15 space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">맛보기</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-bold tracking-tight text-foreground">
+            맛보기
+          </h2>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/horok-tech/feeds">더보기</Link>
+          </Button>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
           {randomPosts.map((post) => (
             <PostCard
@@ -42,6 +57,7 @@ export default async function HorokTechPage({
               thumbnail={post.thumbnail}
               category={post.category_name}
               author={post.author_name}
+              authorImage={post.author_image}
               likes={post.likes_count}
               comments={post.comments_count}
               createdAt={post.created_at}

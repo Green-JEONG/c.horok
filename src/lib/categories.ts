@@ -1,3 +1,4 @@
+import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
 function normalizeCategoryName(name: string) {
@@ -30,6 +31,14 @@ export async function getCategoryBySlug(slug: string) {
       },
     },
   });
+
+  if (category && isNoticeCategoryName(category.name)) {
+    return null;
+  }
+
+  if (category?.name === "미분류") {
+    return null;
+  }
 
   return category && category._count.posts > 0
     ? {
@@ -92,10 +101,20 @@ export async function getPostsByCategory(params: {
     categoryId: BigInt(categoryId),
     isDeleted: false,
     isHidden: false,
+    category: {
+      is: {
+        name: {
+          notIn: ["공지", "FAQ", "QnA", "중요", "긴급"],
+        },
+      },
+    },
   };
 
   const [posts, total] = await Promise.all([
     prisma.post.findMany({
+      omit: {
+        isResolved: true,
+      },
       where,
       orderBy: { createdAt: "desc" },
       skip: offset,

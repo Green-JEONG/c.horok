@@ -77,6 +77,9 @@ export default async function AdminPage() {
       },
     }),
     prisma.post.findMany({
+      omit: {
+        isResolved: true,
+      },
       orderBy: { createdAt: "desc" },
       take: LIMIT_POSTS,
       include: {
@@ -231,7 +234,9 @@ export default async function AdminPage() {
   async function seedLegacyBannerNoticesAction() {
     "use server";
     const session = await auth();
-    if (!session || session.user.role !== "ADMIN" || !session.user.email) return;
+    if (!session || session.user.role !== "ADMIN" || !session.user.email) {
+      return;
+    }
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },

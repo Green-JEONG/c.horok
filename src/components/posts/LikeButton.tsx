@@ -1,5 +1,6 @@
 "use client";
 
+import { Heart } from "lucide-react";
 import { useState } from "react";
 
 type Props = {
@@ -42,9 +43,15 @@ export default function LikeButton({
       type="button"
       onClick={onToggle}
       disabled={loading || disabled}
-      className="text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      aria-label={liked ? `좋아요 취소 ${count}` : `좋아요 ${count}`}
+      className={`inline-flex items-center gap-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+        liked
+          ? "text-rose-500 hover:text-rose-600"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
     >
-      👍 좋아요 {count}
+      <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
+      <span>{count}</span>
     </button>
   );
 }

@@ -1,3 +1,4 @@
+import { List } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
@@ -7,11 +8,13 @@ import LikeButton from "./LikeButton";
 type Props = {
   postId: number;
   backHref?: string;
+  showLikeButton?: boolean;
 };
 
 export default async function PostFooter({
   postId,
   backHref = "/horok-tech/feeds",
+  showLikeButton = true,
 }: Props) {
   const [likeCount, session] = await Promise.all([
     prisma.postLike.count({
@@ -40,21 +43,28 @@ export default async function PostFooter({
   }
 
   return (
-    <footer className="flex items-center justify-between border-t pt-4">
-      <div className="space-y-1">
-        <LikeButton
-          postId={postId}
-          initialLiked={liked}
-          initialCount={likeCount}
-          disabled={!session?.user?.email}
-        />
-      </div>
+    <footer
+      className={`flex items-center border-t pt-4 ${
+        showLikeButton ? "justify-between" : "justify-end"
+      }`}
+    >
+      {showLikeButton ? (
+        <div className="space-y-1">
+          <LikeButton
+            postId={postId}
+            initialLiked={liked}
+            initialCount={likeCount}
+            disabled={!session?.user?.email}
+          />
+        </div>
+      ) : null}
 
       <Link
         href={backHref}
-        className="text-sm text-muted-foreground hover:underline"
+        aria-label="목록으로"
+        className="text-muted-foreground transition-colors hover:text-foreground"
       >
-        ← 목록으로
+        <List className="h-5 w-5" />
       </Link>
     </footer>
   );

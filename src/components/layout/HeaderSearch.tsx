@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { isNoticeCategoryName } from "@/lib/notice-categories";
-import { getTechFeedPostPath, getTechNoticePath } from "@/lib/routes";
+import {
+  getTechFaqPath,
+  getTechFeedPostPath,
+  getTechNoticePath,
+} from "@/lib/routes";
 
 type SearchSuggestion = {
   id: number;
@@ -16,9 +20,11 @@ type SearchSuggestion = {
 };
 
 function getSuggestionHref(post: SearchSuggestion) {
-  return isNoticeCategoryName(post.category_name)
-    ? getTechNoticePath(post.id)
-    : getTechFeedPostPath(post.id);
+  return post.category_name === "FAQ"
+    ? getTechFaqPath(post.id)
+    : isNoticeCategoryName(post.category_name)
+      ? getTechNoticePath(post.id)
+      : getTechFeedPostPath(post.id);
 }
 
 export default function HeaderSearch() {

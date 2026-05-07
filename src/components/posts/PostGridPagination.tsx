@@ -13,9 +13,13 @@ type PostItem = {
   thumbnail: string | null;
   created_at: Date | string;
   author_name: string;
+  author_image?: string | null;
   category_name: string;
   likes_count: number;
   comments_count: number;
+  is_hidden?: boolean;
+  is_secret?: boolean;
+  can_view_secret?: boolean;
 };
 
 export default function PostGridPagination({ posts }: { posts: PostItem[] }) {
@@ -36,9 +40,13 @@ export default function PostGridPagination({ posts }: { posts: PostItem[] }) {
             thumbnail={post.thumbnail}
             category={post.category_name}
             author={post.author_name}
+            authorImage={post.author_image}
             likes={post.likes_count}
             comments={post.comments_count}
             createdAt={new Date(post.created_at)}
+            isHidden={post.is_hidden}
+            isSecret={post.is_secret}
+            canViewSecret={post.can_view_secret}
           />
         ))}
       </div>

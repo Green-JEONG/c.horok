@@ -2,6 +2,7 @@
 
 import { UserRound } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -166,9 +167,12 @@ export default function UserProfiles() {
               className="h-12 w-12 rounded-full border object-cover"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold">
+              <Link
+                href={`/users/${profile.id}`}
+                className="block truncate text-base font-semibold transition hover:text-primary"
+              >
                 {profile.name ?? "이름 없는 사용자"}
-              </p>
+              </Link>
               <p className="mt-1 text-xs text-muted-foreground">
                 구독자 {profile.followerCount}명
               </p>
@@ -177,8 +181,8 @@ export default function UserProfiles() {
 
           <div className="mt-3">
             {profile.isSelf ? (
-              <Button size="sm" variant="secondary" className="w-full" disabled>
-                내 프로필
+              <Button asChild size="sm" variant="secondary" className="w-full">
+                <Link href="/mypage">마이페이지</Link>
               </Button>
             ) : status !== "authenticated" ? (
               <Button size="sm" variant="outline" className="w-full" disabled>

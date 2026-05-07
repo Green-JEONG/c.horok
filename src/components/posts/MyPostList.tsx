@@ -3,13 +3,15 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
 import { parseSortType } from "@/lib/post-sort";
 import { getUserPosts } from "@/lib/queries";
-import PostCard from "./PostCard";
+import MyPostPreviewGrid from "./MyPostPreviewGrid";
 import PostGridPagination from "./PostGridPagination";
+import PostListInfinite from "./PostListInfinite";
 
 type Props = {
   sort?: string;
   userId?: number;
   limit?: number;
+  infiniteEndpoint?: string;
   emptyMessage?: string;
   unauthenticatedMessage?: string;
   emptyState?: ReactNode;
@@ -20,12 +22,15 @@ export default async function MyPostList({
   sort,
   userId: initialUserId,
   limit,
+  infiniteEndpoint,
   emptyMessage = "아직 작성한 게시글이 없습니다.",
   unauthenticatedMessage = "로그인 후 내가 작성한 게시글을 볼 수 있습니다.",
   emptyState,
   unauthenticatedState,
 }: Props) {
   const session = await auth();
+  const viewerUserId =
+    typeof session?.user?.id === "string" ? Number(session.user.id) : null;
   let userId = initialUserId ?? null;
 
   if (!userId) {
@@ -50,7 +55,13 @@ export default async function MyPostList({
     );
   }
 
-  const posts = await getUserPosts(userId, parseSortType(sort));
+  const posts = await getUserPosts(userId, parseSortType(sort), undefined, 0, {
+    viewerUserId:
+      typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
+        ? viewerUserId
+        : null,
+    isAdmin: session?.user?.role === "ADMIN",
+  });
   const limitedPosts =
     typeof limit === "number" ? posts.slice(0, limit) : posts;
 
@@ -63,24 +74,19 @@ export default async function MyPostList({
   }
 
   if (typeof limit === "number") {
+    return <MyPostPreviewGrid posts={limitedPosts} limit={limit} />;
+  }
+
+  if (infiniteEndpoint) {
     return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
-        {limitedPosts.map((post) => (
-          <PostCard
-            key={post.id}
-            id={post.id}
-            title={post.title}
-            description={post.content}
-            thumbnail={post.thumbnail}
-            category={post.category_name}
-            author={post.author_name}
-            likes={post.likes_count}
-            comments={post.comments_count}
-            createdAt={new Date(post.created_at)}
-            isHidden={post.is_hidden}
-          />
-        ))}
-      </div>
+      <PostListInfinite
+        initialPosts={posts.slice(0, 12)}
+        endpoint={infiniteEndpoint}
+        initialSort={parseSortType(sort)}
+        syncSortWithSearchParams
+        gridClassName="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3"
+        endMessage="마지막 게시물입니다."
+      />
     );
   }
 

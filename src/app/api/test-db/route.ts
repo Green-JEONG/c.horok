@@ -5,7 +5,11 @@ export async function GET() {
   const start = performance.now();
 
   try {
-    const post = await prisma.post.findFirst();
+    const post = await prisma.post.findFirst({
+      omit: {
+        isResolved: true,
+      },
+    });
     const end = performance.now();
     const timeTaken = end - start;
 

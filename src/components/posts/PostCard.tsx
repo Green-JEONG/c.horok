@@ -1,11 +1,13 @@
+import { EyeOff, Heart, Lock, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { isNoticeCategoryName } from "@/lib/notice-categories";
 import {
+  getTechFaqPath,
   getTechFeedPostPath,
   getTechLikesPostPath,
   getTechNoticePath,
 } from "@/lib/routes";
+import { formatSeoulDate } from "@/lib/utils";
 
 type Props = {
   id: number;
@@ -13,39 +15,24 @@ type Props = {
   description: string;
   category: string;
   author: string;
+  authorImage?: string | null;
   likes: number;
   comments: number;
   createdAt: Date;
   thumbnail?: string | null;
   isHidden?: boolean;
+  isSecret?: boolean;
+  canViewSecret?: boolean;
   categoryBadgeText?: string;
   categoryBadgeClassName?: string;
+  showCategoryBadge?: boolean;
+  statusBadges?: Array<{
+    text: string;
+    className: string;
+  }>;
   postRouteSection?: "feeds" | "likes";
+  hrefOverride?: string;
 };
-
-function getDefaultNoticeBadge(category: string) {
-  if (category === "긴급") {
-    return {
-      text: "#긴급",
-      className:
-        "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
-    };
-  }
-
-  if (category === "중요") {
-    return {
-      text: "#중요",
-      className:
-        "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300",
-    };
-  }
-
-  return {
-    text: "#공지",
-    className:
-      "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
-  };
-}
 
 export default function PostCard({
   id,
@@ -54,26 +41,45 @@ export default function PostCard({
   description,
   category,
   author,
+  authorImage = null,
   likes,
   comments,
   createdAt,
   isHidden = false,
+  isSecret = false,
+  canViewSecret = true,
   categoryBadgeText,
   categoryBadgeClassName,
+  showCategoryBadge = true,
+  statusBadges = [],
   postRouteSection = "feeds",
+  hrefOverride,
 }: Props) {
-  const isNotice = isNoticeCategoryName(category);
-  const href = isNotice
-    ? getTechNoticePath(id)
-    : postRouteSection === "likes"
-      ? getTechLikesPostPath(id)
-      : getTechFeedPostPath(id);
-  const defaultBadge = isNotice
-    ? getDefaultNoticeBadge(category)
+  const isNotice = ["공지", "FAQ", "QnA"].includes(category);
+  const isUncategorized = !category || category === "미분류";
+  const href =
+    hrefOverride ??
+    (category === "FAQ"
+      ? getTechFaqPath(id)
+      : isNotice
+        ? getTechNoticePath(id)
+        : postRouteSection === "likes"
+          ? getTechLikesPostPath(id)
+          : getTechFeedPostPath(id));
+  const defaultBadge = isUncategorized
+    ? null
     : {
         text: `#${category}`,
         className: "border-border bg-background text-foreground",
       };
+  const primaryBadge = statusBadges[0]
+    ? statusBadges[0]
+    : showCategoryBadge && defaultBadge
+      ? {
+          text: categoryBadgeText ?? defaultBadge.text,
+          className: categoryBadgeClassName ?? defaultBadge.className,
+        }
+      : null;
 
   return (
     <Link
@@ -92,32 +98,54 @@ export default function PostCard({
 
       <div className="flex min-w-0 flex-1 flex-col p-3">
         <div className="mb-2 flex min-w-0 items-center gap-2">
-          <span
-            className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-              categoryBadgeClassName ?? defaultBadge.className
-            }`}
-          >
-            {categoryBadgeText ?? defaultBadge.text}
-          </span>
-          <p className="truncate text-xs text-muted-foreground">{author}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <Image
+              src={authorImage ?? "/logo.svg"}
+              alt={`${author} 프로필`}
+              width={20}
+              height={20}
+              className="h-5 w-5 shrink-0 rounded-full border object-cover"
+            />
+            <p className="truncate text-xs text-muted-foreground">{author}</p>
+            {primaryBadge ? (
+              <span
+                className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${primaryBadge.className}`}
+              >
+                {primaryBadge.text}
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        <h3 className="mb-1 line-clamp-1 text-sm font-semibold">{title}</h3>
-        {isHidden ? (
-          <p className="mb-2 text-xs font-medium text-amber-600">숨김 처리됨</p>
-        ) : null}
+        <div className="mb-1 flex items-center gap-1.5">
+          <h3 className="line-clamp-1 min-w-0 text-sm font-semibold">
+            {title}
+          </h3>
+          {isHidden ? (
+            <EyeOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : null}
+          {isSecret ? (
+            <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : null}
+        </div>
 
         <p className="mb-3 line-clamp-1 text-xs text-muted-foreground">
-          {description}
+          {isSecret && !canViewSecret ? "비밀글입니다." : description}
         </p>
 
         <div className="mt-auto flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex min-w-0 items-center gap-1">
-            <span>❤️ {likes}</span>
-            <span>💬 {comments}</span>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="inline-flex items-center gap-1">
+              <Heart className="h-3.5 w-3.5 fill-current text-rose-500" />
+              {likes}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <MessageCircle className="h-3.5 w-3.5" />
+              {comments}
+            </span>
           </div>
           <span className="shrink-0 whitespace-nowrap">
-            {new Date(createdAt).toLocaleDateString("ko-KR")}
+            {formatSeoulDate(createdAt)}
           </span>
         </div>
       </div>

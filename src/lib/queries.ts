@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import {
+  ALL_NOTICE_TAG_OPTIONS,
   isNoticeCategoryName,
-  NOTICE_TAG_OPTIONS,
 } from "@/lib/notice-categories";
 import {
   comparePostMetrics,
@@ -18,34 +18,56 @@ export type DbPost = {
   thumbnail: string | null;
   created_at: Date;
   author_name: string;
+  author_image: string | null;
   category_name: string;
   likes_count: number;
   comments_count: number;
   is_hidden: boolean;
+  is_secret: boolean;
+  can_view_secret: boolean;
 };
 
-function mapPost(post: {
-  id: bigint;
-  title: string;
-  content: string;
-  thumbnail: string | null;
-  createdAt: Date;
-  isHidden: boolean;
-  user: { name: string | null };
-  category: { name: string };
-  _count: { likes: number; comments: number };
-}) {
+function mapPost(
+  post: {
+    id: bigint;
+    title: string;
+    content: string;
+    thumbnail: string | null;
+    createdAt: Date;
+    isHidden: boolean;
+    isSecret: boolean;
+    userId: bigint;
+    user: { name: string | null; image?: string | null };
+    category: { name: string } | null;
+    _count: { likes: number; comments: number };
+  },
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
+) {
+  const ownerUserId = Number(post.userId);
+  const isSecretQna = post.category?.name === "QnA" && post.isSecret;
+  const canViewSecret =
+    !post.isSecret ||
+    (typeof options?.viewerUserId === "number" &&
+      ownerUserId === options.viewerUserId) ||
+    (isSecretQna && Boolean(options?.isAdmin));
+
   return {
     id: Number(post.id),
     title: post.title,
-    content: post.content,
-    thumbnail: post.thumbnail,
+    content: canViewSecret ? post.content : "비밀글입니다.",
+    thumbnail: canViewSecret ? post.thumbnail : null,
     created_at: post.createdAt,
     author_name: post.user.name ?? "Unknown",
-    category_name: post.category.name,
+    author_image: post.user.image ?? null,
+    category_name: post.category?.name ?? "",
     likes_count: post._count.likes,
     comments_count: post._count.comments,
     is_hidden: post.isHidden,
+    is_secret: post.isSecret,
+    can_view_secret: canViewSecret,
   };
 }
 
@@ -72,7 +94,7 @@ function buildSearchWhere(
     category: {
       is: {
         name: {
-          notIn: [...NOTICE_TAG_OPTIONS],
+          notIn: [...ALL_NOTICE_TAG_OPTIONS],
         },
       },
     },
@@ -83,7 +105,7 @@ function scoreSearchMatch(
   post: {
     title: string;
     content: string;
-    category: { name: string };
+    category: { name: string } | null;
   },
   keyword: string,
   tokens: string[],
@@ -91,7 +113,7 @@ function scoreSearchMatch(
   const normalizedKeyword = normalizeSearchText(keyword);
   const normalizedTitle = normalizeSearchText(post.title);
   const normalizedContent = normalizeSearchText(post.content);
-  const normalizedCategory = normalizeSearchText(post.category.name);
+  const normalizedCategory = normalizeSearchText(post.category?.name ?? "");
 
   let score = 0;
 
@@ -121,20 +143,25 @@ export async function searchPosts(
   sort: SortType = DEFAULT_SORT,
   options?: {
     includeNotices?: boolean;
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
   },
 ): Promise<DbPost[]> {
   const tokens = tokenizeSearchQuery(keyword);
-  const includeNotices = options?.includeNotices ?? true;
+  const includeNotices = options?.includeNotices ?? false;
 
   if (tokens.length === 0) {
     return [];
   }
 
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: buildSearchWhere(tokens, includeNotices),
     take: Math.max(limit + offset, 48),
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       views: { select: { viewCount: true } },
       _count: {
@@ -177,7 +204,7 @@ export async function searchPosts(
       );
     })
     .slice(offset, offset + limit)
-    .map(mapPost)
+    .map((post) => mapPost(post, options))
     .filter(
       (post) => includeNotices || !isNoticeCategoryName(post.category_name),
     );
@@ -188,6 +215,10 @@ export async function getPostsByCategorySlug(
   limit: number,
   offset: number,
   sort: SortType = DEFAULT_SORT,
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
 ): Promise<{ categoryName: string | null; posts: DbPost[] }> {
   const category = await prisma.category.findUnique({
     where: { slug },
@@ -201,7 +232,24 @@ export async function getPostsByCategorySlug(
     };
   }
 
+  if (isNoticeCategoryName(category.name)) {
+    return {
+      categoryName: null,
+      posts: [],
+    };
+  }
+
+  if (category.name === "미분류") {
+    return {
+      categoryName: null,
+      posts: [],
+    };
+  }
+
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       isDeleted: false,
       isHidden: false,
@@ -210,7 +258,7 @@ export async function getPostsByCategorySlug(
       },
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       views: { select: { viewCount: true } },
       _count: {
@@ -247,7 +295,7 @@ export async function getPostsByCategorySlug(
         );
       })
       .slice(offset, offset + limit)
-      .map(mapPost),
+      .map((post) => mapPost(post, options)),
   };
 }
 
@@ -256,14 +304,24 @@ export async function getUserPosts(
   sort: SortType = DEFAULT_SORT,
   limit?: number,
   offset = 0,
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
 ): Promise<DbPost[]> {
+  const canSeeHiddenPosts = options?.viewerUserId === userId;
+
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       userId: BigInt(userId),
       isDeleted: false,
+      ...(canSeeHiddenPosts ? {} : { isHidden: false }),
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       views: { select: { viewCount: true } },
       _count: {
@@ -298,7 +356,12 @@ export async function getUserPosts(
       );
     })
     .slice(offset, limit ? offset + limit : undefined)
-    .map(mapPost);
+    .map((post) =>
+      mapPost(post, {
+        viewerUserId: options?.viewerUserId ?? null,
+        isAdmin: options?.isAdmin,
+      }),
+    );
 }
 
 export async function getMyPosts(
@@ -307,7 +370,9 @@ export async function getMyPosts(
   limit?: number,
   offset = 0,
 ): Promise<DbPost[]> {
-  return getUserPosts(userId, sort, limit, offset);
+  return getUserPosts(userId, sort, limit, offset, {
+    viewerUserId: userId,
+  });
 }
 
 export async function getLikedPosts(
@@ -315,15 +380,21 @@ export async function getLikedPosts(
   sort: SortType = DEFAULT_SORT,
   limit?: number,
   offset = 0,
+  options?: {
+    isAdmin?: boolean;
+  },
 ): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       isDeleted: false,
       isHidden: false,
       category: {
         is: {
           name: {
-            notIn: [...NOTICE_TAG_OPTIONS],
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
           },
         },
       },
@@ -369,24 +440,35 @@ export async function getLikedPosts(
       );
     })
     .slice(offset, limit ? offset + limit : undefined)
-    .map(mapPost);
+    .map((post) =>
+      mapPost(post, { viewerUserId: userId, isAdmin: options?.isAdmin }),
+    );
 }
 
-export async function getRandomPosts(limit: number): Promise<DbPost[]> {
+export async function getRandomPosts(
+  limit: number,
+  options?: {
+    viewerUserId?: number | null;
+    isAdmin?: boolean;
+  },
+): Promise<DbPost[]> {
   const posts = await prisma.post.findMany({
+    omit: {
+      isResolved: true,
+    },
     where: {
       isDeleted: false,
       isHidden: false,
       category: {
         is: {
           name: {
-            notIn: [...NOTICE_TAG_OPTIONS],
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
           },
         },
       },
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       _count: {
         select: {
@@ -402,5 +484,5 @@ export async function getRandomPosts(limit: number): Promise<DbPost[]> {
   return posts
     .sort(() => Math.random() - 0.5)
     .slice(0, limit)
-    .map(mapPost);
+    .map((post) => mapPost(post, options));
 }

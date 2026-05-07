@@ -1,7 +1,10 @@
 "use client";
 
+import { Lock } from "lucide-react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatSeoulDateTime } from "@/lib/utils";
 import CommentForm from "./CommentForm";
 
 export type CommentNode = {
@@ -10,9 +13,12 @@ export type CommentNode = {
   parent_id: number | null;
   content: string;
   is_deleted: boolean;
+  is_secret: boolean;
+  can_view_secret: boolean;
   is_edited: boolean;
   created_at: string;
   author: string;
+  author_image: string | null;
   replies: CommentNode[];
 };
 
@@ -21,24 +27,43 @@ export default function CommentItem({
   postId,
   currentUserId,
   isLoggedIn,
+  replyButtonLabel = "답글 달기",
+  replyCloseLabel = "답글 닫기",
+  replyPlaceholder = "대댓글을 작성하세요",
+  replySubmitLabel = "등록",
+  showReplyButton = true,
 }: {
   comment: CommentNode;
   postId: number;
   currentUserId: number | null;
   isLoggedIn: boolean;
+  replyButtonLabel?: string;
+  replyCloseLabel?: string;
+  replyPlaceholder?: string;
+  replySubmitLabel?: string;
+  showReplyButton?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [content, setContent] = useState(comment.content);
+  const [isSecret, setIsSecret] = useState(comment.is_secret);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFocusedComment, setIsFocusedComment] = useState(false);
   const canManage = comment.user_id === currentUserId && !comment.is_deleted;
+  const showSecretLock =
+    comment.is_secret &&
+    comment.user_id === currentUserId &&
+    !comment.is_deleted;
   const canReply =
-    isLoggedIn && comment.parent_id === null && !comment.is_deleted;
+    showReplyButton &&
+    isLoggedIn &&
+    comment.parent_id === null &&
+    !comment.is_deleted &&
+    (!comment.is_secret || comment.can_view_secret);
   const targetCommentId = Number(searchParams.get("commentId") ?? "");
 
   useEffect(() => {
@@ -86,7 +111,7 @@ export default function CommentItem({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content: trimmedContent }),
+        body: JSON.stringify({ content: trimmedContent, isSecret }),
       });
       const payload = await response.json().catch(() => null);
 
@@ -137,10 +162,22 @@ export default function CommentItem({
         isFocusedComment ? "border-primary bg-primary/5" : ""
       }`}
     >
-      <div className="flex justify-between text-sm">
-        <span className="font-medium">{comment.author}</span>
+      <div className="flex justify-between gap-3 text-sm">
+        <span className="inline-flex min-w-0 items-center gap-2 font-medium">
+          <Image
+            src={comment.author_image ?? "/logo.svg"}
+            alt={`${comment.author} 프로필`}
+            width={24}
+            height={24}
+            className="h-6 w-6 shrink-0 rounded-full border object-cover"
+          />
+          <span className="truncate">{comment.author}</span>
+          {showSecretLock ? (
+            <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : null}
+        </span>
         <span className="text-muted-foreground">
-          {new Date(comment.created_at).toLocaleString("ko-KR")}
+          {formatSeoulDateTime(comment.created_at)}
           {comment.is_edited ? " (수정)" : ""}
         </span>
       </div>
@@ -153,6 +190,15 @@ export default function CommentItem({
             rows={4}
             className="w-full rounded-md border p-3 text-sm"
           />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={isSecret}
+              onChange={(event) => setIsSecret(event.target.checked)}
+              className="h-4 w-4"
+            />
+            <span>비밀댓글</span>
+          </label>
 
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
@@ -162,6 +208,7 @@ export default function CommentItem({
               disabled={isSubmitting}
               onClick={() => {
                 setContent(comment.content);
+                setIsSecret(comment.is_secret);
                 setIsEditing(false);
                 setError(null);
               }}
@@ -199,7 +246,7 @@ export default function CommentItem({
             }}
             className="rounded-md border px-3 py-1.5 hover:bg-muted"
           >
-            {isReplying ? "답글 닫기" : "답글 달기"}
+            {isReplying ? replyCloseLabel : replyButtonLabel}
           </button>
         ) : null}
 
@@ -233,7 +280,8 @@ export default function CommentItem({
           <CommentForm
             postId={postId}
             parentId={comment.id}
-            placeholder="대댓글을 작성하세요"
+            placeholder={replyPlaceholder}
+            submitLabel={replySubmitLabel}
           />
         </div>
       ) : null}
@@ -247,6 +295,10 @@ export default function CommentItem({
                 postId={postId}
                 currentUserId={currentUserId}
                 isLoggedIn={isLoggedIn}
+                replyButtonLabel={replyButtonLabel}
+                replyCloseLabel={replyCloseLabel}
+                replyPlaceholder={replyPlaceholder}
+                replySubmitLabel={replySubmitLabel}
               />
             </li>
           ))}

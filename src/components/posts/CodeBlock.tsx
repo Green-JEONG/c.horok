@@ -48,7 +48,7 @@ export default function CodeBlock({ code, className, children }: Props) {
           aria-label="코드 복사"
           title={copied ? "복사됨" : "코드 복사"}
         >
-          {copied ? "✅" : "📋"}
+          {copied ? "✓" : "⧉"}
         </button>
       </div>
       <pre className="overflow-x-auto p-4 pr-14">

@@ -123,20 +123,25 @@ function renderMarkdownBody(content: string) {
         },
         code(props) {
           const { children, className: codeClassName, ...rest } = props;
-          const inline =
-            "inline" in props && typeof props.inline === "boolean"
-              ? props.inline
-              : false;
+          const code = getCodeText(children).replace(/\n$/, "");
+          const isBlockCode =
+            /language-/.test(codeClassName ?? "") || code.includes("\n");
 
-          if (inline) {
+          if (!isBlockCode) {
             return (
-              <code className={codeClassName} {...rest}>
+              <code
+                className={[
+                  "rounded-md bg-amber-100 px-1.5 py-0.5 font-mono text-[0.9em] text-foreground dark:bg-amber-200",
+                  codeClassName,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                {...rest}
+              >
                 {children}
               </code>
             );
           }
-
-          const code = getCodeText(children).replace(/\n$/, "");
 
           return (
             <CodeBlock code={code} className={codeClassName}>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
 function getCategorySortGroup(name: string) {
@@ -88,7 +89,12 @@ export async function GET() {
         slug: category.slug,
         postCount: category._count.posts,
       }))
-      .filter((category) => category.postCount > 0)
+      .filter(
+        (category) =>
+          category.postCount > 0 &&
+          !isNoticeCategoryName(category.name) &&
+          category.name !== "미분류",
+      )
       .sort(sortCategoriesByName)
       .slice(0, 10),
   );
