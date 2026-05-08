@@ -41,22 +41,24 @@ function toPreviewText(text: string) {
   return text.replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
-function getThreadDisplayTitle(title: string | null, preview: string) {
+function getThreadDisplayTitle(title: string | null) {
   if (title?.trim()) {
     return title.trim();
   }
 
-  return preview || "새 대화";
+  return "새 대화";
 }
 
 function formatChatMessage(message: {
   id: bigint;
   role: ChatRole;
   content: string;
-}): UIMessage {
+  createdAt: Date;
+}): UIMessage & { createdAt: string } {
   return {
     id: message.id.toString(),
     role: message.role,
+    createdAt: message.createdAt.toISOString(),
     parts: [
       {
         type: "text",
@@ -159,7 +161,7 @@ export async function listChatThreadsByUserId(userId: number) {
 
     return {
       id: thread.id.toString(),
-      title: getThreadDisplayTitle(thread.title, preview),
+      title: getThreadDisplayTitle(thread.title),
       preview,
       createdAt: thread.createdAt.toISOString(),
       updatedAt: thread.updatedAt.toISOString(),
@@ -178,6 +180,12 @@ export async function updateChatThreadTitle(
   });
 }
 
+export async function deleteChatThread(threadId: string) {
+  await getChatThreadDelegate().delete({
+    where: { id: BigInt(threadId) },
+  });
+}
+
 export async function getChatMessages(threadId: string) {
   const messages = await getChatMessageDelegate().findMany({
     where: { threadId: BigInt(threadId) },
@@ -186,6 +194,7 @@ export async function getChatMessages(threadId: string) {
       id: true,
       role: true,
       content: true,
+      createdAt: true,
     },
   });
 

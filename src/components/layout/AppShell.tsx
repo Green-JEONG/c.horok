@@ -25,7 +25,7 @@ export default function AppShell({
     pathname === "/horok-tech" || pathname.startsWith("/horok-tech/");
   const isHorokCotePage =
     pathname === "/horok-cote" || pathname.startsWith("/horok-cote/");
-  const isChatEnabledPage = isHorokTechPage || isHorokCotePage;
+  const isChatEnabledPage = isHorokTechPage;
   const isStandaloneServicePage =
     isHorokCotePage ||
     pathname === "/horok-tv" ||
