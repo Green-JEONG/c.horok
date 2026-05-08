@@ -38,6 +38,7 @@ type Props = {
   emptyMessage?: string;
   currentPage: number;
   totalPages: number;
+  totalCount: number;
   isQnaCategory?: boolean;
   isFaqCategory?: boolean;
 };
@@ -47,6 +48,7 @@ export default function NoticeListInfinite({
   emptyMessage = "등록된 공지사항이 없습니다.",
   currentPage,
   totalPages,
+  totalCount,
   isQnaCategory = false,
   isFaqCategory = false,
 }: Props) {
@@ -54,8 +56,12 @@ export default function NoticeListInfinite({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const initialOpenFaqId = Number(searchParams.get("open") ?? "");
+  const targetNoticeId = Number(searchParams.get("target") ?? "");
   const [openFaqIds, setOpenFaqIds] = useState<number[]>(
     Number.isFinite(initialOpenFaqId) ? [initialOpenFaqId] : [],
+  );
+  const [highlightedNoticeId, setHighlightedNoticeId] = useState<number | null>(
+    Number.isFinite(targetNoticeId) ? targetNoticeId : null,
   );
   const [viewCounts, setViewCounts] = useState<Record<number, number>>(() =>
     Object.fromEntries(notices.map((notice) => [notice.id, notice.viewCount])),
@@ -120,6 +126,37 @@ export default function NoticeListInfinite({
     }
   }, [isFaqCategory, searchParams, trackFaqView]);
 
+  useEffect(() => {
+    if (isFaqCategory || !Number.isFinite(targetNoticeId)) {
+      return;
+    }
+
+    const element = document.getElementById(`notice-${targetNoticeId}`);
+    if (!element) {
+      return;
+    }
+
+    setHighlightedNoticeId(targetNoticeId);
+
+    const scrollTimeout = window.setTimeout(() => {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 150);
+
+    const highlightTimeout = window.setTimeout(() => {
+      setHighlightedNoticeId((current) =>
+        current === targetNoticeId ? null : current,
+      );
+    }, 2600);
+
+    return () => {
+      window.clearTimeout(scrollTimeout);
+      window.clearTimeout(highlightTimeout);
+    };
+  }, [isFaqCategory, targetNoticeId]);
+
   function buildPageHref(page: number) {
     const params = new URLSearchParams(searchParams.toString());
 
@@ -169,10 +206,11 @@ export default function NoticeListInfinite({
         <div
           className={`hidden items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground md:grid ${
             isQnaCategory
-              ? "grid-cols-[minmax(0,1fr)_88px_92px_56px_56px]"
-              : "grid-cols-[minmax(0,1fr)_88px_92px_56px]"
+              ? "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
+              : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
           }`}
         >
+          <span>번호</span>
           <span>제목</span>
           <span>작성자</span>
           <span>작성일</span>
@@ -180,8 +218,9 @@ export default function NoticeListInfinite({
           {isQnaCategory ? <span>상태</span> : null}
         </div>
 
-        {notices.map((notice) => {
+        {notices.map((notice, index) => {
           const isFaqOpen = openFaqIds.includes(notice.id);
+          const noticeNumber = totalCount - (currentPage - 1) * 10 - index;
           const titleNode = isFaqCategory ? (
             <button
               type="button"
@@ -189,6 +228,9 @@ export default function NoticeListInfinite({
               className="flex w-full min-w-0 items-center gap-1.5 text-left"
               aria-expanded={isFaqOpen}
             >
+              <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground md:hidden">
+                {noticeNumber}
+              </span>
               <span className="shrink-0 text-sm font-semibold text-primary">
                 Q.
               </span>
@@ -206,6 +248,9 @@ export default function NoticeListInfinite({
             </button>
           ) : (
             <div className="flex min-w-0 items-center gap-1.5">
+              <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground md:hidden">
+                {noticeNumber}
+              </span>
               <p className="truncate text-sm font-semibold text-foreground">
                 {notice.title}
               </p>
@@ -219,10 +264,13 @@ export default function NoticeListInfinite({
             <div
               className={`flex flex-col gap-3 px-4 py-4 md:grid md:items-center md:gap-3 md:px-5 ${
                 isQnaCategory
-                  ? "md:grid-cols-[minmax(0,1fr)_88px_92px_56px_56px]"
-                  : "md:grid-cols-[minmax(0,1fr)_88px_92px_56px]"
+                  ? "md:grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
+                  : "md:grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
               }`}
             >
+              <span className="hidden text-center text-sm font-semibold tabular-nums text-muted-foreground md:block">
+                {noticeNumber}
+              </span>
               <div className="min-w-0">
                 {titleNode}
                 <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground md:hidden">
@@ -283,7 +331,12 @@ export default function NoticeListInfinite({
               <Link
                 key={notice.id}
                 href={getTechNoticePath(notice.id)}
-                className="block border-b last:border-b-0 transition-colors hover:bg-muted/30"
+                id={`notice-${notice.id}`}
+                className={`block transition-colors hover:bg-muted/30 ${
+                  highlightedNoticeId === notice.id
+                    ? "border border-primary bg-primary/5"
+                    : "border-b last:border-b-0"
+                }`}
               >
                 {rowContent}
               </Link>

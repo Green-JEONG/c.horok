@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -22,6 +22,8 @@ type Props = {
   sortOptions?: SortType[];
   writeButtonHref?: string;
   writeButtonLabel?: string;
+  searchPlaceholder?: string;
+  searchQueryParam?: string;
 };
 
 export default function PostListHeader({
@@ -31,20 +33,28 @@ export default function PostListHeader({
   sortOptions = ["latest", "views", "likes", "comments"],
   writeButtonHref,
   writeButtonLabel,
+  searchPlaceholder,
+  searchQueryParam = "q",
 }: Props = {}) {
   const [open, setOpen] = useState(false);
+  const [searchHighlighted, setSearchHighlighted] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{
     top: number;
     left: number;
     width: number;
   } | null>(null);
+  const [searchInput, setSearchInput] = useState("");
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
+  const searchFormRef = useRef<HTMLFormElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sort = parseSortType(searchParams.get("sort"));
   const category = searchParams.get("category");
+  const searchQuery = searchParams.get(searchQueryParam) ?? "";
+  const showSearch = Boolean(searchPlaceholder);
 
   const isFeedPage =
     pathname === "/horok-tech/feeds" ||
@@ -64,6 +74,16 @@ export default function PostListHeader({
           : "내 글");
 
   const canShowWriteButton = showWriteButton ?? !isLikesPage;
+
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!showSearch) {
+      setSearchHighlighted(false);
+    }
+  }, [showSearch]);
 
   useEffect(() => {
     if (!open) {
@@ -129,6 +149,88 @@ export default function PostListHeader({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!showSearch) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (searchFormRef.current?.contains(target)) {
+        return;
+      }
+
+      setSearchHighlighted(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSearchHighlighted(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showSearch]);
+
+  useEffect(() => {
+    if (!showSearch) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      if (searchQuery) {
+        searchInputRef.current?.focus();
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [showSearch, searchQuery]);
+
+  useEffect(() => {
+    if (!showSearch) {
+      return;
+    }
+
+    const nextQuery = searchInput.trim();
+
+    if (nextQuery === searchQuery) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (nextQuery) {
+        params.set(searchQueryParam, nextQuery);
+      } else {
+        params.delete(searchQueryParam);
+      }
+
+      router.replace(`${pathname}?${params.toString()}`);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [
+    pathname,
+    router,
+    searchInput,
+    searchParams,
+    searchQuery,
+    searchQueryParam,
+    showSearch,
+  ]);
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -141,6 +243,43 @@ export default function PostListHeader({
       <div className="flex items-center gap-2">
         {canShowWriteButton ? (
           <HomeWriteButton href={writeButtonHref} label={writeButtonLabel} />
+        ) : null}
+        {showSearch ? (
+          <form
+            ref={searchFormRef}
+            onSubmit={(event) => {
+              event.preventDefault();
+            }}
+            onFocusCapture={() => {
+              setSearchHighlighted(true);
+            }}
+            className={`flex h-9 w-64 items-center overflow-hidden rounded-md border bg-background transition-colors ${
+              searchHighlighted
+                ? "border-primary bg-primary/5"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            <input
+              ref={searchInputRef}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              onFocus={() => setSearchHighlighted(true)}
+              placeholder={searchPlaceholder}
+              className="h-full min-w-0 flex-1 bg-transparent pl-3 text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setSearchHighlighted(true);
+                searchInputRef.current?.focus();
+              }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center"
+              aria-label="검색"
+              aria-expanded
+            >
+              <Search className="h-4 w-4" />
+            </button>
+          </form>
         ) : null}
         <button
           ref={buttonRef}

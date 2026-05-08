@@ -26,6 +26,26 @@ type DraftPreviewPost = PreviewPost & {
   href_override?: string;
 };
 
+function getPreviewVisibilityClassName(index: number) {
+  if (index < 4) {
+    return "";
+  }
+
+  if (index < 6) {
+    return "hidden sm:block";
+  }
+
+  if (index < 8) {
+    return "hidden lg:block";
+  }
+
+  if (index < 10) {
+    return "hidden xl:block";
+  }
+
+  return "hidden";
+}
+
 export default function MyPostPreviewGrid({
   posts,
   limit,
@@ -67,34 +87,35 @@ export default function MyPostPreviewGrid({
   }, [limit, posts]);
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
-      {mergedPosts.map((post) => (
-        <PostCard
-          key={post.id}
-          id={post.id}
-          title={post.title}
-          description={post.content}
-          thumbnail={post.thumbnail}
-          category={post.category_name}
-          author="나"
-          authorImage={post.author_image}
-          likes={post.likes_count}
-          comments={post.comments_count}
-          createdAt={new Date(post.created_at)}
-          isHidden={post.is_hidden}
-          isSecret={post.is_secret}
-          canViewSecret={post.can_view_secret}
-          hrefOverride={post.href_override}
-          showCategoryBadge={!post.is_draft}
-          statusBadges={[
-            post.is_draft
-              ? {
-                  text: "임시저장",
-                  className: "border-sky-300 bg-sky-100 text-black",
-                }
-              : null,
-          ].filter((badge) => badge !== null)}
-        />
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {mergedPosts.map((post, index) => (
+        <div key={post.id} className={getPreviewVisibilityClassName(index)}>
+          <PostCard
+            id={post.id}
+            title={post.title}
+            description={post.content}
+            thumbnail={post.thumbnail}
+            category={post.category_name}
+            author="나"
+            authorImage={post.author_image}
+            likes={post.likes_count}
+            comments={post.comments_count}
+            createdAt={new Date(post.created_at)}
+            isHidden={post.is_hidden}
+            isSecret={post.is_secret}
+            canViewSecret={post.can_view_secret}
+            hrefOverride={post.href_override}
+            showCategoryBadge={!post.is_draft}
+            statusBadges={[
+              post.is_draft
+                ? {
+                    text: "임시저장",
+                    className: "border-sky-300 bg-sky-100 text-black",
+                  }
+                : null,
+            ].filter((badge) => badge !== null)}
+          />
+        </div>
       ))}
     </div>
   );

@@ -22,7 +22,7 @@ export default async function PostList({ sort }: { sort?: string }) {
       endpoint="/api/posts"
       initialSort={parsedSort}
       syncSortWithSearchParams
-      gridClassName="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4"
+      gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
     />
   );
 }

@@ -43,7 +43,7 @@ export default async function HorokTechPostPage({ params }: Props) {
     Number(session.user.id) === post.user_id;
 
   return (
-    <article className="mx-auto max-w-3xl">
+    <article className="w-full">
       <PostViewTracker postId={postId} />
       <PostActions
         postId={postId}

@@ -307,9 +307,13 @@ export async function getUserPosts(
   options?: {
     viewerUserId?: number | null;
     isAdmin?: boolean;
+    query?: string;
+    categorySlug?: string;
   },
 ): Promise<DbPost[]> {
   const canSeeHiddenPosts = options?.viewerUserId === userId;
+  const normalizedQuery = options?.query?.trim();
+  const normalizedCategorySlug = options?.categorySlug?.trim();
 
   const posts = await prisma.post.findMany({
     omit: {
@@ -319,6 +323,32 @@ export async function getUserPosts(
       userId: BigInt(userId),
       isDeleted: false,
       ...(canSeeHiddenPosts ? {} : { isHidden: false }),
+      category: {
+        is: {
+          ...(normalizedCategorySlug ? { slug: normalizedCategorySlug } : {}),
+          name: {
+            not: "FAQ",
+          },
+        },
+      },
+      ...(normalizedQuery
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: normalizedQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                content: {
+                  contains: normalizedQuery,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          }
+        : {}),
     },
     include: {
       user: { select: { name: true, image: true } },
@@ -362,6 +392,53 @@ export async function getUserPosts(
         isAdmin: options?.isAdmin,
       }),
     );
+}
+
+export async function countUserPosts(
+  userId: number,
+  options?: {
+    viewerUserId?: number | null;
+    categorySlug?: string;
+    query?: string;
+  },
+) {
+  const canSeeHiddenPosts = options?.viewerUserId === userId;
+  const normalizedQuery = options?.query?.trim();
+  const normalizedCategorySlug = options?.categorySlug?.trim();
+
+  return prisma.post.count({
+    where: {
+      userId: BigInt(userId),
+      isDeleted: false,
+      ...(canSeeHiddenPosts ? {} : { isHidden: false }),
+      category: {
+        is: {
+          ...(normalizedCategorySlug ? { slug: normalizedCategorySlug } : {}),
+          name: {
+            not: "FAQ",
+          },
+        },
+      },
+      ...(normalizedQuery
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: normalizedQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                content: {
+                  contains: normalizedQuery,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          }
+        : {}),
+    },
+  });
 }
 
 export async function getMyPosts(
@@ -443,6 +520,27 @@ export async function getLikedPosts(
     .map((post) =>
       mapPost(post, { viewerUserId: userId, isAdmin: options?.isAdmin }),
     );
+}
+
+export async function countLikedPosts(userId: number) {
+  return prisma.post.count({
+    where: {
+      isDeleted: false,
+      isHidden: false,
+      category: {
+        is: {
+          name: {
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
+          },
+        },
+      },
+      likes: {
+        some: {
+          userId: BigInt(userId),
+        },
+      },
+    },
+  });
 }
 
 export async function getRandomPosts(

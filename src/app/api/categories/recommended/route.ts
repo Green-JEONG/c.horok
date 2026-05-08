@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
@@ -57,13 +58,24 @@ function sortCategoriesByName(a: { name: string }, b: { name: string }) {
   });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const userId = Number(url.searchParams.get("userId") ?? "");
+  const session = await auth();
+  const viewerUserId =
+    typeof session?.user?.id === "string" ? Number(session.user.id) : null;
+  const canSeeHiddenPosts =
+    Number.isFinite(userId) && userId > 0 && viewerUserId === userId;
+
   const rows = await prisma.category.findMany({
     where: {
       posts: {
         some: {
           isDeleted: false,
-          isHidden: false,
+          ...(canSeeHiddenPosts ? {} : { isHidden: false }),
+          ...(Number.isFinite(userId) && userId > 0
+            ? { userId: BigInt(userId) }
+            : {}),
         },
       },
     },
@@ -73,7 +85,10 @@ export async function GET() {
           posts: {
             where: {
               isDeleted: false,
-              isHidden: false,
+              ...(canSeeHiddenPosts ? {} : { isHidden: false }),
+              ...(Number.isFinite(userId) && userId > 0
+                ? { userId: BigInt(userId) }
+                : {}),
             },
           },
         },

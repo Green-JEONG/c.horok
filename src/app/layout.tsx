@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import HorokChat from "@/components/chat/HorokChat";
 import RecommendedCategories from "@/components/home/RecommendedCategories";
@@ -70,7 +71,9 @@ export default function RootLayout({
                 <UserProfiles />
                 <PopularPosts />
                 {/* <RecommendedKeywords /> */}
-                <RecommendedCategories />
+                <Suspense fallback={null}>
+                  <RecommendedCategories />
+                </Suspense>
               </>
             }
             footer={

@@ -51,6 +51,7 @@ export async function GET() {
         type: normalizeNotificationType(row.type),
         message: row.content ?? null,
         actor_name: row.actor?.name ?? null,
+        actor_id: row.actorId ? Number(row.actorId) : null,
         post_id: row.postId ? Number(row.postId) : null,
         comment_id: row.commentId ? Number(row.commentId) : null,
         post_path: row.postId

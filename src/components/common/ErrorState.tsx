@@ -10,8 +10,8 @@ type Props = {
 
 export default function ErrorState({ code, message, action }: Props) {
   return (
-    <main className="flex min-h-[50vh] flex-col items-center justify-center px-6 py-10 text-center">
-      <div className="w-full max-w-3xl space-y-5">
+    <main className="flex min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-center px-6 py-10 text-center">
+      <div className="w-full max-w-[1400px] space-y-5">
         <div className="space-y-3">
           <p className="text-center text-5xl font-extrabold tracking-tight text-primary sm:text-6xl">
             {code}

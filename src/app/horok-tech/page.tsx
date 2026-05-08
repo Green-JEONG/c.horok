@@ -47,7 +47,7 @@ export default async function HorokTechPage({
             <Link href="/horok-tech/feeds">더보기</Link>
           </Button>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {randomPosts.map((post) => (
             <PostCard
               key={post.id}
@@ -102,7 +102,7 @@ export default async function HorokTechPage({
       </Suspense>
       <MyPostList
         sort={sort}
-        limit={6}
+        limit={10}
         emptyState={emptyState}
         unauthenticatedState={unauthenticatedState}
       />

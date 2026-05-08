@@ -1,13 +1,34 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SectionPagination from "@/components/mypage/sections/SectionPagination";
 import PostCard from "@/components/posts/PostCard";
 import { getPostDraftStorageKey, loadPostDraft } from "@/lib/post-drafts";
 import { getTechFeedNewPostPath } from "@/lib/routes";
 
-const PAGE_SIZE = 12;
+const DEFAULT_PREVIEW_PAGE_SIZE = 4;
+
+function getResponsivePageSize() {
+  if (typeof window === "undefined") {
+    return DEFAULT_PREVIEW_PAGE_SIZE;
+  }
+
+  if (window.innerWidth >= 1280) {
+    return 10;
+  }
+
+  if (window.innerWidth >= 1024) {
+    return 8;
+  }
+
+  if (window.innerWidth >= 640) {
+    return 6;
+  }
+
+  return 4;
+}
 
 type MyPost = {
   id: number;
@@ -29,12 +50,46 @@ type DraftPost = MyPost & {
   href_override?: string;
 };
 
+type MyPostsResponse = {
+  posts: MyPost[];
+  totalCount: number;
+  resolvedPage?: number;
+};
+
 export default function MyPostsSection() {
+  const searchParams = useSearchParams();
   const { status } = useSession();
   const [posts, setPosts] = useState<DraftPost[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [hasNextPage, setHasNextPage] = useState(false);
+  const [pageSize, setPageSize] = useState(DEFAULT_PREVIEW_PAGE_SIZE);
+  const [highlightedPostId, setHighlightedPostId] = useState<number | null>(
+    null,
+  );
+  const targetPostId = useMemo(() => {
+    const value = Number(searchParams.get("postId") ?? "");
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }, [searchParams]);
+
+  useEffect(() => {
+    const updatePageSize = () => {
+      setPageSize((current) => {
+        const next = getResponsivePageSize();
+        if (current !== next) {
+          setPage(1);
+        }
+        return current === next ? current : next;
+      });
+    };
+
+    updatePageSize();
+    window.addEventListener("resize", updatePageSize);
+
+    return () => {
+      window.removeEventListener("resize", updatePageSize);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,8 +98,16 @@ export default function MyPostsSection() {
       setLoading(true);
 
       try {
-        const response = await fetch(`/api/mypage/posts?page=${page}`);
-        const data: MyPost[] = await response.json();
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(pageSize),
+        });
+        if (typeof targetPostId === "number") {
+          params.set("targetPostId", String(targetPostId));
+        }
+        const response = await fetch(`/api/mypage/posts?${params.toString()}`);
+        const data: MyPostsResponse = await response.json();
+        const nextPosts = Array.isArray(data.posts) ? data.posts : [];
         const draftStorageKey = getPostDraftStorageKey({
           successPathPrefix: "/horok-tech/feeds/posts",
           fixedTagOptions: [],
@@ -72,21 +135,27 @@ export default function MyPostsSection() {
                 href_override: getTechFeedNewPostPath(),
               } satisfies DraftPost)
             : null;
-        const mergedPosts =
-          Array.isArray(data) && draftPost
-            ? [draftPost, ...data.slice(0, PAGE_SIZE - 1)]
-            : Array.isArray(data)
-              ? data
-              : [];
+        const mergedPosts = draftPost
+          ? [draftPost, ...nextPosts.slice(0, pageSize - 1)]
+          : nextPosts;
 
         if (cancelled) return;
 
+        if (
+          typeof data.resolvedPage === "number" &&
+          data.resolvedPage > 0 &&
+          data.resolvedPage !== page
+        ) {
+          setPage(data.resolvedPage);
+        }
         setPosts(mergedPosts);
-        setHasNextPage(Array.isArray(data) && data.length >= PAGE_SIZE);
+        setTotalCount(
+          typeof data.totalCount === "number" ? data.totalCount : 0,
+        );
       } catch {
         if (cancelled) return;
         setPosts([]);
-        setHasNextPage(false);
+        setTotalCount(0);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -99,13 +168,50 @@ export default function MyPostsSection() {
     return () => {
       cancelled = true;
     };
-  }, [page, status]);
+  }, [page, pageSize, status, targetPostId]);
 
-  const totalPages = hasNextPage ? page + 1 : page;
+  useEffect(() => {
+    if (typeof targetPostId !== "number") {
+      return;
+    }
+
+    const targetExists = posts.some((post) => post.id === targetPostId);
+    if (!targetExists) {
+      return;
+    }
+
+    setHighlightedPostId(targetPostId);
+
+    const scrollTimeout = window.setTimeout(() => {
+      const element = document.getElementById(`mypage-post-${targetPostId}`);
+      element?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 150);
+
+    const highlightTimeout = window.setTimeout(() => {
+      setHighlightedPostId((current) =>
+        current === targetPostId ? null : current,
+      );
+    }, 2600);
+
+    return () => {
+      window.clearTimeout(scrollTimeout);
+      window.clearTimeout(highlightTimeout);
+    };
+  }, [posts, targetPostId]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return (
     <section className="space-y-4" id="mypage-posts">
-      <h2 className="text-lg font-semibold">내가 쓴 글</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-lg font-semibold">내가 쓴 글</h2>
+        <span className="text-sm font-medium text-muted-foreground">
+          {totalCount}
+        </span>
+      </div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">불러오는 중…</p>
@@ -113,33 +219,43 @@ export default function MyPostsSection() {
         <p className="text-sm text-muted-foreground">작성한 글이 없습니다.</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {posts.map((post) => (
-              <PostCard
+              <div
                 key={post.id}
-                id={post.id}
-                title={post.title}
-                description={post.content}
-                thumbnail={post.thumbnail}
-                category={post.category_name}
-                author="나"
-                authorImage={post.author_image}
-                likes={post.likes_count}
-                comments={post.comments_count}
-                createdAt={new Date(post.created_at)}
-                isHidden={post.is_hidden}
-                isSecret={post.is_secret}
-                hrefOverride={post.href_override}
-                showCategoryBadge={!post.is_draft}
-                statusBadges={[
-                  post.is_draft
-                    ? {
-                        text: "임시저장",
-                        className: "border-sky-300 bg-sky-100 text-black",
-                      }
-                    : null,
-                ].filter((badge) => badge !== null)}
-              />
+                id={post.id > 0 ? `mypage-post-${post.id}` : undefined}
+                className="rounded-xl transition-colors"
+              >
+                <PostCard
+                  id={post.id}
+                  title={post.title}
+                  description={post.content}
+                  thumbnail={post.thumbnail}
+                  category={post.category_name}
+                  author="나"
+                  authorImage={post.author_image}
+                  likes={post.likes_count}
+                  comments={post.comments_count}
+                  createdAt={new Date(post.created_at)}
+                  isHidden={post.is_hidden}
+                  isSecret={post.is_secret}
+                  hrefOverride={post.href_override}
+                  showCategoryBadge={!post.is_draft}
+                  className={
+                    highlightedPostId === post.id
+                      ? "border-primary bg-primary/5"
+                      : ""
+                  }
+                  statusBadges={[
+                    post.is_draft
+                      ? {
+                          text: "임시저장",
+                          className: "border-sky-300 bg-sky-100 text-black",
+                        }
+                      : null,
+                  ].filter((badge) => badge !== null)}
+                />
+              </div>
             ))}
           </div>
           <SectionPagination

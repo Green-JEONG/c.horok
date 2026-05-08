@@ -26,6 +26,7 @@ type Notification = {
     | "POST_LIKE"
     | "NEW_FOLLOWER";
   actor_name: string | null;
+  actor_id?: number | null;
   message?: string | null;
   post_id: number | null;
   comment_id: number | null;
@@ -254,12 +255,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             alt="profile"
             width={100}
             height={100}
-            className={cn(
-              "h-[100px] w-[100px] rounded-full border p-1",
-              isCote
-                ? "border-slate-200 object-contain dark:border-white/15"
-                : "border-border object-contain",
-            )}
+            className="h-[100px] w-[100px] rounded-full object-cover"
           />
           <div className="flex flex-col items-center">
             <p
@@ -380,15 +376,75 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                           }
 
                           onClose();
-                          if (n.type === "NEW_FOLLOWER") {
-                            router.push("/mypage?tab=friends");
+                          if (
+                            n.type === "NEW_FOLLOWER" ||
+                            n.type === "FRIEND_REQUEST"
+                          ) {
+                            const params = new URLSearchParams({
+                              tab: "friends",
+                              friendType: "followers",
+                            });
+                            if (typeof n.actor_id === "number") {
+                              params.set("friendId", String(n.actor_id));
+                            }
+                            router.push(`/mypage?${params.toString()}`);
                             return;
                           }
 
-                          if (n.post_path && !n.is_post_deleted) {
+                          const postPath = n.post_path;
+                          const shouldOpenNoticeDetail =
+                            typeof postPath === "string" &&
+                            postPath.startsWith("/horok-tech/notices/");
+
+                          const shouldOpenQnaList =
+                            shouldOpenNoticeDetail &&
+                            n.message === "QnA에 새로운 질문이 등록되었어요" &&
+                            typeof n.post_id === "number";
+
+                          if (shouldOpenQnaList) {
+                            router.push(
+                              `/horok-tech/notices?category=QnA&target=${n.post_id}`,
+                            );
+                            return;
+                          }
+
+                          if (shouldOpenNoticeDetail && !n.is_post_deleted) {
                             const targetPath = n.comment_id
-                              ? `${n.post_path}?commentId=${n.comment_id}`
-                              : n.post_path;
+                              ? `${postPath}?commentId=${n.comment_id}`
+                              : postPath;
+                            router.push(targetPath);
+                            return;
+                          }
+
+                          if (
+                            (n.type === "POST_COMMENT" ||
+                              n.type === "POST_LIKE") &&
+                            typeof n.post_id === "number"
+                          ) {
+                            router.push(
+                              `/mypage?tab=posts&postId=${n.post_id}`,
+                            );
+                            return;
+                          }
+
+                          if (n.type === "COMMENT_REPLY") {
+                            const params = new URLSearchParams({
+                              tab: "comments",
+                            });
+                            if (typeof n.comment_id === "number") {
+                              params.set("commentId", String(n.comment_id));
+                            }
+                            if (typeof n.post_id === "number") {
+                              params.set("postId", String(n.post_id));
+                            }
+                            router.push(`/mypage?${params.toString()}`);
+                            return;
+                          }
+
+                          if (typeof postPath === "string" && !n.is_post_deleted) {
+                            const targetPath = n.comment_id
+                              ? `${postPath}?commentId=${n.comment_id}`
+                              : postPath;
                             router.push(targetPath);
                           }
                         }}

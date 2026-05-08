@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 type Category = {
@@ -12,16 +13,26 @@ type Category = {
 };
 
 export default function RecommendedCategories() {
+  const pathname = usePathname();
   const [categories, setCategories] = useState<Category[]>([]);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session } = useSession();
 
   useEffect(() => {
-    // fetch("/api/categories/recommended")
-    fetch("/api/categories/recommended")
+    const userPageMatch = pathname.match(/^\/users\/(\d+)$/);
+    const currentUserId = session?.user?.id;
+    const endpoint = userPageMatch
+      ? `/api/categories/recommended?userId=${userPageMatch[1]}`
+      : pathname === "/mypage" && currentUserId
+        ? `/api/categories/recommended?userId=${currentUserId}`
+        : "/api/categories/recommended";
+
+    fetch(endpoint)
       .then((res) => res.json())
       .then(setCategories)
       .catch(console.error);
-  }, []);
+  }, [pathname, session?.user?.id]);
 
   return (
     <section className="space-y-3">
@@ -40,9 +51,27 @@ export default function RecommendedCategories() {
             <button
               key={c.id}
               type="button"
-              onClick={() =>
-                router.push(`/search?category=${encodeURIComponent(c.slug)}`)
-              }
+              onClick={() => {
+                const userPageMatch = pathname.match(/^\/users\/(\d+)$/);
+
+                if (userPageMatch) {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("category", c.slug);
+                  router.push(
+                    `/users/${userPageMatch[1]}?${params.toString()}`,
+                  );
+                  return;
+                }
+
+                if (pathname === "/mypage" && session?.user?.id) {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("category", c.slug);
+                  router.push(`/users/${session.user.id}?${params.toString()}`);
+                  return;
+                }
+
+                router.push(`/search?category=${encodeURIComponent(c.slug)}`);
+              }}
               className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
             >
               #{c.name}
