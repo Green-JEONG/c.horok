@@ -29,7 +29,6 @@ import {
 } from "react";
 
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type ChatThreadSummary = {
@@ -88,16 +87,16 @@ type ResizeDirection =
   | "bottom-right";
 
 const THREAD_PLATFORM_STORAGE_KEY = "horok-chat-thread-platforms";
-const FLOATING_CHAT_LAYOUT_STORAGE_KEY = "horok-chat-floating-layout";
 const FLOATING_BUTTON_SIZE = 64;
 const FLOATING_PANEL_GAP = 12;
+const FLOATING_VIEWPORT_MARGIN = 24;
 const FLOATING_DEFAULT_SIZE: FloatingSize = {
-  width: 352,
-  height: 416,
+  width: 310,
+  height: 740,
 };
 const FLOATING_MIN_SIZE: FloatingSize = {
-  width: 320,
-  height: 320,
+  width: 250,
+  height: 280,
 };
 
 const INITIAL_MESSAGES: ChatUIMessage[] = [
@@ -183,6 +182,19 @@ function formatMessageDateBadge(iso: string | null | undefined) {
   }).format(date);
 }
 
+function sortThreadsByRecentActivity(threads: ChatThreadSummary[]) {
+  return [...threads].sort((a, b) => {
+    const updatedAtDiff =
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+
+    if (updatedAtDiff !== 0) {
+      return updatedAtDiff;
+    }
+
+    return Number(b.id) - Number(a.id);
+  });
+}
+
 function readThreadPlatformMap() {
   if (typeof window === "undefined") {
     return {} as Record<string, "tech" | "cote">;
@@ -226,6 +238,17 @@ function clampFloatingSize(size: FloatingSize) {
       Math.max(FLOATING_MIN_SIZE.height, window.innerHeight - 120),
     ),
   };
+}
+
+function getFloatingDefaultSize(_pathname: string | null): FloatingSize {
+  if (typeof window === "undefined") {
+    return FLOATING_DEFAULT_SIZE;
+  }
+
+  return clampFloatingSize({
+    width: FLOATING_DEFAULT_SIZE.width,
+    height: FLOATING_DEFAULT_SIZE.height,
+  });
 }
 
 function clampFloatingPosition(
@@ -312,6 +335,9 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
     startPositionX: number;
     startPositionY: number;
   } | null>(null);
+  const floatingSizeRef = useRef(FLOATING_DEFAULT_SIZE);
+  const isOpenRef = useRef(false);
+  const viewportSizeRef = useRef({ width: 0, height: 0 });
 
   const {
     messages: rawMessages,
@@ -414,18 +440,17 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
       return false;
     }
 
-    const panelLeft =
-      floatingPosition.x - (floatingSize.width - FLOATING_BUTTON_SIZE);
-    const panelCenter = panelLeft + floatingSize.width / 2;
+    const buttonCenter = floatingPosition.x + FLOATING_BUTTON_SIZE / 2;
 
-    return panelCenter < window.innerWidth / 2;
-  }, [floatingPosition, floatingSize.width, isEmbedded]);
+    return buttonCenter < window.innerWidth / 2;
+  }, [floatingPosition, isEmbedded]);
   const filteredThreads = useMemo(() => {
-    if (threadCategory === "all") {
-      return threads;
-    }
+    const nextThreads =
+      threadCategory === "all"
+        ? threads
+        : threads.filter((thread) => thread.platform === threadCategory);
 
-    return threads.filter((thread) => thread.platform === threadCategory);
+    return sortThreadsByRecentActivity(nextThreads);
   }, [threadCategory, threads]);
 
   useEffect(() => {
@@ -437,56 +462,18 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
       return;
     }
 
-    try {
-      const stored = window.localStorage.getItem(
-        FLOATING_CHAT_LAYOUT_STORAGE_KEY,
-      );
-      if (stored) {
-        const parsed = JSON.parse(stored) as {
-          position?: FloatingPosition;
-          size?: FloatingSize;
-        };
-        const nextSize = clampFloatingSize(
-          parsed.size ?? FLOATING_DEFAULT_SIZE,
-        );
-        const nextPosition = clampFloatingPosition(
-          parsed.position ?? {
-            x: window.innerWidth - FLOATING_BUTTON_SIZE - 24,
-            y: window.innerHeight - FLOATING_BUTTON_SIZE - 24,
-          },
-          nextSize,
-          false,
-        );
+    viewportSizeRef.current = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
 
-        setFloatingSize(nextSize);
-        setFloatingPosition(nextPosition);
-        return;
-      }
-    } catch {
-      // Ignore invalid persisted layout and use defaults.
-    }
-
-    const nextSize = clampFloatingSize(FLOATING_DEFAULT_SIZE);
+    const nextSize = getFloatingDefaultSize(pathname);
     setFloatingSize(nextSize);
     setFloatingPosition({
-      x: window.innerWidth - FLOATING_BUTTON_SIZE - 24,
-      y: window.innerHeight - FLOATING_BUTTON_SIZE - 24,
+      x: window.innerWidth - FLOATING_BUTTON_SIZE - FLOATING_VIEWPORT_MARGIN,
+      y: window.innerHeight - FLOATING_BUTTON_SIZE - FLOATING_VIEWPORT_MARGIN,
     });
-  }, [isEmbedded]);
-
-  useEffect(() => {
-    if (isEmbedded || !floatingPosition || typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(
-      FLOATING_CHAT_LAYOUT_STORAGE_KEY,
-      JSON.stringify({
-        position: floatingPosition,
-        size: floatingSize,
-      }),
-    );
-  }, [floatingPosition, floatingSize, isEmbedded]);
+  }, [isEmbedded, pathname]);
 
   useEffect(() => {
     if (!isPanelOpen || isThreadMode) {
@@ -530,10 +517,14 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
 
     function handleMouseMove(event: MouseEvent) {
       if (dragStateRef.current) {
+        const containerLeft =
+          event.clientX - dragStateRef.current.pointerOffsetX;
+        const containerTop =
+          event.clientY - dragStateRef.current.pointerOffsetY;
         const nextPosition = clampFloatingPosition(
           {
-            x: event.clientX - dragStateRef.current.pointerOffsetX,
-            y: event.clientY - dragStateRef.current.pointerOffsetY,
+            x: containerLeft,
+            y: containerTop,
           },
           floatingSize,
           isOpen,
@@ -618,22 +609,47 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
   }, [floatingSize, isEmbedded, isOpen]);
 
   useEffect(() => {
+    floatingSizeRef.current = floatingSize;
+  }, [floatingSize]);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
     if (isEmbedded || typeof window === "undefined") {
       return;
     }
 
     function handleResize() {
-      setFloatingSize((currentSize) => clampFloatingSize(currentSize));
+      const previousViewport = viewportSizeRef.current;
+      const widthDelta = window.innerWidth - previousViewport.width;
+      const heightDelta = window.innerHeight - previousViewport.height;
+      const nextSize = clampFloatingSize(floatingSizeRef.current);
+
+      viewportSizeRef.current = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
+
+      setFloatingSize(nextSize);
       setFloatingPosition((currentPosition) =>
         currentPosition
-          ? clampFloatingPosition(currentPosition, floatingSize, isOpen)
+          ? clampFloatingPosition(
+              {
+                x: currentPosition.x + widthDelta,
+                y: currentPosition.y + heightDelta,
+              },
+              nextSize,
+              isOpenRef.current,
+            )
           : currentPosition,
       );
     }
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [floatingSize, isEmbedded, isOpen]);
+  }, [isEmbedded]);
 
   useEffect(() => {
     if (isEmbedded || !floatingPosition) {
@@ -722,7 +738,7 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
 
         writeThreadPlatformMap(threadPlatformMap);
 
-        setThreads(nextThreads);
+        setThreads(sortThreadsByRecentActivity(nextThreads));
         applyActiveThread(data.activeThreadId);
         setMessages(data.activeThreadId ? data.messages : []);
       } catch (loadError) {
@@ -835,18 +851,20 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
       const threadPlatformMap = readThreadPlatformMap();
       threadPlatformMap[data.threadId] = platform;
       writeThreadPlatformMap(threadPlatformMap);
-      setThreads((currentThreads) => [
-        {
-          id: data.threadId,
-          title: "새 대화",
-          preview: "",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messageCount: 0,
-          platform,
-        },
-        ...currentThreads,
-      ]);
+      setThreads((currentThreads) =>
+        sortThreadsByRecentActivity([
+          {
+            id: data.threadId,
+            title: "새 대화",
+            preview: "",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messageCount: 0,
+            platform,
+          },
+          ...currentThreads,
+        ]),
+      );
 
       return data.threadId;
     } finally {
@@ -1161,12 +1179,8 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
         style={
           !isEmbedded
             ? {
-                width: Math.max(floatingSize.width, FLOATING_BUTTON_SIZE),
-                minHeight: isOpen
-                  ? floatingSize.height +
-                    FLOATING_PANEL_GAP +
-                    FLOATING_BUTTON_SIZE
-                  : FLOATING_BUTTON_SIZE,
+                width: FLOATING_BUTTON_SIZE,
+                minHeight: FLOATING_BUTTON_SIZE,
               }
             : undefined
         }
@@ -1211,26 +1225,15 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
               />
             ) : null}
             <div className="relative flex items-center">
-              {!isThreadMode ? (
+              {!isThreadMode && sessionStatus === "authenticated" ? (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2">
                   <button
                     type="button"
                     onClick={() => {
-                      if (sessionStatus === "authenticated") {
-                        setView("threads");
-                        return;
-                      }
-
-                      if (!isEmbedded) {
-                        setIsOpen(false);
-                      }
+                      setView("threads");
                     }}
                     className="p-1 text-primary-foreground transition hover:opacity-80"
-                    aria-label={
-                      sessionStatus === "authenticated"
-                        ? "대화 목록 보기"
-                        : "챗봇 접기"
-                    }
+                    aria-label="대화 목록 보기"
                   >
                     <ChevronLeft className="size-5" />
                   </button>
@@ -1498,7 +1501,7 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                               {thread.title}
                             </p>
                             <span className="shrink-0 text-[11px] text-muted-foreground">
-                              {formatThreadTime(thread.updatedAt)}
+                              {formatThreadTime(thread.createdAt)}
                             </span>
                           </div>
                           <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
@@ -1653,6 +1656,14 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                                 </div>
                               </div>
                             </div>
+
+                            {sessionStatus === "unauthenticated" &&
+                            index === 0 &&
+                            !isUser ? (
+                              <p className="text-center text-xs text-muted-foreground">
+                                로그인 하시면 대화를 저장할 수 있습니다.
+                              </p>
+                            ) : null}
                           </div>
                         );
                       })
@@ -1711,7 +1722,7 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                 >
                   <div
                     className={cn(
-                      "flex items-end gap-2 rounded-3xl border bg-white p-2 shadow-sm dark:bg-zinc-900",
+                      "relative rounded-3xl border bg-white shadow-sm dark:bg-zinc-900",
                       platform === "cote"
                         ? "border-[#06923E]/25 dark:border-[#06923E]/30"
                         : "border-orange-200 dark:border-orange-400/25",
@@ -1722,22 +1733,21 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                       value={input}
                       onChange={(event) => setInput(event.target.value)}
                       placeholder="호록이에게 물어보세요"
-                      className="h-10 flex-1 bg-transparent px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                      className="h-10 w-full bg-transparent pl-3 pr-12 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                     />
-                    <Button
+                    <button
                       type="submit"
-                      size="icon"
                       className={cn(
-                        "size-10 rounded-full",
+                        "absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-transparent transition",
                         platform === "cote"
-                          ? "bg-[#06923E] text-white hover:bg-[#047a33]"
-                          : undefined,
+                          ? "text-[#06923E] hover:text-[#047a33] disabled:text-[#06923E]/35"
+                          : "text-orange-500 hover:text-orange-600 disabled:text-orange-200 dark:text-orange-400 dark:hover:text-orange-300 dark:disabled:text-orange-900",
                       )}
                       disabled={!input.trim() || isLoading}
                       aria-label="메시지 전송"
                     >
                       <Send className="size-4" />
-                    </Button>
+                    </button>
                   </div>
                 </form>
               </>

@@ -138,7 +138,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
   };
 
   return (
-    <article className="mx-auto max-w-3xl">
+    <article className="w-full">
       <PostViewTracker postId={noticeId} />
       <PostActions
         postId={notice.id}

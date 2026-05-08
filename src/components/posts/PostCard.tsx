@@ -32,6 +32,7 @@ type Props = {
   }>;
   postRouteSection?: "feeds" | "likes";
   hrefOverride?: string;
+  className?: string;
 };
 
 export default function PostCard({
@@ -54,6 +55,7 @@ export default function PostCard({
   statusBadges = [],
   postRouteSection = "feeds",
   hrefOverride,
+  className = "",
 }: Props) {
   const isNotice = ["공지", "FAQ", "QnA"].includes(category);
   const isUncategorized = !category || category === "미분류";
@@ -84,7 +86,7 @@ export default function PostCard({
   return (
     <Link
       href={href}
-      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+      className={`group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${className}`}
     >
       <div className="relative flex h-30 items-center justify-center bg-zinc-900">
         <Image

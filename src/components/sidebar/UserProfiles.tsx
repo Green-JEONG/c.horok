@@ -24,6 +24,8 @@ export default function UserProfiles() {
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [isSubscribedHovering, setIsSubscribedHovering] = useState(false);
+  const profileTitle =
+    !loading && profile && !profile.isSelf ? "프로필" : "내 프로필";
 
   useEffect(() => {
     const load = async () => {
@@ -147,7 +149,7 @@ export default function UserProfiles() {
     <section className="-mx-6 px-6 space-y-3">
       <div className="flex items-center gap-2">
         <UserRound className="h-[18px] w-[18px]" />
-        <h3 className="text-lg font-bold tracking-tight">프로필</h3>
+        <h3 className="text-lg font-bold tracking-tight">{profileTitle}</h3>
       </div>
 
       {loading ? (
@@ -168,7 +170,7 @@ export default function UserProfiles() {
             />
             <div className="min-w-0 flex-1">
               <Link
-                href={`/users/${profile.id}`}
+                href={profile.isSelf ? "/mypage" : `/users/${profile.id}`}
                 className="block truncate text-base font-semibold transition hover:text-primary"
               >
                 {profile.name ?? "이름 없는 사용자"}

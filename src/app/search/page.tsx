@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import PostListHeader from "@/components/posts/PostListHeader";
 
 export const metadata: Metadata = {
   title: "검색 결과 | c.horok",
@@ -66,7 +67,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
     return (
       <div className="space-y-4">
-        <h2 className="text-lg font-bold tracking-tight">#{categoryName}</h2>
+        <PostListHeader title={`#${categoryName}`} showWriteButton={false} />
 
         <PostListInfinite
           initialPosts={posts}
@@ -74,6 +75,7 @@ export default async function SearchPage({ searchParams }: Props) {
           initialSort={parsedSort}
           responseKey="posts"
           syncSortWithSearchParams
+          gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
           emptyMessage={`“#${categoryName}”에 대한 게시글이 없습니다.`}
         />
       </div>
@@ -99,13 +101,14 @@ export default async function SearchPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-sm font-semibold">{keyword}</h2>
+      <PostListHeader title={keyword ?? "검색 결과"} showWriteButton={false} />
 
       <PostListInfinite
         initialPosts={posts}
         endpoint={`/api/search?q=${encodeURIComponent(keyword ?? "")}`}
         initialSort={parsedSort}
         syncSortWithSearchParams
+        gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         emptyMessage={`“${keyword}”에 대한 검색 결과가 없습니다.`}
       />
     </div>

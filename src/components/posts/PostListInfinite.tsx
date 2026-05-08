@@ -72,6 +72,7 @@ export default function PostListInfinite({
   postRouteSection = "feeds",
 }: Props) {
   const searchParams = useSearchParams();
+  const searchParamsString = searchParams.toString();
   const sort = syncSortWithSearchParams
     ? parseSortType(searchParams.get("sort") ?? initialSort)
     : initialSort;
@@ -102,11 +103,17 @@ export default function PostListInfinite({
 
       try {
         const url = new URL(endpoint, window.location.origin);
-        url.searchParams.set("page", String(page));
 
         if (syncSortWithSearchParams) {
+          const currentParams = new URLSearchParams(searchParamsString);
+
+          for (const [key, value] of currentParams.entries()) {
+            url.searchParams.set(key, value);
+          }
           url.searchParams.set("sort", sort);
         }
+
+        url.searchParams.set("page", String(page));
 
         const res = await fetch(url.toString());
         const data = readPostsFromPayload(await res.json(), responseKey);
@@ -156,6 +163,7 @@ export default function PostListInfinite({
     page,
     posts.length,
     responseKey,
+    searchParamsString,
     sort,
     syncSortWithSearchParams,
   ]);

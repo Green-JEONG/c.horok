@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
@@ -15,6 +16,7 @@ type SearchSuggestion = {
   id: number;
   title: string;
   content: string;
+  thumbnail: string | null;
   category_name: string;
   author_name: string;
 };
@@ -128,17 +130,30 @@ export default function HeaderSearch() {
                   <Link
                     href={getSuggestionHref(post)}
                     onClick={() => setIsOpen(false)}
-                    className="block px-4 py-3 transition hover:bg-muted/60"
+                    className="flex items-stretch gap-3 px-4 py-3 transition hover:bg-muted/60"
                   >
-                    <p className="line-clamp-1 text-sm font-semibold text-foreground">
-                      {post.title}
-                    </p>
-                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                      #{post.category_name} · {post.author_name}
-                    </p>
-                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                      {post.content}
-                    </p>
+                    <div className="relative w-14 shrink-0 self-stretch overflow-hidden rounded-lg bg-zinc-900">
+                      <Image
+                        src={post.thumbnail ?? "/thumbnails/default.png"}
+                        alt={post.title}
+                        fill
+                        unoptimized={Boolean(post.thumbnail)}
+                        className={
+                          post.thumbnail ? "object-cover" : "object-contain p-3"
+                        }
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-1 text-sm font-semibold text-foreground">
+                        {post.title}
+                      </p>
+                      <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                        #{post.category_name} · {post.author_name}
+                      </p>
+                      <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                        {post.content}
+                      </p>
+                    </div>
                   </Link>
                 </li>
               ))}

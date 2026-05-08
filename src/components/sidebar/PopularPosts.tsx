@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { getTechFeedPostPath } from "@/lib/routes";
 
@@ -12,13 +14,23 @@ type PopularPost = {
 };
 
 export default function PopularPosts() {
+  const pathname = usePathname();
+  const { data: session } = useSession();
   const [posts, setPosts] = useState<PopularPost[]>([]);
 
   useEffect(() => {
-    fetch("/api/posts/popular")
+    const userPageMatch = pathname.match(/^\/users\/(\d+)$/);
+    const currentUserId = session?.user?.id;
+    const endpoint = userPageMatch
+      ? `/api/posts/popular?userId=${userPageMatch[1]}`
+      : pathname === "/mypage" && currentUserId
+        ? `/api/posts/popular?userId=${currentUserId}`
+        : "/api/posts/popular";
+
+    fetch(endpoint)
       .then((res) => res.json())
       .then(setPosts);
-  }, []);
+  }, [pathname, session?.user?.id]);
 
   return (
     <section className="-mx-6 px-6 space-y-3">

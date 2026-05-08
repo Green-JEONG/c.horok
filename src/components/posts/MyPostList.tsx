@@ -9,6 +9,8 @@ import PostListInfinite from "./PostListInfinite";
 
 type Props = {
   sort?: string;
+  query?: string;
+  categorySlug?: string;
   userId?: number;
   limit?: number;
   infiniteEndpoint?: string;
@@ -20,6 +22,8 @@ type Props = {
 
 export default async function MyPostList({
   sort,
+  query,
+  categorySlug,
   userId: initialUserId,
   limit,
   infiniteEndpoint,
@@ -61,6 +65,8 @@ export default async function MyPostList({
         ? viewerUserId
         : null,
     isAdmin: session?.user?.role === "ADMIN",
+    query,
+    categorySlug,
   });
   const limitedPosts =
     typeof limit === "number" ? posts.slice(0, limit) : posts;
@@ -84,7 +90,7 @@ export default async function MyPostList({
         endpoint={infiniteEndpoint}
         initialSort={parseSortType(sort)}
         syncSortWithSearchParams
-        gridClassName="grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3"
+        gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         endMessage="마지막 게시물입니다."
       />
     );
