@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
 import {
   getPlatformFromPathname,
@@ -26,6 +27,7 @@ type Notification = {
     | "POST_LIKE"
     | "NEW_FOLLOWER";
   actor_name: string | null;
+  actor_id?: number | null;
   message?: string | null;
   post_id: number | null;
   comment_id: number | null;
@@ -66,6 +68,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   const { profile, refresh } = usePlatformProfile(open);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(open);
+  const [portalReady, setPortalReady] = useState(false);
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState({
@@ -121,6 +124,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) setSettingsOpen(false);
   }, [open]);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -188,12 +195,12 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     loadStats();
   }, [open, platform]);
 
-  if (!isVisible) return null;
+  if (!isVisible || !portalReady) return null;
 
-  return (
+  return createPortal(
     <div
       className={cn(
-        "fixed inset-0 z-[80]",
+        "fixed inset-0 z-[150]",
         open ? "pointer-events-auto" : "pointer-events-none",
       )}
     >
@@ -217,7 +224,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between px-4 pt-2 pb-10">
           <nav className="flex items-center gap-4 text-sm">
             {session?.user?.role === "ADMIN" && (
               <button
@@ -254,12 +261,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             alt="profile"
             width={100}
             height={100}
-            className={cn(
-              "h-[100px] w-[100px] rounded-full border p-1",
-              isCote
-                ? "border-slate-200 object-contain dark:border-white/15"
-                : "border-border object-contain",
-            )}
+            className="h-[100px] w-[100px] rounded-full object-cover"
           />
           <div className="flex flex-col items-center">
             <p
@@ -327,7 +329,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                       ? "/mypage?tab=posts"
                       : index === 1
                         ? "/mypage?tab=comments"
-                        : "/mypage?tab=friends",
+                        : "/mypage?tab=friends&friendType=following",
                   );
                 }}
               >
@@ -380,15 +382,78 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                           }
 
                           onClose();
-                          if (n.type === "NEW_FOLLOWER") {
-                            router.push("/mypage?tab=friends");
+                          if (
+                            n.type === "NEW_FOLLOWER" ||
+                            n.type === "FRIEND_REQUEST"
+                          ) {
+                            const params = new URLSearchParams({
+                              tab: "friends",
+                              friendType: "followers",
+                            });
+                            if (typeof n.actor_id === "number") {
+                              params.set("friendId", String(n.actor_id));
+                            }
+                            router.push(`/mypage?${params.toString()}`);
                             return;
                           }
 
-                          if (n.post_path && !n.is_post_deleted) {
+                          const postPath = n.post_path;
+                          const shouldOpenNoticeDetail =
+                            typeof postPath === "string" &&
+                            postPath.startsWith("/horok-tech/notices/");
+
+                          const shouldOpenQnaList =
+                            shouldOpenNoticeDetail &&
+                            n.message === "QnA에 새로운 질문이 등록되었어요" &&
+                            typeof n.post_id === "number";
+
+                          if (shouldOpenQnaList) {
+                            router.push(
+                              `/horok-tech/notices?category=QnA&target=${n.post_id}`,
+                            );
+                            return;
+                          }
+
+                          if (shouldOpenNoticeDetail && !n.is_post_deleted) {
                             const targetPath = n.comment_id
-                              ? `${n.post_path}?commentId=${n.comment_id}`
-                              : n.post_path;
+                              ? `${postPath}?commentId=${n.comment_id}`
+                              : postPath;
+                            router.push(targetPath);
+                            return;
+                          }
+
+                          if (
+                            (n.type === "POST_COMMENT" ||
+                              n.type === "POST_LIKE") &&
+                            typeof n.post_id === "number"
+                          ) {
+                            router.push(
+                              `/mypage?tab=posts&postId=${n.post_id}`,
+                            );
+                            return;
+                          }
+
+                          if (n.type === "COMMENT_REPLY") {
+                            const params = new URLSearchParams({
+                              tab: "comments",
+                            });
+                            if (typeof n.comment_id === "number") {
+                              params.set("commentId", String(n.comment_id));
+                            }
+                            if (typeof n.post_id === "number") {
+                              params.set("postId", String(n.post_id));
+                            }
+                            router.push(`/mypage?${params.toString()}`);
+                            return;
+                          }
+
+                          if (
+                            typeof postPath === "string" &&
+                            !n.is_post_deleted
+                          ) {
+                            const targetPath = n.comment_id
+                              ? `${postPath}?commentId=${n.comment_id}`
+                              : postPath;
                             router.push(targetPath);
                           }
                         }}
@@ -449,7 +514,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         {/* footer */}
         <div
           className={cn(
-            "flex border-t py-6 mx-6",
+            "flex border-t py-6 mx-4",
             isCote ? "border-slate-200 dark:border-white/10" : "border-border",
           )}
         >
@@ -458,7 +523,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             className={cn(
               "w-full border-r text-sm hover:underline",
               isCote
-                ? "border-slate-200 text-red-500 dark:border-white/10 dark:text-red-300"
+                ? "border-slate-200 text-red-400 dark:border-white/10"
                 : "text-red-400",
             )}
             onClick={async () => {
@@ -484,9 +549,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             type="button"
             className={cn(
               "w-full rounded-md text-sm",
-              isCote
-                ? "text-[#06923E] dark:text-[#06923E]"
-                : "text-muted-foreground",
+              isCote ? "text-muted-foreground" : "text-muted-foreground",
             )}
             onClick={() => signOut({ callbackUrl: getCallbackUrl() })}
           >
@@ -501,6 +564,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         onClose={() => setSettingsOpen(false)}
         onSaved={refresh}
       />
-    </div>
+    </div>,
+    document.body,
   );
 }

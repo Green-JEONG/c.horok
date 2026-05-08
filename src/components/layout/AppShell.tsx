@@ -20,19 +20,63 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   const pathname = usePathname();
+  const topLevelSegment = pathname.split("/")[1] ?? "";
+  const knownTopLevelSegments = new Set([
+    "",
+    "admin",
+    "blog",
+    "chat",
+    "coding-tests",
+    "feed",
+    "feeds",
+    "horok-cote",
+    "horok-shop",
+    "horok-tech",
+    "horok-tv",
+    "likes",
+    "mypage",
+    "notices",
+    "posts",
+    "search",
+    "users",
+    "videos",
+  ]);
   const isPortalPage = pathname === "/";
-  const isHorokTechPage =
-    pathname === "/horok-tech" || pathname.startsWith("/horok-tech/");
+  const isHorokTechLikePage = pathname.startsWith("/horok-tech");
+  const isMyPage = pathname === "/mypage";
+  const isSearchPage = pathname === "/search";
+  const isUserProfilePage =
+    pathname === "/users" || pathname.startsWith("/users/");
   const isHorokCotePage =
     pathname === "/horok-cote" || pathname.startsWith("/horok-cote/");
-  const isChatEnabledPage = isHorokTechPage || isHorokCotePage;
   const isStandaloneServicePage =
     isHorokCotePage ||
     pathname === "/horok-tv" ||
     pathname.startsWith("/horok-tv/") ||
     pathname === "/horok-shop" ||
     pathname.startsWith("/horok-shop/");
-
+  const isUnknownTopLevelPath =
+    pathname !== "/" && !knownTopLevelSegments.has(topLevelSegment);
+  const isWideNotFoundCandidatePage =
+    !isPortalPage &&
+    !isStandaloneServicePage &&
+    !pathname.startsWith("/api") &&
+    (isHorokTechLikePage ||
+      isMyPage ||
+      isSearchPage ||
+      isUserProfilePage ||
+      isUnknownTopLevelPath ||
+      pathname.startsWith("/horok-tech") ||
+      pathname.startsWith("/mypage") ||
+      pathname.startsWith("/search") ||
+      pathname.startsWith("/users/"));
+  const isWideSidebarLayoutPage =
+    isHorokTechLikePage ||
+    isMyPage ||
+    isSearchPage ||
+    isUserProfilePage ||
+    isWideNotFoundCandidatePage;
+  const isChatEnabledPage = isHorokTechLikePage;
   if (isPortalPage || isStandaloneServicePage) {
     return (
       <>
@@ -42,12 +86,24 @@ export default function AppShell({
     );
   }
 
+  const mainLayoutClassName = isWideSidebarLayoutPage
+    ? "mr-auto flex w-full max-w-[1400px] flex-1 md:min-h-0 md:overflow-hidden"
+    : "mx-auto flex w-full max-w-6xl flex-1 md:min-h-0 md:overflow-hidden";
+
+  const asideClassName = isWideSidebarLayoutPage
+    ? "sticky top-0 hidden h-full w-[250px] shrink-0 md:block lg:w-[270px] xl:w-[290px]"
+    : "sticky top-0 hidden h-full w-1/4 md:block";
+
+  const sectionClassName = isWideSidebarLayoutPage
+    ? "scrollbar-hide w-full p-6 md:min-h-0 md:flex-1 md:overflow-y-auto"
+    : "scrollbar-hide w-full px-4 py-6 md:min-h-0 md:w-2/3 md:overflow-y-auto md:px-6";
+
   return (
     <>
       {header}
       {banner}
-      <main className="mx-auto flex w-full max-w-6xl flex-1 md:min-h-0 md:overflow-hidden">
-        <aside className="sticky top-0 hidden h-full w-1/4 md:block">
+      <main className={mainLayoutClassName} data-app-shell-main="true">
+        <aside className={asideClassName}>
           <div className="relative flex h-full flex-col px-6 py-6">
             <div className="pointer-events-none absolute inset-y-6 right-0 w-px bg-border" />
             <div className="space-y-8">{sidebar}</div>
@@ -55,9 +111,7 @@ export default function AppShell({
           </div>
         </aside>
 
-        <section className="scrollbar-hide w-full px-4 py-6 md:min-h-0 md:w-2/3 md:overflow-y-auto md:px-6">
-          {children}
-        </section>
+        <section className={sectionClassName}>{children}</section>
       </main>
       {isChatEnabledPage ? chat : null}
     </>

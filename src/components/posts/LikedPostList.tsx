@@ -44,6 +44,7 @@ export default async function LikedPostList({ sort }: { sort?: string }) {
       endpoint="/api/likes/posts"
       initialSort={parsedSort}
       syncSortWithSearchParams
+      gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
       emptyMessage="아직 좋아요한 게시글이 없습니다."
       postRouteSection="likes"
     />

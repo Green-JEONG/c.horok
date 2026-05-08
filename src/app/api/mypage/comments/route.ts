@@ -40,6 +40,7 @@ export async function GET() {
     rows.map((comment) => ({
       id: Number(comment.id),
       content: comment.content,
+      created_at: comment.createdAt.toISOString(),
       post_id: Number(comment.postId),
       post_title: comment.post.isDeleted
         ? "삭제된 게시물입니다"

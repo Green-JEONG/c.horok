@@ -3,31 +3,39 @@
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { horokCoteProblems } from "@/lib/horok-cote";
+import type { HorokCoteProblem } from "@/lib/horok-cote-shared";
+import { cn } from "@/lib/utils";
 
 type HorokCoteProblemQuickSearchProps = {
-  number: number;
-  title: string;
+  number?: number;
+  title?: string;
+  problems: HorokCoteProblem[];
+  alwaysExpanded?: boolean;
 };
+
+const HOROK_COTE_SEARCH_WIDTH = 280;
 
 export default function HorokCoteProblemQuickSearch({
   number,
   title,
+  problems,
+  alwaysExpanded = false,
 }: HorokCoteProblemQuickSearchProps) {
   const router = useRouter();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [query, setQuery] = useState("");
+  const [overlayWidth, setOverlayWidth] = useState<number | null>(null);
 
   const suggestions = useMemo(() => {
     const trimmedQuery = query.trim().toLowerCase();
 
     if (!trimmedQuery) {
-      return horokCoteProblems.slice(0, 6);
+      return [];
     }
 
-    return horokCoteProblems
+    return problems
       .filter((problem) => {
         const fullLabel = `${problem.number} ${problem.title}`.toLowerCase();
         return (
@@ -37,15 +45,35 @@ export default function HorokCoteProblemQuickSearch({
         );
       })
       .slice(0, 6);
-  }, [query]);
+  }, [problems, query]);
 
   useEffect(() => {
     if (!isEditing) {
+      setOverlayWidth(null);
       return;
     }
 
     inputRef.current?.focus();
     inputRef.current?.select();
+
+    const updateOverlayWidth = () => {
+      const wrapper = wrapperRef.current;
+
+      if (!wrapper) {
+        return;
+      }
+
+      const rect = wrapper.getBoundingClientRect();
+      const viewportMargin = 16;
+      const nextWidth = Math.min(
+        HOROK_COTE_SEARCH_WIDTH,
+        Math.max(220, window.innerWidth - rect.left - viewportMargin),
+      );
+
+      setOverlayWidth(nextWidth);
+    };
+
+    updateOverlayWidth();
 
     const handlePointerDown = (event: MouseEvent) => {
       if (!wrapperRef.current?.contains(event.target as Node)) {
@@ -54,14 +82,19 @@ export default function HorokCoteProblemQuickSearch({
       }
     };
 
+    window.addEventListener("resize", updateOverlayWidth);
+    window.addEventListener("scroll", updateOverlayWidth, true);
+
     document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("resize", updateOverlayWidth);
+      window.removeEventListener("scroll", updateOverlayWidth, true);
+    };
   }, [isEditing]);
 
   const handleSelectProblem = (slug: string) => {
-    const selectedProblem = horokCoteProblems.find(
-      (problem) => problem.slug === slug,
-    );
+    const selectedProblem = problems.find((problem) => problem.slug === slug);
 
     if (!selectedProblem) {
       return;
@@ -72,26 +105,27 @@ export default function HorokCoteProblemQuickSearch({
     router.push(`/horok-cote/${selectedProblem.number}`);
   };
 
-  if (!isEditing) {
+  if (!isEditing && !alwaysExpanded) {
     return (
-      <div className="relative inline-flex">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="relative z-30 min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
           <button
             type="button"
             onDoubleClick={() => setIsEditing(true)}
-            className="cursor-text text-sm font-semibold text-slate-950 outline-none dark:text-slate-50"
+            className="shrink-0 cursor-pointer text-sm font-semibold text-slate-950 outline-none dark:text-slate-50"
           >
             {number}번
           </button>
           <button
             type="button"
             onDoubleClick={() => setIsEditing(true)}
-            className="cursor-text text-sm text-slate-600 outline-none dark:text-slate-300"
+            className="min-w-0 truncate cursor-pointer text-sm text-slate-600 outline-none dark:text-slate-300"
+            title={title}
           >
             {title}
           </button>
         </div>
-        <div className="pointer-events-none absolute left-1 top-[calc(100%+8px)] z-20">
+        <div className="pointer-events-none absolute left-1 top-[calc(100%+8px)] z-40">
           <button
             type="button"
             onDoubleClick={() => setIsEditing(true)}
@@ -106,8 +140,17 @@ export default function HorokCoteProblemQuickSearch({
   }
 
   return (
-    <div ref={wrapperRef} className="relative">
-      <div className="inline-flex min-w-[280px] items-center gap-2 rounded-[999px] border border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+    <div
+      ref={wrapperRef}
+      className={cn(
+        "relative min-w-0 flex-1",
+        alwaysExpanded ? "z-30" : "z-[80]",
+      )}
+    >
+      <div
+        className="inline-flex w-full min-w-0 items-center gap-2 rounded-[999px] border border-slate-200 bg-white px-4 py-2 shadow-[0_12px_28px_rgba(15,23,42,0.12)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_20px_36px_rgba(2,6,23,0.5)]"
+        style={overlayWidth ? { maxWidth: overlayWidth } : undefined}
+      >
         <Search className="size-4 text-slate-400 dark:text-slate-500" />
         <input
           ref={inputRef}
@@ -115,6 +158,11 @@ export default function HorokCoteProblemQuickSearch({
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
+              if (alwaysExpanded) {
+                setQuery("");
+                return;
+              }
+
               setIsEditing(false);
               setQuery("");
             }
@@ -128,31 +176,36 @@ export default function HorokCoteProblemQuickSearch({
         />
       </div>
 
-      <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-full rounded-[24px] border border-slate-200 bg-white p-2 shadow-[0_12px_28px_rgba(15,23,42,0.12)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_20px_36px_rgba(2,6,23,0.5)]">
-        {suggestions.length > 0 ? (
-          <div className="space-y-1">
-            {suggestions.map((problem) => (
-              <button
-                key={problem.slug}
-                type="button"
-                onClick={() => handleSelectProblem(problem.slug)}
-                className="flex w-full items-center justify-between rounded-[18px] px-3 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <span className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-                  {problem.number}번
-                </span>
-                <span className="ml-3 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">
-                  {problem.title}
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-[18px] px-3 py-2 text-sm font-medium text-slate-400 dark:text-slate-500">
-            준비중입니다.
-          </div>
-        )}
-      </div>
+      {query.trim() ? (
+        <div
+          className="absolute left-0 top-[calc(100%+8px)] w-full rounded-[24px] border border-slate-200 bg-white p-2 shadow-[0_12px_28px_rgba(15,23,42,0.12)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_20px_36px_rgba(2,6,23,0.5)]"
+          style={overlayWidth ? { maxWidth: overlayWidth } : undefined}
+        >
+          {suggestions.length > 0 ? (
+            <div className="space-y-1">
+              {suggestions.map((problem) => (
+                <button
+                  key={problem.slug}
+                  type="button"
+                  onClick={() => handleSelectProblem(problem.slug)}
+                  className="flex w-full items-center justify-between rounded-[18px] px-3 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <span className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+                    {problem.number}번
+                  </span>
+                  <span className="ml-3 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">
+                    {problem.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[18px] px-3 py-2 text-sm font-medium text-slate-400 dark:text-slate-500">
+              검색 결과가 없습니다.
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -269,6 +269,27 @@ model CoteMember {
   @@schema("horok_cote")
 }
 
+model CoteProblem {
+  id                BigInt   @id @default(autoincrement())
+  number            Int      @unique
+  slug              String   @unique @db.VarChar(120)
+  title             String   @db.VarChar(200)
+  level             String   @db.VarChar(20)
+  category          String   @db.VarChar(50)
+  duration          String   @db.VarChar(30)
+  acceptanceRate    String   @map("acceptance_rate") @db.VarChar(20)
+  summary           String   @db.Text
+  prompt            String   @db.Text
+  examples          Json
+  testCases         Json     @map("test_cases")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([level, number], map: "idx_cote_problems_level_number")
+  @@map("problems")
+  @@schema("horok_cote")
+}
+
 model CoteProblemProgress {
   id              BigInt                  @id @default(autoincrement())
   userId          BigInt                  @map("user_id")
@@ -279,6 +300,7 @@ model CoteProblemProgress {
   lastCode        String?                 @map("last_code") @db.Text
   lastSubmittedAt DateTime?               @map("last_submitted_at")
   solvedAt        DateTime?               @map("solved_at")
+  solvedDurationSeconds Int?              @map("solved_duration_seconds")
   createdAt       DateTime                @default(now()) @map("created_at")
   updatedAt       DateTime                @default(now()) @updatedAt @map("updated_at")
 

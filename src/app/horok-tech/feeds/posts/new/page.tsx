@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function HorokTechWritePostPage() {
   return (
-    <main className="mx-auto max-w-3xl">
+    <main className="w-full">
       <h1 className="mb-6 text-2xl font-bold">글 작성</h1>
       <PostEditor />
     </main>

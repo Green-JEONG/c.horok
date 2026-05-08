@@ -16,6 +16,8 @@ export async function GET(
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? "1");
   const sort = parseSortType(url.searchParams.get("sort"));
+  const query = url.searchParams.get("q") ?? undefined;
+  const categorySlug = url.searchParams.get("category") ?? undefined;
 
   if (page < 1) {
     return NextResponse.json([], { status: 200 });
@@ -32,6 +34,8 @@ export async function GET(
         ? viewerUserId
         : null,
     isAdmin: session?.user?.role === "ADMIN",
+    query,
+    categorySlug,
   });
 
   return NextResponse.json(posts);

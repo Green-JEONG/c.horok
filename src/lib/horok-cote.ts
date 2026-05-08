@@ -1,4 +1,23 @@
-export type HorokCoteProblem = {
+import "server-only";
+
+import { Prisma } from "@prisma/client";
+import {
+  getHorokCoteChatIntroMessage,
+  getHorokCoteChatThreadTitle,
+  HOROK_COTE_LEVELS,
+  type HorokCoteProblem,
+} from "@/lib/horok-cote-shared";
+import { prisma } from "@/lib/prisma";
+
+export {
+  getHorokCoteChatIntroMessage,
+  getHorokCoteChatThreadTitle,
+  HOROK_COTE_LEVELS,
+};
+
+export type { HorokCoteProblem };
+
+type HorokCoteProblemRecord = {
   number: number;
   slug: string;
   title: string;
@@ -8,104 +27,129 @@ export type HorokCoteProblem = {
   acceptanceRate: string;
   summary: string;
   prompt: string;
-  constraints: string[];
-  inputDescription: string[];
-  outputDescription: string[];
-  examples: Array<{
-    input: string;
-    output: string;
-    explanation: string;
-  }>;
-  starterCodes: {
-    python: string;
-    java: string;
-    cpp: string;
-  };
-  testCases: Array<{
-    name: string;
-    status: "passed" | "pending";
-    input: string;
-    expected: string;
-  }>;
-  tags: string[];
+  examples: Prisma.JsonValue;
+  testCases: Prisma.JsonValue;
 };
 
-export const HOROK_COTE_LEVELS = [
-  "Lv.0",
-  "Lv.1",
-  "Lv.2",
-  "Lv.3",
-  "Lv.4",
-  "Lv.5",
-] as const;
-
-export const horokCoteProblems: HorokCoteProblem[] = [
-  {
-    number: 0,
-    slug: "print-hello-horok",
-    title: "화면에 문장 출력하기",
-    level: "Lv.0",
-    category: "출력",
-    duration: "3분",
-    acceptanceRate: "98%",
-    summary: "정해진 문장을 그대로 한 줄 출력하는 가장 기본적인 문제입니다.",
-    prompt: "`Hello, Horok!`를 한 줄 그대로 출력하세요.",
-    constraints: ["입력은 없습니다.", "공백과 문장부호까지 정확히 출력합니다."],
-    inputDescription: ["이 문제는 입력이 없습니다."],
-    outputDescription: ["`Hello, Horok!`를 한 줄 출력합니다."],
-    examples: [
-      {
-        input: "(입력 없음)",
-        output: "Hello, Horok!",
-        explanation: "문자열을 바꾸지 않고 그대로 출력하면 됩니다.",
-      },
-    ],
-    starterCodes: {
-      python: `print("Hello, Horok!")
-`,
-      java: `public class Main {
-    public static void main(String[] args) {
-        System.out.println("Hello, Horok!");
-    }
-}
-`,
-      cpp: `#include <iostream>
-using namespace std;
-
-int main() {
-    cout << "Hello, Horok!" << '\\n';
-    return 0;
-}
-`,
-    },
-    testCases: [
-      {
-        name: "기본 출력",
-        status: "passed",
-        input: "(입력 없음)",
-        expected: "Hello, Horok!",
-      },
-      {
-        name: "대소문자 확인",
-        status: "pending",
-        input: "(입력 없음)",
-        expected: "Hello, Horok!",
-      },
-    ],
-    tags: ["입문", "print", "출력"],
-  },
-];
-
-export function getHorokCoteProblemByNumber(number: number) {
-  return horokCoteProblems.find((problem) => problem.number === number);
+function isHorokCotePersistenceError(error: unknown) {
+  return (
+    (error instanceof Error &&
+      error.message === "HOROK_COTE_PERSISTENCE_CLIENT_OUTDATED") ||
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022"))
+  );
 }
 
-export function getHorokCoteProblem(problemId: string) {
-  const problemNumber = Number(problemId);
+function getCoteProblemDelegate() {
+  const delegate = (prisma as typeof prisma & { coteProblem?: unknown })
+    .coteProblem;
 
-  if (!Number.isNaN(problemNumber)) {
-    return getHorokCoteProblemByNumber(problemNumber);
+  if (!delegate) {
+    throw new Error("HOROK_COTE_PERSISTENCE_CLIENT_OUTDATED");
   }
 
-  return horokCoteProblems.find((problem) => problem.slug === problemId);
+  return delegate as typeof prisma.coteProblem;
+}
+
+function isExamples(
+  value: Prisma.JsonValue,
+): value is HorokCoteProblem["examples"] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        !Array.isArray(item) &&
+        typeof item.input === "string" &&
+        typeof item.output === "string" &&
+        typeof item.explanation === "string",
+    )
+  );
+}
+
+function isTestCases(
+  value: Prisma.JsonValue,
+): value is HorokCoteProblem["testCases"] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        !Array.isArray(item) &&
+        typeof item.name === "string" &&
+        (item.status === "passed" || item.status === "pending") &&
+        typeof item.input === "string" &&
+        typeof item.expected === "string",
+    )
+  );
+}
+
+function normalizeHorokCoteProblem(record: HorokCoteProblemRecord) {
+  return {
+    number: record.number,
+    slug: record.slug,
+    title: record.title,
+    level: record.level,
+    category: record.category,
+    duration: record.duration,
+    acceptanceRate: record.acceptanceRate,
+    summary: record.summary,
+    prompt: record.prompt,
+    examples: isExamples(record.examples) ? record.examples : [],
+    testCases: isTestCases(record.testCases) ? record.testCases : [],
+  } satisfies HorokCoteProblem;
+}
+
+export async function listHorokCoteProblems() {
+  try {
+    const rows = (await getCoteProblemDelegate().findMany({
+      orderBy: [{ number: "asc" }],
+      select: {
+        number: true,
+        slug: true,
+        title: true,
+        level: true,
+        category: true,
+        duration: true,
+        acceptanceRate: true,
+        summary: true,
+        prompt: true,
+        examples: true,
+        testCases: true,
+      },
+    })) as HorokCoteProblemRecord[];
+
+    return rows.map(normalizeHorokCoteProblem);
+  } catch (error) {
+    if (!isHorokCotePersistenceError(error)) {
+      throw error;
+    }
+
+    return [];
+  }
+}
+
+export async function getHorokCoteProblemByNumber(number: number) {
+  const problems = await listHorokCoteProblems();
+  return problems.find((problem) => problem.number === number);
+}
+
+export async function getHorokCoteProblem(problemId: string) {
+  const problemNumber = Number(problemId);
+  const problems = await listHorokCoteProblems();
+
+  if (!Number.isNaN(problemNumber)) {
+    return problems.find((problem) => problem.number === problemNumber);
+  }
+
+  return problems.find((problem) => problem.slug === problemId);
+}
+
+export async function listHorokCoteProblemRouteParams() {
+  const problems = await listHorokCoteProblems();
+  return problems.map((problem) => ({
+    slug: String(problem.number),
+  }));
 }

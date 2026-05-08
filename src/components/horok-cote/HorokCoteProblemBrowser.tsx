@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import type { HorokCoteProblem } from "@/lib/horok-cote";
+import type { HorokCoteProblem } from "@/lib/horok-cote-shared";
 import { cn } from "@/lib/utils";
 
 type HorokCoteProblemBrowserProps = {
@@ -97,14 +97,14 @@ export default function HorokCoteProblemBrowser({
       ) : null}
 
       <section className="flex min-h-0 flex-1 flex-col">
-        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-1 py-1">
           {paginatedProblems.length > 0 ? (
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               {paginatedProblems.map((problem) => (
                 <Link
                   key={problem.number}
                   href={`/horok-cote/${problem.number}`}
-                  className="group rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 transition duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_16px_40px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)] dark:hover:border-slate-700 dark:hover:shadow-[0_18px_45px_rgba(2,6,23,0.5)]"
+                  className="group relative origin-center rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 transition duration-200 hover:z-10 hover:scale-[1.01] md:odd:origin-left md:even:origin-right hover:border-slate-300 hover:shadow-[0_16px_40px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)] dark:hover:border-slate-700 dark:hover:shadow-[0_18px_45px_rgba(2,6,23,0.5)]"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-[#44bb68]">
@@ -115,7 +115,7 @@ export default function HorokCoteProblemBrowser({
                     </h4>
                   </div>
 
-                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  <p className="mt-3 truncate text-sm leading-6 text-slate-600 dark:text-slate-300">
                     {problem.summary}
                   </p>
 
@@ -159,8 +159,8 @@ export default function HorokCoteProblemBrowser({
                     className={cn(
                       "inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-3 text-sm font-semibold transition",
                       isActive
-                        ? "border-slate-950 bg-slate-950 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-950"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-slate-50",
+                        ? "border-[#06923E] text-[#06923E] dark:border-[#46c86f] dark:text-[#46c86f]"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-slate-50",
                     )}
                   >
                     {page}

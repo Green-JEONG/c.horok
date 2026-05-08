@@ -2,12 +2,25 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { ChevronLeft, List, MessageSquarePlus, Send, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  Copy,
+  Pencil,
+  Plus,
+  Search,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   type FormEvent,
+  type MouseEvent as ReactMouseEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -15,7 +28,12 @@ import {
   useState,
 } from "react";
 
-import { Button } from "@/components/ui/button";
+import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
+import type { HorokCoteProblem } from "@/lib/horok-cote-shared";
+import {
+  getHorokCoteChatIntroMessage,
+  getHorokCoteChatThreadTitle,
+} from "@/lib/horok-cote-shared";
 import { cn } from "@/lib/utils";
 
 type ChatThreadSummary = {
@@ -25,16 +43,70 @@ type ChatThreadSummary = {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  platform?: "tech" | "cote";
 };
 
 type ChatPayload = {
   isAuthenticated: boolean;
   activeThreadId: string | null;
   threads: ChatThreadSummary[];
-  messages: UIMessage[];
+  messages: ChatUIMessage[];
 };
 
-const INITIAL_MESSAGES: UIMessage[] = [
+type HorokChatProps = {
+  variant?: "floating" | "embedded";
+  problem?: HorokCoteProblem;
+};
+
+type ChatUIMessage = UIMessage & {
+  createdAt?: string;
+};
+
+type ThreadCategory = "all" | "tech" | "cote";
+
+type FloatingPosition = {
+  x: number;
+  y: number;
+};
+
+type FloatingSize = {
+  width: number;
+  height: number;
+};
+
+type ThreadSwipeState = {
+  threadId: string;
+  startX: number;
+  deltaX: number;
+  isPointerDown: boolean;
+  openDirection?: "left" | "right" | null;
+};
+
+type ResizeDirection =
+  | "left"
+  | "right"
+  | "top"
+  | "bottom"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
+const THREAD_PLATFORM_STORAGE_KEY = "horok-chat-thread-platforms";
+const COTE_PROBLEM_THREAD_STORAGE_KEY = "horok-chat-cote-problem-threads";
+const FLOATING_BUTTON_SIZE = 64;
+const FLOATING_PANEL_GAP = 12;
+const FLOATING_VIEWPORT_MARGIN = 24;
+const FLOATING_DEFAULT_SIZE: FloatingSize = {
+  width: 310,
+  height: 740,
+};
+const FLOATING_MIN_SIZE: FloatingSize = {
+  width: 250,
+  height: 280,
+};
+
+const INITIAL_MESSAGES: ChatUIMessage[] = [
   {
     id: "horok-welcome",
     role: "assistant",
@@ -47,6 +119,25 @@ const INITIAL_MESSAGES: UIMessage[] = [
   },
 ];
 
+function buildInitialMessages(problem?: HorokCoteProblem): ChatUIMessage[] {
+  if (!problem) {
+    return INITIAL_MESSAGES;
+  }
+
+  return [
+    {
+      id: `horok-cote-${problem.slug}`,
+      role: "assistant",
+      parts: [
+        {
+          type: "text",
+          text: getHorokCoteChatIntroMessage(problem),
+        },
+      ],
+    },
+  ];
+}
+
 function getMessageText(
   parts: Array<{ type: string; text?: string; state?: string }> = [],
 ) {
@@ -56,6 +147,10 @@ function getMessageText(
     .join("");
 }
 
+function escapeBackticksForChatDisplay(text: string) {
+  return text.replace(/`/g, "\\`");
+}
+
 function formatThreadTime(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
@@ -63,31 +158,211 @@ function formatThreadTime(iso: string) {
   }
 
   return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
     month: "numeric",
     day: "numeric",
   }).format(date);
 }
 
+function formatMessageTime(iso: string | null | undefined) {
+  if (!iso) {
+    return "";
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function getMessageDateKey(iso: string | null | undefined) {
+  if (!iso) {
+    return "";
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function formatMessageDateBadge(iso: string | null | undefined) {
+  if (!iso) {
+    return "";
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(date);
+}
+
+function sortThreadsByRecentActivity(threads: ChatThreadSummary[]) {
+  return [...threads].sort((a, b) => {
+    const updatedAtDiff =
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+
+    if (updatedAtDiff !== 0) {
+      return updatedAtDiff;
+    }
+
+    return Number(b.id) - Number(a.id);
+  });
+}
+
+function readThreadPlatformMap() {
+  if (typeof window === "undefined") {
+    return {} as Record<string, "tech" | "cote">;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(THREAD_PLATFORM_STORAGE_KEY);
+    if (!stored) {
+      return {};
+    }
+
+    return JSON.parse(stored) as Record<string, "tech" | "cote">;
+  } catch {
+    return {};
+  }
+}
+
+function writeThreadPlatformMap(nextMap: Record<string, "tech" | "cote">) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    THREAD_PLATFORM_STORAGE_KEY,
+    JSON.stringify(nextMap),
+  );
+}
+
+function readCoteProblemThreadMap() {
+  if (typeof window === "undefined") {
+    return {} as Record<string, string>;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(COTE_PROBLEM_THREAD_STORAGE_KEY);
+    if (!stored) {
+      return {};
+    }
+
+    return JSON.parse(stored) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function writeCoteProblemThreadMap(nextMap: Record<string, string>) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    COTE_PROBLEM_THREAD_STORAGE_KEY,
+    JSON.stringify(nextMap),
+  );
+}
+
+function clampFloatingSize(size: FloatingSize) {
+  if (typeof window === "undefined") {
+    return size;
+  }
+
+  return {
+    width: Math.min(
+      Math.max(size.width, FLOATING_MIN_SIZE.width),
+      Math.max(FLOATING_MIN_SIZE.width, window.innerWidth - 24),
+    ),
+    height: Math.min(
+      Math.max(size.height, FLOATING_MIN_SIZE.height),
+      Math.max(FLOATING_MIN_SIZE.height, window.innerHeight - 120),
+    ),
+  };
+}
+
+function getFloatingDefaultSize(_pathname: string | null): FloatingSize {
+  if (typeof window === "undefined") {
+    return FLOATING_DEFAULT_SIZE;
+  }
+
+  return clampFloatingSize({
+    width: FLOATING_DEFAULT_SIZE.width,
+    height: FLOATING_DEFAULT_SIZE.height,
+  });
+}
+
+function clampFloatingPosition(
+  position: FloatingPosition,
+  size: FloatingSize,
+  isOpen: boolean,
+) {
+  if (typeof window === "undefined") {
+    return position;
+  }
+
+  const minX = 0;
+  const maxX = Math.max(minX, window.innerWidth - FLOATING_BUTTON_SIZE);
+  const minY = isOpen ? size.height + FLOATING_PANEL_GAP : 0;
+  const maxY = Math.max(minY, window.innerHeight - FLOATING_BUTTON_SIZE);
+
+  return {
+    x: Math.min(Math.max(position.x, minX), maxX),
+    y: Math.min(Math.max(position.y, minY), maxY),
+  };
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function getVisibleMessages(
-  messages: UIMessage[],
+  messages: ChatUIMessage[],
   sessionStatus: "authenticated" | "loading" | "unauthenticated",
   activeThreadId: string | null,
-) {
+  fallbackMessages: ChatUIMessage[],
+): ChatUIMessage[] {
   if (sessionStatus !== "authenticated") {
-    return messages.length > 0 ? messages : INITIAL_MESSAGES;
+    return messages.length > 0 ? messages : fallbackMessages;
   }
 
   if (!activeThreadId) {
-    return [];
+    return messages.length > 0 ? messages : fallbackMessages;
   }
 
-  return messages.length > 0 ? messages : INITIAL_MESSAGES;
+  return messages.length > 0 ? messages : fallbackMessages;
 }
 
-export default function HorokChat() {
+export default function HorokChat({
+  variant = "floating",
+  problem,
+}: HorokChatProps) {
   const pathname = usePathname();
   const { status: sessionStatus } = useSession();
   const platform = pathname?.startsWith("/horok-cote") ? "cote" : "tech";
+  const initialMessages = useMemo(
+    () => buildInitialMessages(problem),
+    [problem],
+  );
+  const isEmbedded = variant === "embedded";
+  const hasCloseButton = !isEmbedded;
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -95,28 +370,68 @@ export default function HorokChat() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
   const [view, setView] = useState<"chat" | "threads">("chat");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
+  const [messageTimes, setMessageTimes] = useState<Record<string, string>>({});
+  const [threadCategory, setThreadCategory] = useState<ThreadCategory>("all");
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [floatingPosition, setFloatingPosition] =
+    useState<FloatingPosition | null>(null);
+  const [floatingSize, setFloatingSize] = useState<FloatingSize>(
+    FLOATING_DEFAULT_SIZE,
+  );
+  const [threadSwipeState, setThreadSwipeState] =
+    useState<ThreadSwipeState | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dragStateRef = useRef<{
+    pointerOffsetX: number;
+    pointerOffsetY: number;
+  } | null>(null);
+  const resizeStateRef = useRef<{
+    direction: ResizeDirection;
+    startWidth: number;
+    startHeight: number;
+    startClientX: number;
+    startClientY: number;
+    startPositionX: number;
+    startPositionY: number;
+  } | null>(null);
+  const floatingSizeRef = useRef(FLOATING_DEFAULT_SIZE);
+  const isOpenRef = useRef(false);
+  const viewportSizeRef = useRef({ width: 0, height: 0 });
 
-  const { messages, sendMessage, setMessages, status, error, clearError } =
-    useChat({
-      messages: INITIAL_MESSAGES,
-      transport: new DefaultChatTransport({
-        api: "/api/chat",
-        prepareSendMessagesRequest: ({ messages: nextMessages }) => ({
-          body: {
-            platform,
-            threadId: activeThreadIdRef.current,
-            message: nextMessages[nextMessages.length - 1],
-          },
-        }),
+  const {
+    messages: rawMessages,
+    sendMessage,
+    setMessages: rawSetMessages,
+    status,
+    error,
+    clearError,
+  } = useChat({
+    messages: initialMessages,
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      prepareSendMessagesRequest: ({ messages: nextMessages }) => ({
+        body: {
+          platform,
+          threadId: activeThreadIdRef.current,
+          message: nextMessages[nextMessages.length - 1],
+        },
       }),
-    });
+    }),
+  });
+  const messages = rawMessages as ChatUIMessage[];
+  const setMessages = rawSetMessages as (messages: ChatUIMessage[]) => void;
 
   const visibleMessages = useMemo(
-    () => getVisibleMessages(messages, sessionStatus, threadId),
-    [messages, sessionStatus, threadId],
+    () =>
+      getVisibleMessages(messages, sessionStatus, threadId, initialMessages),
+    [initialMessages, messages, sessionStatus, threadId],
   );
   const isLoading =
     status === "submitted" ||
@@ -130,18 +445,105 @@ export default function HorokChat() {
       ),
     [visibleMessages],
   );
-  const activeThread = useMemo(
-    () => threads.find((thread) => thread.id === threadId) ?? null,
-    [threadId, threads],
-  );
   const isThreadMode = sessionStatus === "authenticated" && view === "threads";
+  const isPanelOpen = isEmbedded || isOpen;
+  const searchableMessages = useMemo(
+    () =>
+      visibleMessages
+        .map((message) => ({
+          id: message.id,
+          text: getMessageText(message.parts).trim(),
+        }))
+        .filter((message) => message.text.length > 0),
+    [visibleMessages],
+  );
+  const searchMatches = useMemo(() => {
+    const normalized = searchQuery.trim().toLocaleLowerCase();
+    if (!normalized) {
+      return [];
+    }
+
+    return searchableMessages.flatMap((message) => {
+      const normalizedText = message.text.toLocaleLowerCase();
+      const matches: Array<{
+        messageId: string;
+        occurrenceIndexInMessage: number;
+      }> = [];
+      let searchStartIndex = 0;
+      let occurrenceIndexInMessage = 0;
+
+      while (searchStartIndex < normalizedText.length) {
+        const matchedIndex = normalizedText.indexOf(
+          normalized,
+          searchStartIndex,
+        );
+
+        if (matchedIndex === -1) {
+          break;
+        }
+
+        matches.push({
+          messageId: message.id,
+          occurrenceIndexInMessage,
+        });
+        occurrenceIndexInMessage += 1;
+        searchStartIndex = matchedIndex + normalized.length;
+      }
+
+      return matches;
+    });
+  }, [searchQuery, searchableMessages]);
+  const matchedMessageIds = useMemo(
+    () => [...new Set(searchMatches.map((match) => match.messageId))],
+    [searchMatches],
+  );
+  const activeSearchMatch =
+    searchMatches.length > 0
+      ? searchMatches[Math.min(activeSearchIndex, searchMatches.length - 1)]
+      : null;
+  const activeMatchedMessageId = activeSearchMatch?.messageId ?? null;
+  const isFloatingPanelLeftOfCenter = useMemo(() => {
+    if (isEmbedded || !floatingPosition || typeof window === "undefined") {
+      return false;
+    }
+
+    const buttonCenter = floatingPosition.x + FLOATING_BUTTON_SIZE / 2;
+
+    return buttonCenter < window.innerWidth / 2;
+  }, [floatingPosition, isEmbedded]);
+  const filteredThreads = useMemo(() => {
+    const nextThreads =
+      threadCategory === "all"
+        ? threads
+        : threads.filter((thread) => thread.platform === threadCategory);
+
+    return sortThreadsByRecentActivity(nextThreads);
+  }, [threadCategory, threads]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   });
 
   useEffect(() => {
-    if (!isOpen || isThreadMode) {
+    if (isEmbedded || typeof window === "undefined") {
+      return;
+    }
+
+    viewportSizeRef.current = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+
+    const nextSize = getFloatingDefaultSize(pathname);
+    setFloatingSize(nextSize);
+    setFloatingPosition({
+      x: window.innerWidth - FLOATING_BUTTON_SIZE - FLOATING_VIEWPORT_MARGIN,
+      y: window.innerHeight - FLOATING_BUTTON_SIZE - FLOATING_VIEWPORT_MARGIN,
+    });
+  }, [isEmbedded, pathname]);
+
+  useEffect(() => {
+    if (!isPanelOpen || isThreadMode) {
       return;
     }
 
@@ -150,7 +552,213 @@ export default function HorokChat() {
     }, 150);
 
     return () => window.clearTimeout(timer);
-  }, [isOpen, isThreadMode]);
+  }, [isPanelOpen, isThreadMode]);
+
+  useEffect(() => {
+    if (!isSearchOpen) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 100);
+
+    return () => window.clearTimeout(timer);
+  }, [isSearchOpen]);
+
+  useEffect(() => {
+    if (!isSearchOpen || !activeMatchedMessageId) {
+      return;
+    }
+
+    messageRefs.current[activeMatchedMessageId]?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [activeMatchedMessageId, isSearchOpen]);
+
+  useEffect(() => {
+    if (isEmbedded || typeof window === "undefined") {
+      return;
+    }
+
+    function handleMouseMove(event: MouseEvent) {
+      if (dragStateRef.current) {
+        const containerLeft =
+          event.clientX - dragStateRef.current.pointerOffsetX;
+        const containerTop =
+          event.clientY - dragStateRef.current.pointerOffsetY;
+        const nextPosition = clampFloatingPosition(
+          {
+            x: containerLeft,
+            y: containerTop,
+          },
+          floatingSize,
+          isOpen,
+        );
+
+        setFloatingPosition(nextPosition);
+        return;
+      }
+
+      if (resizeStateRef.current) {
+        const {
+          direction,
+          startWidth,
+          startHeight,
+          startClientX,
+          startClientY,
+          startPositionX,
+          startPositionY,
+        } = resizeStateRef.current;
+        const deltaX = event.clientX - startClientX;
+        const deltaY = event.clientY - startClientY;
+        const startRight = startPositionX + FLOATING_BUTTON_SIZE;
+        const startLeft = startRight - startWidth;
+        const startBottom = startPositionY - FLOATING_PANEL_GAP;
+        const startTop = startBottom - startHeight;
+        const minRight = startLeft + FLOATING_MIN_SIZE.width;
+        const maxBottom =
+          window.innerHeight - FLOATING_BUTTON_SIZE - FLOATING_PANEL_GAP;
+        const minBottom = startTop + FLOATING_MIN_SIZE.height;
+
+        let nextLeft = startLeft;
+        let nextRight = startRight;
+        let nextTop = startTop;
+        let nextBottom = startBottom;
+
+        if (direction.includes("left")) {
+          nextLeft = Math.min(
+            startLeft + deltaX,
+            startRight - FLOATING_MIN_SIZE.width,
+          );
+          nextLeft = Math.max(0, nextLeft);
+        }
+
+        if (direction.includes("right")) {
+          nextRight = Math.max(startRight + deltaX, minRight);
+          nextRight = Math.min(window.innerWidth, nextRight);
+        }
+
+        if (direction.includes("top")) {
+          nextTop = Math.min(
+            startTop + deltaY,
+            startBottom - FLOATING_MIN_SIZE.height,
+          );
+          nextTop = Math.max(0, nextTop);
+        }
+
+        if (direction.includes("bottom")) {
+          nextBottom = Math.max(startBottom + deltaY, minBottom);
+          nextBottom = Math.min(maxBottom, nextBottom);
+        }
+
+        const nextSize = {
+          width: nextRight - nextLeft,
+          height: nextBottom - nextTop,
+        };
+        setFloatingSize(nextSize);
+      }
+    }
+
+    function handleMouseUp() {
+      dragStateRef.current = null;
+      resizeStateRef.current = null;
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [floatingSize, isEmbedded, isOpen]);
+
+  useEffect(() => {
+    floatingSizeRef.current = floatingSize;
+  }, [floatingSize]);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isEmbedded || typeof window === "undefined") {
+      return;
+    }
+
+    function handleResize() {
+      const previousViewport = viewportSizeRef.current;
+      const widthDelta = window.innerWidth - previousViewport.width;
+      const heightDelta = window.innerHeight - previousViewport.height;
+      const nextSize = clampFloatingSize(floatingSizeRef.current);
+
+      viewportSizeRef.current = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
+
+      setFloatingSize(nextSize);
+      setFloatingPosition((currentPosition) =>
+        currentPosition
+          ? clampFloatingPosition(
+              {
+                x: currentPosition.x + widthDelta,
+                y: currentPosition.y + heightDelta,
+              },
+              nextSize,
+              isOpenRef.current,
+            )
+          : currentPosition,
+      );
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isEmbedded]);
+
+  useEffect(() => {
+    if (isEmbedded || !floatingPosition) {
+      return;
+    }
+
+    const nextPosition = clampFloatingPosition(
+      floatingPosition,
+      floatingSize,
+      isOpen,
+    );
+    if (
+      nextPosition.x !== floatingPosition.x ||
+      nextPosition.y !== floatingPosition.y
+    ) {
+      setFloatingPosition(nextPosition);
+    }
+  }, [floatingPosition, floatingSize, isEmbedded, isOpen]);
+
+  useEffect(() => {
+    const nextEntries = messages.reduce<Record<string, string>>(
+      (acc, message) => {
+        const knownTimestamp =
+          message.createdAt ??
+          messageTimes[message.id] ??
+          new Date().toISOString();
+        acc[message.id] = knownTimestamp;
+        return acc;
+      },
+      {},
+    );
+
+    setMessageTimes((current) => {
+      const hasChanged =
+        Object.keys(nextEntries).length !== Object.keys(current).length ||
+        Object.entries(nextEntries).some(
+          ([id, timestamp]) => current[id] !== timestamp,
+        );
+
+      return hasChanged ? nextEntries : current;
+    });
+  }, [messageTimes, messages]);
 
   const applyActiveThread = useCallback((nextThreadId: string | null) => {
     activeThreadIdRef.current = nextThreadId;
@@ -162,8 +770,8 @@ export default function HorokChat() {
       if (sessionStatus !== "authenticated") {
         applyActiveThread(null);
         setThreads([]);
-        setMessages(INITIAL_MESSAGES);
-        return;
+        setMessages(initialMessages);
+        return null;
       }
 
       setIsHistoryLoading(true);
@@ -184,20 +792,34 @@ export default function HorokChat() {
         }
 
         const data = (await response.json()) as ChatPayload;
+        const threadPlatformMap = readThreadPlatformMap();
+        const nextThreads = data.threads.map((thread) => {
+          const resolvedPlatform = threadPlatformMap[thread.id] ?? platform;
+          threadPlatformMap[thread.id] = resolvedPlatform;
 
-        setThreads(data.threads);
+          return {
+            ...thread,
+            platform: resolvedPlatform,
+          };
+        });
+
+        writeThreadPlatformMap(threadPlatformMap);
+
+        setThreads(sortThreadsByRecentActivity(nextThreads));
         applyActiveThread(data.activeThreadId);
         setMessages(data.activeThreadId ? data.messages : []);
+        return data;
       } catch (loadError) {
         console.error("Failed to load chat state", loadError);
         setThreads([]);
         applyActiveThread(null);
         setMessages([]);
+        return null;
       } finally {
         setIsHistoryLoading(false);
       }
     },
-    [applyActiveThread, platform, sessionStatus, setMessages],
+    [applyActiveThread, initialMessages, platform, sessionStatus, setMessages],
   );
 
   useEffect(() => {
@@ -208,13 +830,112 @@ export default function HorokChat() {
     if (sessionStatus !== "authenticated") {
       applyActiveThread(null);
       setThreads([]);
-      setMessages(INITIAL_MESSAGES);
+      setMessages(initialMessages);
       setView("chat");
       return;
     }
 
+    if (platform === "cote" && problem) {
+      return;
+    }
+
     void loadChatState();
-  }, [applyActiveThread, loadChatState, sessionStatus, setMessages]);
+  }, [
+    applyActiveThread,
+    initialMessages,
+    loadChatState,
+    platform,
+    problem,
+    sessionStatus,
+    setMessages,
+  ]);
+
+  useEffect(() => {
+    if (
+      sessionStatus !== "authenticated" ||
+      platform !== "cote" ||
+      !problem ||
+      isCreatingThread
+    ) {
+      return;
+    }
+
+    let isCancelled = false;
+    const currentProblem = problem;
+
+    async function ensureProblemThread() {
+      const threadTitle = getHorokCoteChatThreadTitle(currentProblem);
+      const threadMap = readCoteProblemThreadMap();
+      const mappedThreadId = threadMap[currentProblem.slug];
+      const currentState = await loadChatState();
+
+      if (isCancelled) {
+        return;
+      }
+
+      const matchedThread =
+        currentState?.threads.find((thread) => thread.id === mappedThreadId) ??
+        currentState?.threads.find((thread) => thread.title === threadTitle);
+
+      if (matchedThread) {
+        threadMap[currentProblem.slug] = matchedThread.id;
+        writeCoteProblemThreadMap(threadMap);
+
+        if (currentState?.activeThreadId !== matchedThread.id) {
+          await loadChatState(matchedThread.id);
+        }
+
+        setView("chat");
+        return;
+      }
+
+      setIsCreatingThread(true);
+
+      try {
+        const response = await fetch("/api/chat/threads", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            platform,
+            title: threadTitle,
+            initialAssistantMessage:
+              getHorokCoteChatIntroMessage(currentProblem),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to create problem thread");
+        }
+
+        const data = (await response.json()) as {
+          threadId: string;
+        };
+
+        const threadPlatformMap = readThreadPlatformMap();
+        threadPlatformMap[data.threadId] = platform;
+        writeThreadPlatformMap(threadPlatformMap);
+
+        threadMap[currentProblem.slug] = data.threadId;
+        writeCoteProblemThreadMap(threadMap);
+        await loadChatState(data.threadId);
+        setView("chat");
+      } catch (createError) {
+        console.error("Failed to create problem thread", createError);
+      } finally {
+        if (!isCancelled) {
+          setIsCreatingThread(false);
+        }
+      }
+    }
+
+    void ensureProblemThread();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isCreatingThread, loadChatState, platform, problem, sessionStatus]);
 
   async function handleSelectThread(nextThreadId: string) {
     if (nextThreadId === threadId) {
@@ -252,6 +973,9 @@ export default function HorokChat() {
       };
 
       applyActiveThread(data.threadId);
+      const threadPlatformMap = readThreadPlatformMap();
+      threadPlatformMap[data.threadId] = platform;
+      writeThreadPlatformMap(threadPlatformMap);
       setMessages([]);
       setInput("");
       setView("chat");
@@ -292,17 +1016,23 @@ export default function HorokChat() {
       };
 
       applyActiveThread(data.threadId);
-      setThreads((currentThreads) => [
-        {
-          id: data.threadId,
-          title: "새 대화",
-          preview: "",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messageCount: 0,
-        },
-        ...currentThreads,
-      ]);
+      const threadPlatformMap = readThreadPlatformMap();
+      threadPlatformMap[data.threadId] = platform;
+      writeThreadPlatformMap(threadPlatformMap);
+      setThreads((currentThreads) =>
+        sortThreadsByRecentActivity([
+          {
+            id: data.threadId,
+            title: "새 대화",
+            preview: "",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messageCount: 0,
+            platform,
+          },
+          ...currentThreads,
+        ]),
+      );
 
       return data.threadId;
     } finally {
@@ -332,255 +1062,809 @@ export default function HorokChat() {
     }
   }
 
+  async function handleRenameThread(targetThread: ChatThreadSummary) {
+    if (sessionStatus !== "authenticated") {
+      return;
+    }
+
+    const nextTitle = window.prompt(
+      "새 제목을 입력해 주세요.",
+      targetThread.title,
+    );
+    const trimmedTitle = nextTitle?.trim();
+    if (!trimmedTitle) {
+      return;
+    }
+
+    const response = await fetch("/api/chat/threads", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        platform,
+        threadId: targetThread.id,
+        title: trimmedTitle,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to rename thread");
+    }
+
+    setThreads((currentThreads) =>
+      currentThreads.map((thread) =>
+        thread.id === targetThread.id
+          ? { ...thread, title: trimmedTitle }
+          : thread,
+      ),
+    );
+  }
+
+  async function handleDeleteThread(targetThread: ChatThreadSummary) {
+    if (sessionStatus !== "authenticated") {
+      return;
+    }
+
+    const confirmed = window.confirm("이 대화를 삭제할까요?");
+    if (!confirmed) {
+      return;
+    }
+
+    const response = await fetch("/api/chat/threads", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        platform,
+        threadId: targetThread.id,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to delete thread");
+    }
+
+    setThreads((currentThreads) =>
+      currentThreads.filter((thread) => thread.id !== targetThread.id),
+    );
+
+    if (threadId === targetThread.id) {
+      applyActiveThread(null);
+      setMessages([]);
+    }
+  }
+
+  function toggleSearch() {
+    setIsSearchOpen((current) => {
+      const next = !current;
+      if (!next) {
+        setSearchQuery("");
+        setActiveSearchIndex(0);
+      }
+      return next;
+    });
+  }
+
+  function moveSearchMatch(direction: "prev" | "next") {
+    if (searchMatches.length === 0) {
+      return;
+    }
+
+    setActiveSearchIndex((current) => {
+      if (direction === "next") {
+        return (current + 1) % searchMatches.length;
+      }
+
+      return (current - 1 + searchMatches.length) % searchMatches.length;
+    });
+  }
+
+  function handleThreadSwipeStart(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    targetThreadId: string,
+  ) {
+    setThreadSwipeState({
+      threadId: targetThreadId,
+      startX: event.clientX,
+      deltaX: 0,
+      isPointerDown: true,
+      openDirection: null,
+    });
+  }
+
+  function handleThreadSwipeMove(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    targetThreadId: string,
+  ) {
+    setThreadSwipeState((currentState) => {
+      if (
+        !currentState ||
+        !currentState.isPointerDown ||
+        currentState.threadId !== targetThreadId
+      ) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        deltaX: Math.max(
+          -120,
+          Math.min(120, event.clientX - currentState.startX),
+        ),
+      };
+    });
+  }
+
+  function handleThreadSwipeEnd(targetThread: ChatThreadSummary) {
+    const deltaX =
+      threadSwipeState?.threadId === targetThread.id
+        ? threadSwipeState.deltaX
+        : 0;
+    if (deltaX <= -80) {
+      setThreadSwipeState({
+        threadId: targetThread.id,
+        startX: 0,
+        deltaX: -48,
+        isPointerDown: false,
+        openDirection: "left",
+      });
+      return true;
+    }
+
+    if (deltaX >= 80) {
+      setThreadSwipeState({
+        threadId: targetThread.id,
+        startX: 0,
+        deltaX: 48,
+        isPointerDown: false,
+        openDirection: "right",
+      });
+      return true;
+    }
+
+    setThreadSwipeState(null);
+    return false;
+  }
+
+  function renderHighlightedText(
+    text: string,
+    activeOccurrenceIndexInMessage?: number,
+  ) {
+    const normalizedQuery = searchQuery.trim();
+    if (!normalizedQuery) {
+      return text;
+    }
+
+    const pattern = new RegExp(`(${escapeRegExp(normalizedQuery)})`, "gi");
+    const parts = text.split(pattern);
+    let cursor = 0;
+    let occurrenceCursor = 0;
+
+    return parts.map((part) => {
+      const key = `${part}-${cursor}`;
+      cursor += part.length;
+
+      if (part.toLocaleLowerCase() !== normalizedQuery.toLocaleLowerCase()) {
+        return <span key={key}>{part}</span>;
+      }
+
+      const isActiveMatch = activeOccurrenceIndexInMessage === occurrenceCursor;
+      occurrenceCursor += 1;
+
+      return (
+        <mark
+          key={key}
+          className={
+            platform === "cote"
+              ? isActiveMatch
+                ? "rounded-sm bg-[#06923E]/30 px-0.5 font-semibold text-[#047a33] dark:bg-[#06923E]/40 dark:text-[#b5f5c8]"
+                : "rounded-sm bg-[#06923E]/18 px-0.5 text-[#047a33] dark:bg-[#06923E]/25 dark:text-[#8df0ae]"
+              : isActiveMatch
+                ? "rounded-sm bg-orange-300/85 px-0.5 font-semibold text-orange-900 dark:bg-orange-400/30 dark:text-orange-100"
+                : "rounded-sm bg-orange-200/70 px-0.5 text-orange-800 dark:bg-orange-400/20 dark:text-orange-200"
+          }
+        >
+          {part}
+        </mark>
+      );
+    });
+  }
+
+  function handleFloatingDragStart(event: ReactMouseEvent<HTMLButtonElement>) {
+    if (isEmbedded || !floatingPosition) {
+      return;
+    }
+
+    dragStateRef.current = {
+      pointerOffsetX: event.clientX - floatingPosition.x,
+      pointerOffsetY: event.clientY - floatingPosition.y,
+    };
+  }
+
+  function handleFloatingResizeStart(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    direction: ResizeDirection,
+  ) {
+    if (isEmbedded || !floatingPosition) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    resizeStateRef.current = {
+      direction,
+      startWidth: floatingSize.width,
+      startHeight: floatingSize.height,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPositionX: floatingPosition.x,
+      startPositionY: floatingPosition.y,
+    };
+  }
+
+  async function handleCopyMessage(messageId: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      window.setTimeout(() => {
+        setCopiedMessageId((current) =>
+          current === messageId ? null : current,
+        );
+      }, 1500);
+    } catch (copyError) {
+      console.error("Message copy failed", copyError);
+    }
+  }
+
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-40 flex items-end justify-end sm:right-6 sm:bottom-6">
-      <div className="relative flex flex-col items-end">
+    <div
+      className={cn(
+        isEmbedded
+          ? "flex h-full min-h-0 flex-col"
+          : "pointer-events-none fixed z-40 flex items-end justify-end",
+      )}
+      style={
+        !isEmbedded && floatingPosition
+          ? {
+              left: floatingPosition.x,
+              top: floatingPosition.y,
+            }
+          : undefined
+      }
+    >
+      <div
+        className={cn(
+          isEmbedded
+            ? "flex h-full min-h-0 flex-col"
+            : cn(
+                "relative flex flex-col",
+                isFloatingPanelLeftOfCenter ? "items-start" : "items-end",
+              ),
+        )}
+        style={
+          !isEmbedded
+            ? {
+                width: FLOATING_BUTTON_SIZE,
+                minHeight: FLOATING_BUTTON_SIZE,
+              }
+            : undefined
+        }
+      >
         <div
           className={cn(
-            "pointer-events-auto absolute right-0 bottom-[calc(100%+0.75rem)] w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] border bg-white transition-all duration-300 dark:bg-zinc-950 sm:max-w-sm",
+            isEmbedded
+              ? "flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border bg-white dark:bg-zinc-950"
+              : cn(
+                  "pointer-events-auto absolute bottom-[calc(100%+0.75rem)] flex flex-col overflow-hidden rounded-[24px] border bg-white transition-all duration-300 dark:bg-zinc-950 sm:rounded-[28px]",
+                  isFloatingPanelLeftOfCenter ? "left-0" : "right-0",
+                ),
             platform === "cote"
               ? "border-[#06923E]/20 dark:border-[#06923E]/30"
               : "border-orange-100 dark:border-orange-400/20",
-            isOpen
-              ? "translate-y-0 scale-100 opacity-100"
-              : "pointer-events-none translate-y-4 scale-95 opacity-0",
+            !isEmbedded &&
+              (isOpen
+                ? "translate-y-0 scale-100 opacity-100"
+                : "pointer-events-none translate-y-4 scale-95 opacity-0"),
           )}
+          style={
+            !isEmbedded
+              ? {
+                  width: floatingSize.width,
+                  height: floatingSize.height,
+                }
+              : undefined
+          }
         >
           <div
             className={cn(
-              "px-5 py-4 text-primary-foreground",
+              "relative px-4 py-3 text-primary-foreground",
               platform === "cote" ? "bg-[#06923E]" : "bg-primary",
             )}
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                {sessionStatus === "authenticated" ? (
+            {!isEmbedded ? (
+              <button
+                type="button"
+                className="absolute inset-0 cursor-move"
+                aria-label="채팅창 이동"
+                onMouseDown={handleFloatingDragStart}
+              />
+            ) : null}
+            <div className="relative flex items-center">
+              {!isThreadMode && sessionStatus === "authenticated" ? (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2">
                   <button
                     type="button"
-                    onClick={() =>
-                      setView((current) =>
-                        current === "chat" ? "threads" : "chat",
-                      )
-                    }
-                    className="rounded-full bg-white/15 p-2 text-primary-foreground transition hover:bg-white/25"
-                    aria-label={
-                      isThreadMode ? "대화창으로 돌아가기" : "대화 목록 보기"
-                    }
+                    onClick={() => {
+                      setView("threads");
+                    }}
+                    className="p-1 text-primary-foreground transition hover:opacity-80"
+                    aria-label="대화 목록 보기"
                   >
-                    {isThreadMode ? (
-                      <ChevronLeft className="size-4" />
-                    ) : (
-                      <List className="size-4" />
-                    )}
+                    <ChevronLeft className="size-5" />
                   </button>
-                ) : null}
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold">
-                    호록이 상담소
-                  </p>
-                  <p className="truncate text-xs text-primary-foreground/80">
-                    {isThreadMode
-                      ? "저장된 대화 목록"
-                      : (activeThread?.title ??
-                        (sessionStatus === "authenticated"
-                          ? "대화를 선택해 주세요."
-                          : "궁금한 점을 바로 물어보세요."))}
-                  </p>
+                </div>
+              ) : null}
+
+              <div
+                className={cn(
+                  "flex h-8 min-w-0 flex-1 items-center justify-center",
+                  hasCloseButton ? "mx-8" : "ml-8 mr-0",
+                )}
+              >
+                <p
+                  className={cn(
+                    "pointer-events-none absolute left-1/2 -translate-x-1/2 text-base font-semibold transition-opacity",
+                    isSearchOpen && !isThreadMode ? "opacity-0" : "opacity-100",
+                  )}
+                >
+                  호록이
+                </p>
+
+                <div
+                  className={cn(
+                    "absolute inset-y-0 left-8 flex items-center gap-1 transition-opacity",
+                    hasCloseButton ? "right-16" : "right-8",
+                    isSearchOpen && !isThreadMode
+                      ? "pointer-events-auto opacity-100"
+                      : "pointer-events-none opacity-0",
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 items-center rounded-2xl bg-white/12 px-3 ring-1 ring-white/20 backdrop-blur-sm">
+                    <input
+                      ref={searchInputRef}
+                      value={searchQuery}
+                      onChange={(event) => {
+                        setSearchQuery(event.target.value);
+                        setActiveSearchIndex(0);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") {
+                          return;
+                        }
+
+                        event.preventDefault();
+                        moveSearchMatch(event.shiftKey ? "prev" : "next");
+                      }}
+                      placeholder="대화 내용 검색"
+                      className="h-8 w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
+                    />
+                    <span className="ml-2 w-8 shrink-0 text-right text-[11px] text-white/80">
+                      {searchQuery.trim()
+                        ? searchMatches.length > 0
+                          ? `${Math.min(activeSearchIndex + 1, searchMatches.length)}/${searchMatches.length}`
+                          : "0"
+                        : ""}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => moveSearchMatch("prev")}
+                    disabled={searchMatches.length === 0}
+                    className="p-1 text-primary-foreground transition hover:opacity-80 disabled:cursor-default disabled:opacity-40"
+                    aria-label="이전 검색 결과"
+                  >
+                    <ChevronUp className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveSearchMatch("next")}
+                    disabled={searchMatches.length === 0}
+                    className="p-1 text-primary-foreground transition hover:opacity-80 disabled:cursor-default disabled:opacity-40"
+                    aria-label="다음 검색 결과"
+                  >
+                    <ChevronDown className="size-4" />
+                  </button>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded-full bg-white/15 p-2 text-primary-foreground transition hover:bg-white/25"
-                aria-label="챗봇 닫기"
-              >
-                <X className="size-4" />
-              </button>
+              {!isThreadMode ? (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={toggleSearch}
+                      className="p-1 text-primary-foreground transition hover:opacity-80"
+                      aria-label={isSearchOpen ? "검색 닫기" : "대화 검색"}
+                    >
+                      <Search className="size-5" />
+                    </button>
+                    {hasCloseButton ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsOpen(false)}
+                        className="p-1 text-primary-foreground transition hover:opacity-80"
+                        aria-label="챗봇 닫기"
+                      >
+                        <X className="size-5" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handleCreateThread}
+                      disabled={isCreatingThread}
+                      className="p-1 text-primary-foreground transition hover:opacity-80 disabled:opacity-40"
+                      aria-label="새 대화"
+                    >
+                      <Plus className="size-5" />
+                    </button>
+                    {!isEmbedded ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsOpen(false)}
+                        className="p-1 text-primary-foreground transition hover:opacity-80"
+                        aria-label="챗봇 닫기"
+                      >
+                        <X className="size-5" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div
             className={cn(
-              "flex h-[30rem] flex-col",
+              isEmbedded
+                ? "flex min-h-0 flex-1 flex-col"
+                : "flex min-h-0 flex-1 flex-col",
               platform === "cote"
-                ? "bg-[linear-gradient(180deg,#f3fff7_0%,#ffffff_24%)] dark:bg-[linear-gradient(180deg,#102316_0%,#171717_22%)]"
-                : "bg-[linear-gradient(180deg,#fff8f0_0%,#ffffff_24%)] dark:bg-[linear-gradient(180deg,#2c1f12_0%,#171717_22%)]",
+                ? "bg-white dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]"
+                : "bg-white dark:bg-zinc-950",
             )}
           >
             {isThreadMode ? (
-              <>
-                <div
-                  className={cn(
-                    "border-b p-3",
-                    platform === "cote"
-                      ? "border-[#06923E]/10 dark:border-[#06923E]/20"
-                      : "border-orange-100/80 dark:border-orange-400/15",
-                  )}
-                >
-                  <Button
-                    type="button"
-                    onClick={handleCreateThread}
-                    disabled={isCreatingThread}
-                    className={cn(
-                      "h-10 w-full justify-center rounded-2xl",
-                      platform === "cote"
-                        ? "bg-[#06923E] text-white hover:bg-[#047a33]"
-                        : undefined,
-                    )}
-                  >
-                    <MessageSquarePlus className="size-4" />새 대화
-                  </Button>
-                </div>
-
-                <div className="scrollbar-hide flex-1 overflow-y-auto p-3">
-                  {threads.length > 0 ? (
-                    threads.map((thread) => {
-                      const isActive = thread.id === threadId;
+              <div className="scrollbar-hide flex-1 overflow-y-auto p-3">
+                <div className="mb-3 flex items-center gap-1">
+                  {(["all", "tech", "cote"] as ThreadCategory[]).map(
+                    (category) => {
+                      const isActive = threadCategory === category;
 
                       return (
                         <button
-                          key={thread.id}
+                          key={category}
                           type="button"
-                          onClick={() => void handleSelectThread(thread.id)}
+                          onClick={() => setThreadCategory(category)}
                           className={cn(
-                            "mb-2 w-full rounded-2xl border px-3 py-3 text-left transition",
+                            "rounded-full px-3 py-1.5 text-xs font-semibold transition",
+                            isActive
+                              ? platform === "cote"
+                                ? "bg-[#06923E] text-white"
+                                : "bg-primary text-primary-foreground"
+                              : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
+                          )}
+                        >
+                          {category === "all" ? "전체" : category}
+                        </button>
+                      );
+                    },
+                  )}
+                </div>
+
+                {filteredThreads.length > 0 ? (
+                  filteredThreads.map((thread) => {
+                    const isActive = thread.id === threadId;
+                    const swipeOffset =
+                      threadSwipeState?.threadId === thread.id
+                        ? threadSwipeState.deltaX
+                        : 0;
+                    const isRightActionOpen =
+                      threadSwipeState?.threadId === thread.id &&
+                      threadSwipeState.openDirection === "right";
+                    const isLeftActionOpen =
+                      threadSwipeState?.threadId === thread.id &&
+                      threadSwipeState.openDirection === "left";
+
+                    return (
+                      <div
+                        key={thread.id}
+                        className="relative mb-2 overflow-hidden rounded-2xl"
+                      >
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await handleRenameThread(thread);
+                            } catch (error) {
+                              console.error("Thread rename failed", error);
+                            } finally {
+                              setThreadSwipeState(null);
+                            }
+                          }}
+                          className={cn(
+                            "absolute inset-y-0 left-0 flex w-12 items-center justify-center rounded-l-2xl rounded-r-none bg-transparent text-sky-700 transition-opacity dark:text-sky-200",
+                            isRightActionOpen ? "opacity-100" : "opacity-0",
+                          )}
+                          aria-label="제목 수정"
+                        >
+                          <Pencil className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await handleDeleteThread(thread);
+                            } catch (error) {
+                              console.error("Thread delete failed", error);
+                            } finally {
+                              setThreadSwipeState(null);
+                            }
+                          }}
+                          className={cn(
+                            "absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-2xl rounded-l-none bg-transparent text-red-600 transition-opacity dark:text-red-300",
+                            isLeftActionOpen ? "opacity-100" : "opacity-0",
+                          )}
+                          aria-label="대화 삭제"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) =>
+                            handleThreadSwipeStart(event, thread.id)
+                          }
+                          onMouseMove={(event) =>
+                            handleThreadSwipeMove(event, thread.id)
+                          }
+                          onMouseUp={() => {
+                            const handled = handleThreadSwipeEnd(thread);
+                            if (!handled) {
+                              void handleSelectThread(thread.id);
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            if (
+                              threadSwipeState?.threadId !== thread.id ||
+                              !threadSwipeState?.isPointerDown
+                            ) {
+                              return;
+                            }
+
+                            handleThreadSwipeEnd(thread);
+                          }}
+                          className={cn(
+                            "relative w-full rounded-2xl border px-3 py-3 text-left transition will-change-transform",
                             isActive
                               ? platform === "cote"
                                 ? "border-[#06923E]/45 bg-white shadow-sm dark:border-[#06923E]/45 dark:bg-zinc-900"
                                 : "border-orange-300 bg-white shadow-sm dark:border-orange-400/40 dark:bg-zinc-900"
                               : platform === "cote"
-                                ? "border-transparent bg-white/70 hover:border-[#06923E]/25 hover:bg-white dark:bg-zinc-900/60 dark:hover:border-[#06923E]/25"
-                                : "border-transparent bg-white/70 hover:border-orange-200 hover:bg-white dark:bg-zinc-900/60 dark:hover:border-orange-400/20",
+                                ? "border-slate-200 bg-white/70 hover:border-[#06923E]/25 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-[#06923E]/25"
+                                : "border-slate-200 bg-white/70 hover:border-orange-200 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-orange-400/20",
                           )}
+                          style={{
+                            transform: `translateX(${swipeOffset}px)`,
+                          }}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <p className="line-clamp-2 text-sm font-semibold text-slate-800 dark:text-zinc-100">
                               {thread.title}
                             </p>
                             <span className="shrink-0 text-[11px] text-muted-foreground">
-                              {formatThreadTime(thread.updatedAt)}
+                              {formatThreadTime(thread.createdAt)}
                             </span>
                           </div>
                           <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
                             {thread.preview || "아직 메시지가 없습니다."}
                           </p>
                         </button>
-                      );
-                    })
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                      <p className="text-sm font-medium text-slate-700 dark:text-zinc-100">
-                        아직 저장된 대화가 없어요.
-                      </p>
-                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                        새 대화를 눌러 스레드를 만들고 자유롭게 오가며 대화를
-                        이어가세요.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                    <p className="text-sm font-medium text-slate-700 dark:text-zinc-100">
+                      아직 저장된 대화가 없어요.
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      새 대화를 눌러 스레드를 만들고 자유롭게 오가며 대화를
+                      이어가세요.
+                    </p>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
-                <div
-                  className={cn(
-                    "border-b px-4 py-3",
-                    platform === "cote"
-                      ? "border-[#06923E]/10 dark:border-[#06923E]/20"
-                      : "border-orange-100/80 dark:border-orange-400/15",
-                  )}
-                >
-                  <p className="text-sm font-semibold text-slate-800 dark:text-zinc-100">
-                    {activeThread?.title ??
-                      (sessionStatus === "authenticated"
-                        ? "대화를 선택해 주세요"
-                        : "임시 대화")}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {sessionStatus === "authenticated"
-                      ? activeThread
-                        ? "목록 아이콘으로 다른 스레드로 이동할 수 있어요."
-                        : "제목 왼쪽 목록 아이콘을 눌러 원하는 대화창으로 이동하세요."
-                      : "로그인하면 대화를 스레드별로 저장할 수 있어요."}
-                  </p>
-                </div>
-
                 <div className="scrollbar-hide flex-1 space-y-3 overflow-y-auto px-4 py-4">
-                  {sessionStatus === "authenticated" && !threadId ? (
-                    <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-                      <p className="text-base font-semibold text-slate-800 dark:text-zinc-100">
-                        대화 스레드를 선택해 주세요.
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        제목 왼쪽 목록 아이콘으로 목록 화면을 열고 원하는
-                        대화창을 선택하면 됩니다.
-                      </p>
-                      <Button
-                        type="button"
-                        className={cn(
-                          "mt-5 rounded-2xl",
-                          platform === "cote"
-                            ? "bg-[#06923E] text-white hover:bg-[#047a33]"
-                            : undefined,
-                        )}
-                        onClick={() => setView("threads")}
-                      >
-                        <List className="size-4" />
-                        대화 목록 보기
-                      </Button>
-                    </div>
-                  ) : hasMessages ? (
-                    visibleMessages.map((message) => {
-                      const text = getMessageText(message.parts).trim();
-                      if (!text) {
-                        return null;
-                      }
+                  {hasMessages
+                    ? visibleMessages.map((message, index) => {
+                        const text = getMessageText(message.parts).trim();
+                        if (!text) {
+                          return null;
+                        }
 
-                      const isUser = message.role === "user";
+                        const isUser = message.role === "user";
+                        const resolvedTimestamp =
+                          message.createdAt ??
+                          messageTimes[message.id] ??
+                          new Date().toISOString();
+                        const previousTimestamp =
+                          index > 0
+                            ? (visibleMessages[index - 1]?.createdAt ??
+                              messageTimes[
+                                visibleMessages[index - 1]?.id ?? ""
+                              ])
+                            : null;
+                        const messageTime =
+                          formatMessageTime(resolvedTimestamp);
+                        const showDateBadge =
+                          getMessageDateKey(resolvedTimestamp) !==
+                          getMessageDateKey(previousTimestamp);
+                        const isSearchMatch = matchedMessageIds.includes(
+                          message.id,
+                        );
+                        const activeOccurrenceIndexInMessage =
+                          activeSearchMatch?.messageId === message.id
+                            ? activeSearchMatch.occurrenceIndexInMessage
+                            : undefined;
 
-                      return (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            "flex",
-                            isUser ? "justify-end" : "justify-start",
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-6 shadow-sm",
-                              isUser
-                                ? platform === "cote"
-                                  ? "rounded-br-lg bg-[#06923E] text-white dark:bg-[#06923E] dark:text-white"
-                                  : "rounded-br-lg bg-orange-500 text-white dark:bg-orange-500 dark:text-white"
-                                : platform === "cote"
-                                  ? "rounded-bl-lg border border-[#06923E]/10 bg-white text-slate-800 dark:border-[#06923E]/20 dark:bg-zinc-900 dark:text-zinc-100"
-                                  : "rounded-bl-lg border border-orange-100 bg-white text-slate-800 dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-100",
-                            )}
-                          >
-                            <p className="whitespace-pre-wrap">{text}</p>
+                        return (
+                          <div key={message.id} className="space-y-3">
+                            {showDateBadge ? (
+                              <div className="flex justify-center">
+                                <div className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500 dark:bg-zinc-900 dark:text-zinc-400">
+                                  {formatMessageDateBadge(resolvedTimestamp)}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            <div
+                              ref={(element) => {
+                                messageRefs.current[message.id] = element;
+                              }}
+                              className={cn(
+                                "flex items-start gap-2 transition",
+                                isUser ? "justify-end" : "justify-start",
+                              )}
+                            >
+                              {!isUser ? (
+                                <Image
+                                  src="/profile_horok.png"
+                                  alt="호록 프로필"
+                                  width={32}
+                                  height={32}
+                                  className={cn(
+                                    "mt-1 size-8 shrink-0 rounded-full border object-cover",
+                                    platform === "cote"
+                                      ? "border-[#06923E]/25 bg-white"
+                                      : "border-orange-200 bg-white dark:border-orange-400/30",
+                                  )}
+                                />
+                              ) : null}
+                              <div
+                                className={cn(
+                                  "flex max-w-[85%] items-end gap-2",
+                                  isUser && "flex-row-reverse",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "rounded-3xl px-4 py-3 text-sm leading-5 shadow-sm",
+                                    isUser
+                                      ? platform === "cote"
+                                        ? "rounded-br-lg border border-[#06923E]/20 bg-white text-slate-800 dark:border-[#06923E]/25 dark:bg-slate-950 dark:text-slate-100"
+                                        : "rounded-br-lg bg-orange-500 text-white dark:bg-orange-500 dark:text-white"
+                                      : platform === "cote"
+                                        ? "border border-[#06923E]/10 bg-white text-slate-800 dark:border-[#06923E]/20 dark:bg-slate-950 dark:text-slate-100"
+                                        : "border border-orange-100 bg-white text-slate-800 dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-100",
+                                  )}
+                                >
+                                  {isSearchMatch ? (
+                                    <p className="whitespace-pre-wrap">
+                                      {renderHighlightedText(
+                                        text,
+                                        activeOccurrenceIndexInMessage,
+                                      )}
+                                    </p>
+                                  ) : (
+                                    <MarkdownRenderer
+                                      content={escapeBackticksForChatDisplay(
+                                        text,
+                                      )}
+                                      className={cn(
+                                        "text-inherit !leading-5 [&_a]:text-inherit [&_a]:underline [&_blockquote]:!my-1 [&_blockquote]:border-current/20 [&_blockquote]:py-0.5 [&_blockquote]:text-inherit/80 [&_code]:rounded-none [&_code]:bg-transparent [&_code]:px-0 [&_code]:py-0 [&_code]:text-inherit [&_h1]:!mt-1.5 [&_h1]:!mb-1 [&_h1]:text-base [&_h2]:!mt-1.5 [&_h2]:!mb-1 [&_h2]:text-sm [&_h3]:!mt-1 [&_h3]:!mb-0.5 [&_h3]:text-sm [&_img]:!my-1 [&_img]:rounded-2xl [&_ol]:!my-1 [&_ol]:pl-5 [&_p]:!my-0 [&_p]:!leading-5 [&_p+p]:!mt-0.5 [&_pre]:!my-1 [&_table]:!my-1 [&_td]:border-current/15 [&_th]:border-current/15 [&_th]:bg-black/5 [&_ul]:!my-1 [&_ul]:pl-5",
+                                        isUser ? "[&_th]:bg-white/15" : "",
+                                      )}
+                                    />
+                                  )}
+                                </div>
+                                <div
+                                  className={cn(
+                                    "flex shrink-0 flex-col gap-0.5",
+                                    isUser ? "items-end" : "items-start",
+                                  )}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void handleCopyMessage(message.id, text)
+                                    }
+                                    className="p-0.5 text-slate-400 transition hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                                    aria-label="메시지 복사"
+                                  >
+                                    {copiedMessageId === message.id ? (
+                                      <Check className="size-3.5" />
+                                    ) : (
+                                      <Copy className="size-3.5" />
+                                    )}
+                                  </button>
+                                  {messageTime ? (
+                                    <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                                      {messageTime}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+
+                            {sessionStatus === "unauthenticated" &&
+                            index === 0 &&
+                            !isUser ? (
+                              <p className="text-center text-xs text-muted-foreground">
+                                로그인 하시면 대화를 저장할 수 있습니다.
+                              </p>
+                            ) : null}
                           </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                      대화를 시작하면 호록 챗봇이 바로 응답합니다.
-                    </div>
-                  )}
+                        );
+                      })
+                    : null}
 
                   {isLoading ? (
-                    <div className="flex justify-start">
-                      <div
+                    <div className="flex items-start justify-start gap-2">
+                      <Image
+                        src="/profile_horok.png"
+                        alt="호록 프로필"
+                        width={32}
+                        height={32}
                         className={cn(
-                          "rounded-3xl rounded-bl-lg border bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:bg-zinc-900 dark:text-zinc-300",
+                          "mt-1 size-8 shrink-0 rounded-full border object-cover",
                           platform === "cote"
-                            ? "border-[#06923E]/10 dark:border-[#06923E]/20"
-                            : "border-orange-100 dark:border-orange-400/20",
+                            ? "border-[#06923E]/25 bg-white"
+                            : "border-orange-200 bg-white dark:border-orange-400/30",
                         )}
-                      >
-                        답변을 작성 중입니다...
+                      />
+                      <div className="flex items-end gap-2">
+                        <div
+                          className={cn(
+                            "rounded-3xl rounded-bl-lg border bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:text-zinc-300",
+                            platform === "cote"
+                              ? "border-[#06923E]/10 dark:border-[#06923E]/20 dark:bg-slate-950 dark:text-slate-300"
+                              : "border-orange-100 dark:border-orange-400/20",
+                          )}
+                        >
+                          답변을 작성 중입니다...
+                        </div>
+                        <span className="shrink-0 text-[11px] text-slate-400 dark:text-zinc-500">
+                          {formatMessageTime(new Date().toISOString())}
+                        </span>
                       </div>
                     </div>
                   ) : null}
@@ -589,13 +1873,6 @@ export default function HorokChat() {
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-300">
                       챗봇 연결 중 문제가 발생했습니다. 잠시 후 다시 시도해
                       주세요.
-                    </div>
-                  ) : null}
-
-                  {sessionStatus !== "authenticated" ? (
-                    <div className="px-2 text-center text-xs leading-5 text-muted-foreground">
-                      로그인하면 대화가 스레드 목록으로 저장되고 다시 이어서 볼
-                      수 있습니다.
                     </div>
                   ) : null}
 
@@ -613,79 +1890,151 @@ export default function HorokChat() {
                 >
                   <div
                     className={cn(
-                      "flex items-end gap-2 rounded-3xl border bg-white p-2 shadow-sm dark:bg-zinc-900",
+                      "relative rounded-3xl border bg-white shadow-sm",
                       platform === "cote"
-                        ? "border-[#06923E]/25 dark:border-[#06923E]/30"
-                        : "border-orange-200 dark:border-orange-400/25",
+                        ? "border-[#06923E]/25 dark:border-[#06923E]/30 dark:bg-slate-950"
+                        : "border-orange-200 dark:border-orange-400/25 dark:bg-zinc-900",
                     )}
                   >
                     <input
                       ref={inputRef}
                       value={input}
                       onChange={(event) => setInput(event.target.value)}
-                      placeholder={
-                        sessionStatus === "authenticated" && !threadId
-                          ? "대화 목록에서 스레드를 선택해 주세요"
-                          : "호록이에게 물어보세요"
-                      }
-                      className="h-10 flex-1 bg-transparent px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                      placeholder="호록이에게 물어보세요"
+                      className="h-10 w-full bg-transparent pl-3 pr-12 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                     />
-                    <Button
+                    <button
                       type="submit"
-                      size="icon"
                       className={cn(
-                        "size-10 rounded-full",
+                        "absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-transparent transition disabled:cursor-default",
                         platform === "cote"
-                          ? "bg-[#06923E] text-white hover:bg-[#047a33]"
-                          : undefined,
+                          ? "text-[#06923E] hover:text-[#047a33] disabled:text-[#06923E]/35"
+                          : "text-orange-500 hover:text-orange-600 disabled:text-orange-200 dark:text-orange-400 dark:hover:text-orange-300 dark:disabled:text-orange-900",
                       )}
                       disabled={!input.trim() || isLoading}
                       aria-label="메시지 전송"
                     >
                       <Send className="size-4" />
-                    </Button>
+                    </button>
                   </div>
                 </form>
               </>
             )}
           </div>
+
+          {!isEmbedded && isOpen ? (
+            <>
+              <button
+                type="button"
+                onMouseDown={(event) => handleFloatingResizeStart(event, "top")}
+                className="absolute inset-x-3 top-0 h-2 cursor-ns-resize"
+                aria-label="채팅창 위쪽 크기 조절"
+              />
+              <button
+                type="button"
+                onMouseDown={(event) =>
+                  handleFloatingResizeStart(event, "bottom")
+                }
+                className="absolute inset-x-3 bottom-0 h-2 cursor-ns-resize"
+                aria-label="채팅창 아래쪽 크기 조절"
+              />
+              <button
+                type="button"
+                onMouseDown={(event) =>
+                  handleFloatingResizeStart(event, "left")
+                }
+                className="absolute inset-y-3 left-0 w-2 cursor-ew-resize"
+                aria-label="채팅창 왼쪽 크기 조절"
+              />
+              <button
+                type="button"
+                onMouseDown={(event) =>
+                  handleFloatingResizeStart(event, "right")
+                }
+                className="absolute inset-y-3 right-0 w-2 cursor-ew-resize"
+                aria-label="채팅창 오른쪽 크기 조절"
+              />
+              <button
+                type="button"
+                onMouseDown={(event) =>
+                  handleFloatingResizeStart(event, "top-left")
+                }
+                className="absolute left-0 top-0 h-3 w-3 cursor-nwse-resize"
+                aria-label="채팅창 좌상단 크기 조절"
+              />
+              <button
+                type="button"
+                onMouseDown={(event) =>
+                  handleFloatingResizeStart(event, "top-right")
+                }
+                className="absolute right-0 top-0 h-3 w-3 cursor-nesw-resize"
+                aria-label="채팅창 우상단 크기 조절"
+              />
+              <button
+                type="button"
+                onMouseDown={(event) =>
+                  handleFloatingResizeStart(event, "bottom-left")
+                }
+                className="absolute bottom-0 left-0 h-3 w-3 cursor-nesw-resize"
+                aria-label="채팅창 좌하단 크기 조절"
+              />
+              <button
+                type="button"
+                onMouseDown={(event) =>
+                  handleFloatingResizeStart(event, "bottom-right")
+                }
+                className="absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize rounded-sm"
+                aria-label="채팅창 우하단 크기 조절"
+              >
+                <span className="absolute right-0.5 bottom-0.5 h-2.5 w-2.5 border-r-2 border-b-2 border-slate-300 dark:border-zinc-600" />
+              </button>
+            </>
+          ) : null}
         </div>
 
-        {platform === "cote" ? (
+        {!isEmbedded && platform === "cote" ? (
           <div
             className={cn(
-              "pointer-events-none absolute right-2 bottom-[calc(100%+1rem)] transition-all duration-300",
+              "pointer-events-none absolute bottom-[calc(100%+1rem)] transition-all duration-300",
+              isFloatingPanelLeftOfCenter ? "left-2" : "right-2",
               isOpen ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100",
             )}
             aria-hidden="true"
           >
             <div className="relative min-w-[184px] rounded-2xl bg-[#06923E] px-2.5 py-2 text-center text-xs font-medium text-white shadow-lg">
               잘 모르겠으면 나에게 물어봐!
-              <span className="absolute right-5 top-full h-0 w-0 border-x-[8px] border-t-[10px] border-x-transparent border-t-[#06923E]" />
+              <span
+                className={cn(
+                  "absolute top-full h-0 w-0 border-x-[8px] border-t-[10px] border-x-transparent border-t-[#06923E]",
+                  isFloatingPanelLeftOfCenter ? "left-5" : "right-5",
+                )}
+              />
             </div>
           </div>
         ) : null}
 
-        <button
-          type="button"
-          onClick={() => setIsOpen((open) => !open)}
-          className="pointer-events-auto group relative block size-[72px] transition hover:-translate-y-0.5"
-          aria-label={isOpen ? "챗봇 접기" : "챗봇 열기"}
-        >
-          <Image
-            src="/logo.png"
-            alt="호록 챗봇"
-            width={72}
-            height={72}
-            className={cn(
-              "size-full object-contain transition",
-              platform === "cote"
-                ? "drop-shadow-[0_0_18px_rgba(6,146,62,0.72)] group-hover:drop-shadow-[0_0_28px_rgba(6,146,62,0.88)]"
-                : "drop-shadow-[0_0_18px_rgba(255,154,0,0.82)] group-hover:drop-shadow-[0_0_28px_rgba(255,154,0,0.92)]",
-            )}
-            priority
-          />
-        </button>
+        {!isEmbedded ? (
+          <button
+            type="button"
+            onClick={() => setIsOpen((open) => !open)}
+            className="pointer-events-auto group relative block size-16 transition hover:-translate-y-0.5 sm:size-[72px]"
+            aria-label={isOpen ? "챗봇 접기" : "챗봇 열기"}
+          >
+            <Image
+              src="/logo.png"
+              alt="호록 챗봇"
+              width={64}
+              height={64}
+              className={cn(
+                "size-full object-contain transition",
+                platform === "cote"
+                  ? "drop-shadow-[0_0_18px_rgba(6,146,62,0.72)] group-hover:drop-shadow-[0_0_28px_rgba(6,146,62,0.88)]"
+                  : "drop-shadow-[0_0_18px_rgba(255,154,0,0.82)] group-hover:drop-shadow-[0_0_28px_rgba(255,154,0,0.92)]",
+              )}
+              priority
+            />
+          </button>
+        ) : null}
       </div>
     </div>
   );

@@ -39,7 +39,7 @@ export default async function HorokTechNewNoticePage({
         : "QnA";
 
   return (
-    <main className="mx-auto max-w-3xl">
+    <main className="w-full">
       <PostEditor
         initialCategoryName={initialCategoryName}
         categoryLocked

@@ -141,29 +141,31 @@ export async function POST(req: Request) {
     }
   }
 
-  try {
-    const followers = await prisma.friend.findMany({
-      where: {
-        friendUserId: BigInt(userId),
-      },
-      select: {
-        userId: true,
-      },
-    });
-
-    if (followers.length > 0) {
-      await prisma.notification.createMany({
-        data: followers.map((follower) => ({
-          userId: follower.userId,
-          actorId: BigInt(userId),
-          postId: BigInt(post.id),
-          type: "NEW_POST",
-          content: "구독한 유저가 새 글을 작성했어요",
-        })),
+  if (normalizedCategoryName !== "FAQ") {
+    try {
+      const followers = await prisma.friend.findMany({
+        where: {
+          friendUserId: BigInt(userId),
+        },
+        select: {
+          userId: true,
+        },
       });
+
+      if (followers.length > 0) {
+        await prisma.notification.createMany({
+          data: followers.map((follower) => ({
+            userId: follower.userId,
+            actorId: BigInt(userId),
+            postId: BigInt(post.id),
+            type: "NEW_POST",
+            content: "구독한 유저가 새 글을 작성했어요",
+          })),
+        });
+      }
+    } catch (error) {
+      console.error("🔔 구독 유저 새 글 알림 생성 실패", error);
     }
-  } catch (error) {
-    console.error("🔔 구독 유저 새 글 알림 생성 실패", error);
   }
 
   return NextResponse.json(post, { status: 201 });

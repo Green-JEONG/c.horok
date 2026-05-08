@@ -21,12 +21,18 @@ export const metadata: Metadata = {
 export default async function HorokTechNoticesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; category?: string; page?: string }>;
+  searchParams: Promise<{
+    sort?: string;
+    category?: string;
+    page?: string;
+    target?: string;
+  }>;
 }) {
-  const { sort, category, page } = await searchParams;
+  const { sort, category, page, target } = await searchParams;
   const parsedSort = parseSortType(sort);
   const parsedCategory = parseNoticeCategory(category) ?? NOTICE_TAG_OPTIONS[0];
   const parsedPage = Number(page ?? "1");
+  const targetNoticeId = Number(target ?? "");
   const currentPage =
     Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const session = await auth();
@@ -41,7 +47,21 @@ export default async function HorokTechNoticesPage({
   });
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(notices.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
+  const resolvedPage =
+    Number.isFinite(targetNoticeId) && targetNoticeId > 0
+      ? (() => {
+          const targetIndex = notices.findIndex(
+            (notice) => notice.id === targetNoticeId,
+          );
+
+          if (targetIndex < 0) {
+            return currentPage;
+          }
+
+          return Math.floor(targetIndex / pageSize) + 1;
+        })()
+      : currentPage;
+  const safePage = Math.min(resolvedPage, totalPages);
   const pagedNotices = notices.slice(
     (safePage - 1) * pageSize,
     safePage * pageSize,
@@ -106,6 +126,7 @@ export default async function HorokTechNoticesPage({
         notices={pagedNotices}
         currentPage={safePage}
         totalPages={totalPages}
+        totalCount={notices.length}
         isQnaCategory={isQnaCategory}
         isFaqCategory={isFaqCategory}
         emptyMessage={
