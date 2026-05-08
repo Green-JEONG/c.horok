@@ -1,7 +1,7 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { HorokCoteProblem } from "@/lib/horok-cote";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,6 @@ type HorokCoteIDEProps = {
 type ExecutionState = {
   status: RunResult;
   output: string;
-  message: string;
 };
 
 const languageMeta: Record<
@@ -59,10 +58,14 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
   const [executionState, setExecutionState] = useState<ExecutionState>({
     status: "idle",
     output: "",
-    message: "코드를 실행하면 이곳에 결과가 표시됩니다.",
   });
+  const lineNumberRef = useRef<HTMLDivElement | null>(null);
   const currentLanguage = languageMeta[selectedLanguage];
   const code = editedCodes[selectedLanguage];
+  const lineNumbers = useMemo(
+    () => Array.from({ length: code.split("\n").length }, (_, index) => index + 1),
+    [code],
+  );
 
   function getSimulatedOutput(language: Language, source: string) {
     const patterns: Record<Language, RegExp[]> = {
@@ -86,16 +89,11 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
     setExecutionState({
       status: isSuccess ? "success" : "failure",
       output,
-      message: isSuccess
-        ? "실행 결과가 예제 출력과 일치합니다."
-        : output
-          ? "실행 결과가 기대한 출력과 다릅니다."
-          : "출력 결과를 해석하지 못했습니다. 출력문을 다시 확인해 보세요.",
     });
   }
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]">
+    <section className="scrollbar-hide flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800 sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
           {(["python", "java", "cpp"] as Language[]).map((language) => {
@@ -111,7 +109,6 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
                   setExecutionState({
                     status: "idle",
                     output: "",
-                    message: "코드를 실행하면 이곳에 결과가 표시됩니다.",
                   });
                 }}
                 className={cn(
@@ -142,8 +139,17 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="min-h-0 bg-white dark:bg-slate-950">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1.7fr)_minmax(0,0.65fr)] sm:grid-rows-[minmax(0,1.2fr)_minmax(0,0.72fr)]">
+        <div className="relative min-h-0 overflow-hidden bg-white dark:bg-slate-950">
+          <div
+            ref={lineNumberRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 scrollbar-hide flex w-7 flex-col overflow-y-hidden pr-2 py-4 text-right font-mono text-[13px] leading-7 text-slate-400 dark:text-slate-500 sm:w-8 sm:text-sm"
+          >
+            {lineNumbers.map((lineNumber) => (
+              <span key={lineNumber}>{lineNumber}</span>
+            ))}
+          </div>
           <textarea
             value={code}
             onChange={(event) => {
@@ -154,11 +160,15 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
               setExecutionState({
                 status: "idle",
                 output: "",
-                message: "코드를 실행하면 이곳에 결과가 표시됩니다.",
               });
             }}
+            onScroll={(event) => {
+              if (lineNumberRef.current) {
+                lineNumberRef.current.scrollTop = event.currentTarget.scrollTop;
+              }
+            }}
             spellCheck={false}
-            className="h-full min-h-[260px] w-full resize-none bg-transparent px-4 py-5 font-mono text-[15px] leading-7 text-slate-800 outline-none dark:text-slate-100 sm:px-5 sm:text-base"
+            className="scrollbar-hide h-full min-h-0 w-full overflow-y-auto overflow-x-auto resize-none bg-transparent py-4 pl-10 pr-4 font-mono text-[15px] leading-7 text-slate-800 outline-none dark:text-slate-100 sm:text-base"
             aria-label={`${currentLanguage.label} 코드 에디터`}
           />
         </div>
@@ -187,31 +197,18 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
             </span>
           </div>
 
-          <div className="min-h-0 flex-1 px-4 pb-4 sm:px-5 sm:pb-5">
-            <div className="flex h-full min-h-[220px] flex-col rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex min-h-0 flex-1 flex-col px-4 sm:px-5 sm:pb-5">
+            <div className="flex min-h-[96px] shrink-0 flex-col rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 sm:h-full sm:min-h-[160px]">
               <div className="border-b border-slate-200 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 stdout
               </div>
-              <pre className="min-h-0 flex-1 overflow-auto px-4 py-4 font-mono text-[15px] leading-7 text-slate-800 dark:text-slate-100 sm:text-base">
+              <pre className="scrollbar-hide min-h-0 flex-1 overflow-auto px-4 pb-5 pt-4 font-mono text-[15px] leading-7 text-slate-800 dark:text-slate-100 sm:px-4 sm:py-4 sm:text-base">
                 {executionState.output || "(출력 없음)"}
               </pre>
             </div>
+            <div className="h-5 shrink-0" aria-hidden="true" />
           </div>
         </div>
-      </div>
-
-      <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900 sm:px-5">
-        <p
-          className={cn(
-            "text-slate-600 dark:text-slate-300",
-            executionState.status === "success" &&
-              "text-emerald-700 dark:text-emerald-400",
-            executionState.status === "failure" &&
-              "text-rose-700 dark:text-rose-400",
-          )}
-        >
-          {executionState.message}
-        </p>
       </div>
     </section>
   );

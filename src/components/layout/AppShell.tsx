@@ -76,8 +76,7 @@ export default function AppShell({
     isSearchPage ||
     isUserProfilePage ||
     isWideNotFoundCandidatePage;
-  const isChatEnabledPage = isWideNotFoundCandidatePage;
-
+  const isChatEnabledPage = isHorokTechLikePage;
   if (isPortalPage || isStandaloneServicePage) {
     return (
       <>
