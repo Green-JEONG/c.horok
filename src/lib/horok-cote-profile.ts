@@ -60,6 +60,7 @@ async function ensureHorokCoteSchema() {
             last_code TEXT,
             last_submitted_at TIMESTAMPTZ,
             solved_at TIMESTAMPTZ,
+            solved_duration_seconds INTEGER,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             UNIQUE (user_id, problem_slug)
@@ -101,6 +102,12 @@ async function ensureHorokCoteSchema() {
         prisma.$executeRawUnsafe(`
           ALTER TABLE horok_cote.members
           ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(512)
+        `),
+      )
+      .then(() =>
+        prisma.$executeRawUnsafe(`
+          ALTER TABLE horok_cote.problem_progress
+          ADD COLUMN IF NOT EXISTS solved_duration_seconds INTEGER
         `),
       )
       .then(() => undefined);

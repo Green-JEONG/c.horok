@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
-import { horokCoteProblems } from "@/lib/horok-cote";
+import { listHorokCoteProblems } from "@/lib/horok-cote";
 // import { getSiteUrl } from "@/lib/site-url"; // 이 함수가 non-www를 주면 문제가 반복됨.
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://www.horok.co.kr";
+  const horokCoteProblems = await listHorokCoteProblems();
 
   return [
     {

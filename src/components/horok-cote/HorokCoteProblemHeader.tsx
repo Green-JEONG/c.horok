@@ -8,18 +8,23 @@ import HorokCoteLevelDropdown from "@/components/horok-cote/HorokCoteLevelDropdo
 import HorokCoteProblemQuickSearch from "@/components/horok-cote/HorokCoteProblemQuickSearch";
 import HeaderActions from "@/components/layout/HeaderActions";
 import ThemeToggle from "@/components/layout/ThemeToggle";
-import { HOROK_COTE_LEVELS } from "@/lib/horok-cote";
+import {
+  HOROK_COTE_LEVELS,
+  type HorokCoteProblem,
+} from "@/lib/horok-cote-shared";
 
 type HorokCoteProblemHeaderProps = {
   level: string;
   number: number;
   title: string;
+  problems: HorokCoteProblem[];
 };
 
 export default function HorokCoteProblemHeader({
   level,
   number,
   title,
+  problems,
 }: HorokCoteProblemHeaderProps) {
   const router = useRouter();
 
@@ -46,7 +51,11 @@ export default function HorokCoteProblemHeader({
             }
           />
           <ChevronRight className="size-4 shrink-0 text-slate-300 dark:text-slate-600" />
-          <HorokCoteProblemQuickSearch number={number} title={title} />
+          <HorokCoteProblemQuickSearch
+            number={number}
+            title={title}
+            problems={problems}
+          />
         </div>
         <div className="relative z-10 flex shrink-0 items-center gap-2">
           <HeaderActions />

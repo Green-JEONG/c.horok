@@ -12,6 +12,7 @@ export default function HorokCoteNotFound() {
             message="요청하신 페이지를 찾을 수 없습니다. 주소가 올바른지 확인해 주세요."
             className="min-h-0 flex-1 px-0 py-0"
             contentClassName="rounded-[28px] bg-white px-6 py-10 dark:bg-[#020617]"
+            codeClassName="text-[#06923E] dark:text-[#46c86f]"
           />
         </section>
       </div>

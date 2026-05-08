@@ -3,16 +3,23 @@
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { horokCoteProblems } from "@/lib/horok-cote";
+import type { HorokCoteProblem } from "@/lib/horok-cote-shared";
+import { cn } from "@/lib/utils";
 
 type HorokCoteProblemQuickSearchProps = {
-  number: number;
-  title: string;
+  number?: number;
+  title?: string;
+  problems: HorokCoteProblem[];
+  alwaysExpanded?: boolean;
 };
+
+const HOROK_COTE_SEARCH_WIDTH = 280;
 
 export default function HorokCoteProblemQuickSearch({
   number,
   title,
+  problems,
+  alwaysExpanded = false,
 }: HorokCoteProblemQuickSearchProps) {
   const router = useRouter();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -28,7 +35,7 @@ export default function HorokCoteProblemQuickSearch({
       return [];
     }
 
-    return horokCoteProblems
+    return problems
       .filter((problem) => {
         const fullLabel = `${problem.number} ${problem.title}`.toLowerCase();
         return (
@@ -38,7 +45,7 @@ export default function HorokCoteProblemQuickSearch({
         );
       })
       .slice(0, 6);
-  }, [query]);
+  }, [problems, query]);
 
   useEffect(() => {
     if (!isEditing) {
@@ -59,7 +66,7 @@ export default function HorokCoteProblemQuickSearch({
       const rect = wrapper.getBoundingClientRect();
       const viewportMargin = 16;
       const nextWidth = Math.min(
-        Math.max(rect.width + 40, 280),
+        HOROK_COTE_SEARCH_WIDTH,
         Math.max(220, window.innerWidth - rect.left - viewportMargin),
       );
 
@@ -87,9 +94,7 @@ export default function HorokCoteProblemQuickSearch({
   }, [isEditing]);
 
   const handleSelectProblem = (slug: string) => {
-    const selectedProblem = horokCoteProblems.find(
-      (problem) => problem.slug === slug,
-    );
+    const selectedProblem = problems.find((problem) => problem.slug === slug);
 
     if (!selectedProblem) {
       return;
@@ -100,7 +105,7 @@ export default function HorokCoteProblemQuickSearch({
     router.push(`/horok-cote/${selectedProblem.number}`);
   };
 
-  if (!isEditing) {
+  if (!isEditing && !alwaysExpanded) {
     return (
       <div className="relative z-30 min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2 overflow-hidden">
@@ -135,7 +140,13 @@ export default function HorokCoteProblemQuickSearch({
   }
 
   return (
-    <div ref={wrapperRef} className="relative z-[80] min-w-0 flex-1">
+    <div
+      ref={wrapperRef}
+      className={cn(
+        "relative min-w-0 flex-1",
+        alwaysExpanded ? "z-30" : "z-[80]",
+      )}
+    >
       <div
         className="inline-flex w-full min-w-0 items-center gap-2 rounded-[999px] border border-slate-200 bg-white px-4 py-2 shadow-[0_12px_28px_rgba(15,23,42,0.12)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_20px_36px_rgba(2,6,23,0.5)]"
         style={overlayWidth ? { maxWidth: overlayWidth } : undefined}
@@ -147,6 +158,11 @@ export default function HorokCoteProblemQuickSearch({
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
+              if (alwaysExpanded) {
+                setQuery("");
+                return;
+              }
+
               setIsEditing(false);
               setQuery("");
             }

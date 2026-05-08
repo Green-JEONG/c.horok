@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
 import {
   getPlatformFromPathname,
@@ -67,6 +68,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   const { profile, refresh } = usePlatformProfile(open);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(open);
+  const [portalReady, setPortalReady] = useState(false);
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState({
@@ -122,6 +124,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) setSettingsOpen(false);
   }, [open]);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -189,12 +195,12 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     loadStats();
   }, [open, platform]);
 
-  if (!isVisible) return null;
+  if (!isVisible || !portalReady) return null;
 
-  return (
+  return createPortal(
     <div
       className={cn(
-        "fixed inset-0 z-[80]",
+        "fixed inset-0 z-[150]",
         open ? "pointer-events-auto" : "pointer-events-none",
       )}
     >
@@ -218,7 +224,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between px-4 pt-2 pb-10">
           <nav className="flex items-center gap-4 text-sm">
             {session?.user?.role === "ADMIN" && (
               <button
@@ -323,7 +329,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                       ? "/mypage?tab=posts"
                       : index === 1
                         ? "/mypage?tab=comments"
-                        : "/mypage?tab=friends",
+                        : "/mypage?tab=friends&friendType=following",
                   );
                 }}
               >
@@ -441,7 +447,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                             return;
                           }
 
-                          if (typeof postPath === "string" && !n.is_post_deleted) {
+                          if (
+                            typeof postPath === "string" &&
+                            !n.is_post_deleted
+                          ) {
                             const targetPath = n.comment_id
                               ? `${postPath}?commentId=${n.comment_id}`
                               : postPath;
@@ -505,7 +514,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         {/* footer */}
         <div
           className={cn(
-            "flex border-t py-6 mx-6",
+            "flex border-t py-6 mx-4",
             isCote ? "border-slate-200 dark:border-white/10" : "border-border",
           )}
         >
@@ -514,7 +523,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             className={cn(
               "w-full border-r text-sm hover:underline",
               isCote
-                ? "border-slate-200 text-red-500 dark:border-white/10 dark:text-red-300"
+                ? "border-slate-200 text-red-400 dark:border-white/10"
                 : "text-red-400",
             )}
             onClick={async () => {
@@ -540,9 +549,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
             type="button"
             className={cn(
               "w-full rounded-md text-sm",
-              isCote
-                ? "text-[#06923E] dark:text-[#06923E]"
-                : "text-muted-foreground",
+              isCote ? "text-muted-foreground" : "text-muted-foreground",
             )}
             onClick={() => signOut({ callbackUrl: getCallbackUrl() })}
           >
@@ -557,6 +564,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         onClose={() => setSettingsOpen(false)}
         onSaved={refresh}
       />
-    </div>
+    </div>,
+    document.body,
   );
 }

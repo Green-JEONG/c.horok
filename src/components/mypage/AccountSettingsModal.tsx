@@ -397,7 +397,7 @@ export default function AccountSettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[90]">
+    <div className="fixed inset-0 z-[160]">
       {/* overlay */}
       <button
         type="button"

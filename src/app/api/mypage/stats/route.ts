@@ -57,6 +57,7 @@ export async function GET(req: Request) {
       }),
       prisma.friend.count({
         where: {
+          // 내가 구독한 유저 수
           userId: BigInt(userId),
         },
       }),
