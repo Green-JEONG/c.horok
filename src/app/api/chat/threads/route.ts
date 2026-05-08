@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { getDbUserIdFromSession } from "@/lib/auth-db";
 import {
+  appendChatMessage,
   createChatThread,
   deleteChatThread,
   getChatThreadById,
@@ -25,6 +26,8 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => null)) as {
       platform?: string;
+      title?: string;
+      initialAssistantMessage?: string;
     } | null;
     const userId = await getDbUserIdFromSession(
       resolveChatPlatform(body?.platform),
@@ -33,11 +36,21 @@ export async function POST(req: Request) {
       return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    const thread = await createChatThread(userId, "새 대화");
+    const title = body?.title?.trim() || "새 대화";
+    const initialAssistantMessage = body?.initialAssistantMessage?.trim();
+    const thread = await createChatThread(userId, title);
+
+    if (initialAssistantMessage) {
+      await appendChatMessage({
+        threadId: thread.id,
+        role: "assistant",
+        content: initialAssistantMessage,
+      });
+    }
 
     return Response.json({
       threadId: thread.id,
-      title: thread.title ?? "새 대화",
+      title: thread.title ?? title,
     });
   } catch (error) {
     if (isChatPersistenceError(error)) {

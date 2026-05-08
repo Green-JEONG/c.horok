@@ -1,9 +1,9 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { HorokCoteProblem } from "@/lib/horok-cote";
+import type { HorokCoteProblem } from "@/lib/horok-cote-shared";
 import { cn } from "@/lib/utils";
 
 type Language = "python" | "java" | "cpp";
@@ -12,6 +12,7 @@ type RunResult = "idle" | "success" | "failure";
 
 type HorokCoteIDEProps = {
   problem: HorokCoteProblem;
+  onSolved?: () => void;
 };
 
 type ExecutionState = {
@@ -19,42 +20,40 @@ type ExecutionState = {
   output: string;
 };
 
+const EMPTY_STARTER_CODES = {
+  python: "",
+  java: "",
+  cpp: "",
+} as const;
+
 const languageMeta: Record<
   Language,
   {
     label: string;
     runtime: string;
     fileName: string;
-    badgeClassName: string;
-    tabClassName: string;
   }
 > = {
   python: {
     label: "Python 3",
     runtime: "python3",
     fileName: "main.py",
-    badgeClassName: "bg-[#eef7f1] text-[#2d8f52]",
-    tabClassName: "bg-[#f8fffb] text-[#2d8f52]",
   },
   java: {
     label: "Java 21",
     runtime: "java",
     fileName: "Main.java",
-    badgeClassName: "bg-sky-100 text-sky-700",
-    tabClassName: "bg-[#f8fafc] text-sky-700",
   },
   cpp: {
     label: "C++17",
     runtime: "cpp17",
     fileName: "main.cpp",
-    badgeClassName: "bg-violet-100 text-violet-700",
-    tabClassName: "bg-violet-50 text-violet-700",
   },
 };
 
-export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
+export default function HorokCoteIDE({ problem, onSolved }: HorokCoteIDEProps) {
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("python");
-  const [editedCodes, setEditedCodes] = useState(problem.starterCodes);
+  const [editedCodes, setEditedCodes] = useState(EMPTY_STARTER_CODES);
   const [executionState, setExecutionState] = useState<ExecutionState>({
     status: "idle",
     output: "",
@@ -63,9 +62,20 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
   const currentLanguage = languageMeta[selectedLanguage];
   const code = editedCodes[selectedLanguage];
   const lineNumbers = useMemo(
-    () => Array.from({ length: code.split("\n").length }, (_, index) => index + 1),
+    () =>
+      Array.from({ length: code.split("\n").length }, (_, index) => index + 1),
     [code],
   );
+
+  useEffect(() => {
+    void problem.slug;
+    setEditedCodes(EMPTY_STARTER_CODES);
+    setSelectedLanguage("python");
+    setExecutionState({
+      status: "idle",
+      output: "",
+    });
+  }, [problem.slug]);
 
   function getSimulatedOutput(language: Language, source: string) {
     const patterns: Record<Language, RegExp[]> = {
@@ -86,6 +96,10 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
     const expected = problem.examples[0]?.output ?? "";
     const isSuccess = output === expected;
 
+    if (isSuccess) {
+      onSolved?.();
+    }
+
     setExecutionState({
       status: isSuccess ? "success" : "failure",
       output,
@@ -94,8 +108,8 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
 
   return (
     <section className="scrollbar-hide flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800 sm:px-5">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 dark:border-slate-800 sm:px-5">
+        <div className="scrollbar-hide flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap">
           {(["python", "java", "cpp"] as Language[]).map((language) => {
             const meta = languageMeta[language];
             const isActive = selectedLanguage === language;
@@ -112,10 +126,10 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
                   });
                 }}
                 className={cn(
-                  "rounded-full px-3 py-1 text-sm font-medium transition",
+                  "rounded-full border px-3 py-1 text-sm font-medium transition",
                   isActive
-                    ? meta.badgeClassName
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100",
+                    ? "border-[#06923E] text-[#06923E] dark:border-[#46c86f] dark:text-[#46c86f]"
+                    : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100",
                 )}
               >
                 {meta.label}
@@ -124,18 +138,10 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
           })}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="hidden text-xs text-slate-400 dark:text-slate-500 sm:inline">
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 sm:text-xs">
             {currentLanguage.fileName}
           </span>
-          <Button
-            size="sm"
-            onClick={handleRun}
-            className="bg-[#06923E] text-white hover:bg-[#047a33]"
-          >
-            <Play className="size-4" />
-            실행
-          </Button>
         </div>
       </div>
 
@@ -178,31 +184,38 @@ export default function HorokCoteIDE({ problem }: HorokCoteIDEProps) {
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
               실행 결과
             </p>
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-medium",
-                executionState.status === "success" &&
-                  "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-                executionState.status === "failure" &&
-                  "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
-                executionState.status === "idle" &&
-                  "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-              )}
-            >
-              {executionState.status === "success"
-                ? "일치"
-                : executionState.status === "failure"
-                  ? "불일치"
-                  : "대기"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-medium",
+                  executionState.status === "success" &&
+                    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+                  executionState.status === "failure" &&
+                    "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+                  executionState.status === "idle" &&
+                    "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+                )}
+              >
+                {executionState.status === "success"
+                  ? "성공"
+                  : executionState.status === "failure"
+                    ? "실패"
+                    : "대기"}
+              </span>
+              <Button
+                size="sm"
+                onClick={handleRun}
+                className="bg-[#06923E] text-white hover:bg-[#047a33]"
+              >
+                <Play className="size-4" />
+                실행
+              </Button>
+            </div>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col px-4 sm:px-5 sm:pb-5">
             <div className="flex min-h-[96px] shrink-0 flex-col rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 sm:h-full sm:min-h-[160px]">
-              <div className="border-b border-slate-200 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                stdout
-              </div>
-              <pre className="scrollbar-hide min-h-0 flex-1 overflow-auto px-4 pb-5 pt-4 font-mono text-[15px] leading-7 text-slate-800 dark:text-slate-100 sm:px-4 sm:py-4 sm:text-base">
+              <pre className="scrollbar-hide min-h-0 flex-1 overflow-auto px-4 py-4 font-mono text-[15px] leading-7 text-slate-800 dark:text-slate-100 sm:text-base">
                 {executionState.output || "(출력 없음)"}
               </pre>
             </div>

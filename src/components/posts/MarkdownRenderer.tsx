@@ -21,7 +21,7 @@ export default function MarkdownRenderer({ content, className = "" }: Props) {
         "max-w-none text-left text-sm leading-7 text-foreground",
         "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4",
         "[&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground",
-        "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.9em]",
+        "[&_code]:rounded [&_code]:bg-orange-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.9em] [&_code]:text-orange-900 dark:[&_code]:bg-transparent dark:[&_code]:text-inherit",
         "[&_h1]:mt-8 [&_h1]:mb-4 [&_h1]:text-3xl [&_h1]:font-bold",
         "[&_h2]:mt-7 [&_h2]:mb-3 [&_h2]:text-2xl [&_h2]:font-semibold",
         "[&_h3]:mt-6 [&_h3]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold",
@@ -131,7 +131,7 @@ function renderMarkdownBody(content: string) {
             return (
               <code
                 className={[
-                  "rounded-md bg-amber-100 px-1.5 py-0.5 font-mono text-[0.9em] text-foreground dark:bg-amber-200",
+                  "rounded-md bg-orange-100 px-1.5 py-0.5 font-mono text-[0.9em] text-orange-900 dark:bg-transparent dark:text-inherit",
                   codeClassName,
                 ]
                   .filter(Boolean)

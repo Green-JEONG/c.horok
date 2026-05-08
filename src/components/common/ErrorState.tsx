@@ -9,6 +9,8 @@ type Props = {
   action?: ReactNode;
   className?: string;
   contentClassName?: string;
+  codeClassName?: string;
+  hideDefaultAction?: boolean;
 };
 
 export default function ErrorState({
@@ -17,6 +19,8 @@ export default function ErrorState({
   action,
   className,
   contentClassName,
+  codeClassName,
+  hideDefaultAction = false,
 }: Props) {
   return (
     <div
@@ -27,7 +31,12 @@ export default function ErrorState({
     >
       <div className={cn("w-full max-w-[1400px] space-y-5", contentClassName)}>
         <div className="space-y-3">
-          <p className="text-center text-5xl font-extrabold tracking-tight text-primary sm:text-6xl">
+          <p
+            className={cn(
+              "text-center text-5xl font-extrabold tracking-tight text-primary sm:text-6xl",
+              codeClassName,
+            )}
+          >
             {code}
           </p>
           <div className="relative mx-auto w-full max-w-[400px]">
@@ -44,10 +53,12 @@ export default function ErrorState({
 
         <p className="text-sm text-muted-foreground sm:text-base">{message}</p>
 
-        <div className="flex items-center justify-center gap-3">
-          {action}
-          <GoBackButton />
-        </div>
+        {!hideDefaultAction || action ? (
+          <div className="flex items-center justify-center gap-3">
+            {action}
+            {!hideDefaultAction ? <GoBackButton /> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

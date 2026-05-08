@@ -54,7 +54,7 @@ export default async function Header() {
           <HeaderNav />
         </div>
 
-        <div className="ml-6 mr-2 flex min-w-0 flex-1 justify-end">
+        <div className="ml-auto mr-2 flex w-[270px] shrink-0 justify-end lg:w-[330px] xl:w-[360px]">
           <HeaderSearch />
         </div>
 

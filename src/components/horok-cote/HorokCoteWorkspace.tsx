@@ -1,12 +1,11 @@
 "use client";
 
 import {
+  AlarmClock,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  FileCode2,
-  Sparkles,
 } from "lucide-react";
 import type {
   CSSProperties,
@@ -16,7 +15,7 @@ import type {
 import { useEffect, useRef, useState } from "react";
 import HorokChat from "@/components/chat/HorokChat";
 import HorokCoteIDE from "@/components/horok-cote/HorokCoteIDE";
-import type { HorokCoteProblem } from "@/lib/horok-cote";
+import type { HorokCoteProblem } from "@/lib/horok-cote-shared";
 import { cn } from "@/lib/utils";
 
 type HorokCoteWorkspaceProps = {
@@ -50,16 +49,47 @@ function findLargestOpenPanelIndex(sizes: number[], excludedIndex: number) {
     .sort((left, right) => right.size - left.size)[0]?.index;
 }
 
+function renderInlineCode(text: string) {
+  let searchStartIndex = 0;
+
+  return text.split(/(`[^`]+`)/g).map((segment) => {
+    const isCode = segment.startsWith("`") && segment.endsWith("`");
+    const segmentStartIndex = text.indexOf(segment, searchStartIndex);
+    const key = `${segment}-${segmentStartIndex}`;
+
+    searchStartIndex =
+      segmentStartIndex >= 0
+        ? segmentStartIndex + segment.length
+        : searchStartIndex + segment.length;
+
+    if (!isCode) {
+      return <span key={key}>{segment}</span>;
+    }
+
+    return (
+      <code
+        key={key}
+        className="rounded-md bg-orange-100 px-1.5 py-0.5 font-mono text-[0.9em] text-orange-900 dark:bg-orange-300/85 dark:text-orange-950"
+      >
+        {segment.slice(1, -1)}
+      </code>
+    );
+  });
+}
+
 export default function HorokCoteWorkspace({
   problem,
 }: HorokCoteWorkspaceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
+  const timerStartedAtRef = useRef(Date.now());
   const [isDesktop, setIsDesktop] = useState(false);
   const [containerMainSize, setContainerMainSize] = useState(0);
   const [desktopSizes, setDesktopSizes] = useState(DESKTOP_DEFAULT_SIZES);
   const [mobileSizes, setMobileSizes] = useState(MOBILE_DEFAULT_SIZES);
   const [isDragging, setIsDragging] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(true);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_BREAKPOINT);
@@ -164,6 +194,69 @@ export default function HorokCoteWorkspace({
     };
   }, [isDragging]);
 
+  useEffect(() => {
+    void problem.slug;
+    timerStartedAtRef.current = Date.now();
+    setElapsedSeconds(0);
+    setIsTimerRunning(true);
+  }, [problem.slug]);
+
+  useEffect(() => {
+    if (!isTimerRunning) {
+      return;
+    }
+
+    const updateElapsedSeconds = () => {
+      setElapsedSeconds(
+        Math.floor((Date.now() - timerStartedAtRef.current) / 1000),
+      );
+    };
+
+    updateElapsedSeconds();
+
+    const interval = window.setInterval(updateElapsedSeconds, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [isTimerRunning]);
+
+  function handleProblemSolved() {
+    if (!isTimerRunning) {
+      return;
+    }
+
+    const solvedElapsedSeconds = Math.floor(
+      (Date.now() - timerStartedAtRef.current) / 1000,
+    );
+
+    setElapsedSeconds(solvedElapsedSeconds);
+    setIsTimerRunning(false);
+
+    void fetch("/api/horok-cote/progress", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        problemSlug: problem.slug,
+        problemNumber: problem.number,
+        elapsedSeconds: solvedElapsedSeconds,
+      }),
+    }).catch(() => {
+      return null;
+    });
+  }
+
+  function formatElapsedTime(totalSeconds: number) {
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(
+      2,
+      "0",
+    );
+    const seconds = String(totalSeconds % 60).padStart(2, "0");
+
+    return `${hours}:${minutes}:${seconds}`;
+  }
+
   function handleResizeStart(
     index: number,
     event: ReactPointerEvent<HTMLButtonElement>,
@@ -173,7 +266,9 @@ export default function HorokCoteWorkspace({
     const sizes = isDesktop ? desktopSizes : mobileSizes;
     const isMiddleCollapsed = sizes[1] <= 0;
     const pair =
-      index === 1 && isMiddleCollapsed ? ([0, 2] as const) : ([index, index + 1] as const);
+      index === 1 && isMiddleCollapsed
+        ? ([0, 2] as const)
+        : ([index, index + 1] as const);
 
     dragStateRef.current = {
       firstPanelIndex: pair[0],
@@ -270,18 +365,17 @@ export default function HorokCoteWorkspace({
               ? `${COLLAPSED_PANEL_SIZE}px`
               : `${panelMinSize}px`
             : "0px",
-          minHeight:
-            !isDesktop
-              ? collapsedPanels[0]
-                ? `${COLLAPSED_PANEL_SIZE}px`
-                : `${panelMinSize}px`
-              : "0px",
+          minHeight: !isDesktop
+            ? collapsedPanels[0]
+              ? `${COLLAPSED_PANEL_SIZE}px`
+              : `${panelMinSize}px`
+            : "0px",
           background: collapsedPanels[0] ? "transparent" : undefined,
           borderWidth: collapsedPanels[0] ? 0 : undefined,
           borderRadius: collapsedPanels[0] ? 0 : undefined,
         }}
         className={cn(
-          "scrollbar-hide overflow-x-hidden overflow-y-auto rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]",
+          "scrollbar-hide overflow-x-hidden overflow-y-auto rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-5 py-3.5 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]",
           collapsedPanels[0] &&
             "overflow-hidden rounded-none border-transparent bg-transparent p-0",
         )}
@@ -294,95 +388,54 @@ export default function HorokCoteWorkspace({
           />
         }
       >
-        <div className="min-w-0 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-            <FileCode2 className="size-4" />
-            문제 설명
-          </div>
-          <p className="text-sm leading-7 text-slate-700 dark:text-slate-300 sm:text-[15px]">
-            {problem.prompt}
-          </p>
-        </div>
-
-        <div className="mt-5 grid min-w-0 gap-4 md:grid-cols-2">
-          <article className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-              제한사항
-            </h2>
-            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              {problem.constraints.map((constraint) => (
-                <li key={constraint}>- {constraint}</li>
-              ))}
-            </ul>
-          </article>
-
-          <article className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  입력
-                </h2>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  {problem.inputDescription.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  출력
-                </h2>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  {problem.outputDescription.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </article>
-        </div>
-
-        <div className="min-w-0 mt-5 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
-            <Sparkles className="size-4" />
-            예제
-          </div>
-          {problem.examples.map((example, index) => (
-            <article
-              key={`${problem.slug}-${index + 1}`}
-              className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
-            >
+        <div className="flex h-full min-h-0 flex-col">
+          <section className="min-h-0 flex-1 overflow-y-auto pb-5">
+            <div className="min-w-0 space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  예제 {index + 1}
-                </h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  입력 / 출력
-                </p>
-              </div>
-              <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
-                <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    입력
-                  </p>
-                  <pre className="mt-2 overflow-x-auto font-mono text-xs leading-6 text-slate-700 dark:text-slate-300">
-                    {example.input}
-                  </pre>
+                <div className="text-base font-bold text-slate-700 dark:text-slate-200 sm:text-lg">
+                  문제 설명
                 </div>
-                <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    출력
-                  </p>
-                  <pre className="mt-2 overflow-x-auto font-mono text-xs leading-6 text-slate-700 dark:text-slate-300">
-                    {example.output}
-                  </pre>
+                <div className="flex shrink-0 items-center gap-1.5 font-mono text-sm font-semibold text-slate-500 dark:text-slate-400 sm:text-base">
+                  <AlarmClock className="size-4" />
+                  {formatElapsedTime(elapsedSeconds)}
                 </div>
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {example.explanation}
+              <p className="text-[15px] leading-7 text-slate-700 dark:text-slate-300 sm:text-base">
+                {renderInlineCode(problem.prompt)}
               </p>
-            </article>
-          ))}
+            </div>
+          </section>
+
+          <section className="scrollbar-hide min-h-0 flex-1 overflow-y-auto border-t border-slate-200 pt-5 dark:border-slate-800">
+            <div className="min-w-0 space-y-3">
+              <div className="text-base font-bold text-slate-700 dark:text-slate-200 sm:text-lg">
+                예제
+              </div>
+              {problem.examples.map((example, index) => (
+                <div
+                  key={`${problem.slug}-${index + 1}`}
+                  className="grid min-w-0 gap-3 sm:grid-cols-2"
+                >
+                  <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                      입력 {index + 1}
+                    </p>
+                    <pre className="scrollbar-hide mt-2 overflow-x-auto font-mono text-sm leading-6 text-slate-700 dark:text-slate-300">
+                      {example.input}
+                    </pre>
+                  </div>
+                  <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                      출력 {index + 1}
+                    </p>
+                    <pre className="scrollbar-hide mt-2 overflow-x-auto font-mono text-sm leading-6 text-slate-700 dark:text-slate-300">
+                      {example.output}
+                    </pre>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       </WorkspacePanel>
 
@@ -403,12 +456,11 @@ export default function HorokCoteWorkspace({
               ? `${COLLAPSED_PANEL_SIZE}px`
               : `${panelMinSize}px`
             : "0px",
-          minHeight:
-            !isDesktop
-              ? collapsedPanels[1]
-                ? `${COLLAPSED_PANEL_SIZE}px`
-                : `${panelMinSize}px`
-              : "0px",
+          minHeight: !isDesktop
+            ? collapsedPanels[1]
+              ? `${COLLAPSED_PANEL_SIZE}px`
+              : `${panelMinSize}px`
+            : "0px",
         }}
         isCollapsed={collapsedPanels[1]}
         closeButton={
@@ -419,7 +471,7 @@ export default function HorokCoteWorkspace({
           />
         }
       >
-        <HorokCoteIDE problem={problem} />
+        <HorokCoteIDE problem={problem} onSolved={handleProblemSolved} />
       </WorkspacePanel>
 
       {!collapsedPanels[2] ? (
@@ -439,12 +491,11 @@ export default function HorokCoteWorkspace({
               ? `${COLLAPSED_PANEL_SIZE}px`
               : `${panelMinSize}px`
             : "0px",
-          minHeight:
-            !isDesktop
-              ? collapsedPanels[2]
-                ? `${COLLAPSED_PANEL_SIZE}px`
-                : `${panelMinSize}px`
-              : "0px",
+          minHeight: !isDesktop
+            ? collapsedPanels[2]
+              ? `${COLLAPSED_PANEL_SIZE}px`
+              : `${panelMinSize}px`
+            : "0px",
         }}
         isCollapsed={collapsedPanels[2]}
         closeButton={
@@ -456,7 +507,7 @@ export default function HorokCoteWorkspace({
           />
         }
       >
-        <HorokChat variant="embedded" />
+        <HorokChat variant="embedded" problem={problem} />
       </WorkspacePanel>
     </div>
   );
@@ -519,27 +570,21 @@ function PanelCloseButton({
           ) : (
             <ChevronRight className="size-3" />
           )
+        ) : isCollapsed ? (
+          <ChevronRight className="size-3" />
         ) : (
-          isCollapsed ? (
-            <ChevronRight className="size-3" />
-          ) : (
-            <ChevronLeft className="size-3" />
-          )
+          <ChevronLeft className="size-3" />
         )
+      ) : isOpposite ? (
+        isCollapsed ? (
+          <ChevronUp className="size-3" />
+        ) : (
+          <ChevronDown className="size-3" />
+        )
+      ) : isCollapsed ? (
+        <ChevronDown className="size-3" />
       ) : (
-        isOpposite ? (
-          isCollapsed ? (
-            <ChevronUp className="size-3" />
-          ) : (
-            <ChevronDown className="size-3" />
-          )
-        ) : (
-          isCollapsed ? (
-            <ChevronDown className="size-3" />
-          ) : (
-            <ChevronUp className="size-3" />
-          )
-        )
+        <ChevronUp className="size-3" />
       )}
     </button>
   );

@@ -3,7 +3,11 @@ import ErrorState from "@/components/common/ErrorState";
 import HorokCoteBackgroundPattern from "@/components/horok-cote/HorokCoteBackgroundPattern";
 import HorokCoteProblemHeader from "@/components/horok-cote/HorokCoteProblemHeader";
 import HorokCoteWorkspace from "@/components/horok-cote/HorokCoteWorkspace";
-import { getHorokCoteProblem, horokCoteProblems } from "@/lib/horok-cote";
+import {
+  getHorokCoteProblem,
+  listHorokCoteProblemRouteParams,
+  listHorokCoteProblems,
+} from "@/lib/horok-cote";
 
 type HorokCoteProblemPageProps = {
   params: Promise<{
@@ -12,16 +16,14 @@ type HorokCoteProblemPageProps = {
 };
 
 export async function generateStaticParams() {
-  return horokCoteProblems.map((problem) => ({
-    slug: String(problem.number),
-  }));
+  return listHorokCoteProblemRouteParams();
 }
 
 export async function generateMetadata({
   params,
 }: HorokCoteProblemPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const problem = getHorokCoteProblem(slug);
+  const problem = await getHorokCoteProblem(slug);
 
   if (!problem) {
     return {
@@ -42,7 +44,10 @@ export default async function HorokCoteProblemPage({
   params,
 }: HorokCoteProblemPageProps) {
   const { slug } = await params;
-  const problem = getHorokCoteProblem(slug);
+  const [problem, allProblems] = await Promise.all([
+    getHorokCoteProblem(slug),
+    listHorokCoteProblems(),
+  ]);
 
   if (!problem) {
     return (
@@ -55,6 +60,7 @@ export default async function HorokCoteProblemPage({
               message="요청하신 페이지를 찾을 수 없습니다. 주소가 올바른지 확인해 주세요."
               className="min-h-0 flex-1 px-0 py-0"
               contentClassName="rounded-[28px] bg-white px-6 py-10 dark:bg-[#020617]"
+              codeClassName="text-[#06923E] dark:text-[#46c86f]"
             />
           </section>
         </div>
@@ -71,6 +77,7 @@ export default async function HorokCoteProblemPage({
             level={problem.level}
             number={problem.number}
             title={problem.title}
+            problems={allProblems}
           />
           <HorokCoteWorkspace problem={problem} />
         </section>

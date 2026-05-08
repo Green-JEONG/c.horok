@@ -29,6 +29,11 @@ import {
 } from "react";
 
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
+import type { HorokCoteProblem } from "@/lib/horok-cote-shared";
+import {
+  getHorokCoteChatIntroMessage,
+  getHorokCoteChatThreadTitle,
+} from "@/lib/horok-cote-shared";
 import { cn } from "@/lib/utils";
 
 type ChatThreadSummary = {
@@ -50,6 +55,7 @@ type ChatPayload = {
 
 type HorokChatProps = {
   variant?: "floating" | "embedded";
+  problem?: HorokCoteProblem;
 };
 
 type ChatUIMessage = UIMessage & {
@@ -87,6 +93,7 @@ type ResizeDirection =
   | "bottom-right";
 
 const THREAD_PLATFORM_STORAGE_KEY = "horok-chat-thread-platforms";
+const COTE_PROBLEM_THREAD_STORAGE_KEY = "horok-chat-cote-problem-threads";
 const FLOATING_BUTTON_SIZE = 64;
 const FLOATING_PANEL_GAP = 12;
 const FLOATING_VIEWPORT_MARGIN = 24;
@@ -112,6 +119,25 @@ const INITIAL_MESSAGES: ChatUIMessage[] = [
   },
 ];
 
+function buildInitialMessages(problem?: HorokCoteProblem): ChatUIMessage[] {
+  if (!problem) {
+    return INITIAL_MESSAGES;
+  }
+
+  return [
+    {
+      id: `horok-cote-${problem.slug}`,
+      role: "assistant",
+      parts: [
+        {
+          type: "text",
+          text: getHorokCoteChatIntroMessage(problem),
+        },
+      ],
+    },
+  ];
+}
+
 function getMessageText(
   parts: Array<{ type: string; text?: string; state?: string }> = [],
 ) {
@@ -119,6 +145,10 @@ function getMessageText(
     .filter((part) => part.type === "text")
     .map((part) => part.text ?? "")
     .join("");
+}
+
+function escapeBackticksForChatDisplay(text: string) {
+  return text.replace(/`/g, "\\`");
 }
 
 function formatThreadTime(iso: string) {
@@ -223,6 +253,34 @@ function writeThreadPlatformMap(nextMap: Record<string, "tech" | "cote">) {
   );
 }
 
+function readCoteProblemThreadMap() {
+  if (typeof window === "undefined") {
+    return {} as Record<string, string>;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(COTE_PROBLEM_THREAD_STORAGE_KEY);
+    if (!stored) {
+      return {};
+    }
+
+    return JSON.parse(stored) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function writeCoteProblemThreadMap(nextMap: Record<string, string>) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    COTE_PROBLEM_THREAD_STORAGE_KEY,
+    JSON.stringify(nextMap),
+  );
+}
+
 function clampFloatingSize(size: FloatingSize) {
   if (typeof window === "undefined") {
     return size;
@@ -279,22 +337,30 @@ function getVisibleMessages(
   messages: ChatUIMessage[],
   sessionStatus: "authenticated" | "loading" | "unauthenticated",
   activeThreadId: string | null,
+  fallbackMessages: ChatUIMessage[],
 ): ChatUIMessage[] {
   if (sessionStatus !== "authenticated") {
-    return messages.length > 0 ? messages : INITIAL_MESSAGES;
+    return messages.length > 0 ? messages : fallbackMessages;
   }
 
   if (!activeThreadId) {
-    return [];
+    return messages.length > 0 ? messages : fallbackMessages;
   }
 
-  return messages.length > 0 ? messages : INITIAL_MESSAGES;
+  return messages.length > 0 ? messages : fallbackMessages;
 }
 
-export default function HorokChat({ variant = "floating" }: HorokChatProps) {
+export default function HorokChat({
+  variant = "floating",
+  problem,
+}: HorokChatProps) {
   const pathname = usePathname();
   const { status: sessionStatus } = useSession();
   const platform = pathname?.startsWith("/horok-cote") ? "cote" : "tech";
+  const initialMessages = useMemo(
+    () => buildInitialMessages(problem),
+    [problem],
+  );
   const isEmbedded = variant === "embedded";
   const hasCloseButton = !isEmbedded;
   const [isOpen, setIsOpen] = useState(false);
@@ -347,7 +413,7 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
     error,
     clearError,
   } = useChat({
-    messages: INITIAL_MESSAGES,
+    messages: initialMessages,
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest: ({ messages: nextMessages }) => ({
@@ -363,8 +429,9 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
   const setMessages = rawSetMessages as (messages: ChatUIMessage[]) => void;
 
   const visibleMessages = useMemo(
-    () => getVisibleMessages(messages, sessionStatus, threadId),
-    [messages, sessionStatus, threadId],
+    () =>
+      getVisibleMessages(messages, sessionStatus, threadId, initialMessages),
+    [initialMessages, messages, sessionStatus, threadId],
   );
   const isLoading =
     status === "submitted" ||
@@ -703,8 +770,8 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
       if (sessionStatus !== "authenticated") {
         applyActiveThread(null);
         setThreads([]);
-        setMessages(INITIAL_MESSAGES);
-        return;
+        setMessages(initialMessages);
+        return null;
       }
 
       setIsHistoryLoading(true);
@@ -741,16 +808,18 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
         setThreads(sortThreadsByRecentActivity(nextThreads));
         applyActiveThread(data.activeThreadId);
         setMessages(data.activeThreadId ? data.messages : []);
+        return data;
       } catch (loadError) {
         console.error("Failed to load chat state", loadError);
         setThreads([]);
         applyActiveThread(null);
         setMessages([]);
+        return null;
       } finally {
         setIsHistoryLoading(false);
       }
     },
-    [applyActiveThread, platform, sessionStatus, setMessages],
+    [applyActiveThread, initialMessages, platform, sessionStatus, setMessages],
   );
 
   useEffect(() => {
@@ -761,13 +830,112 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
     if (sessionStatus !== "authenticated") {
       applyActiveThread(null);
       setThreads([]);
-      setMessages(INITIAL_MESSAGES);
+      setMessages(initialMessages);
       setView("chat");
       return;
     }
 
+    if (platform === "cote" && problem) {
+      return;
+    }
+
     void loadChatState();
-  }, [applyActiveThread, loadChatState, sessionStatus, setMessages]);
+  }, [
+    applyActiveThread,
+    initialMessages,
+    loadChatState,
+    platform,
+    problem,
+    sessionStatus,
+    setMessages,
+  ]);
+
+  useEffect(() => {
+    if (
+      sessionStatus !== "authenticated" ||
+      platform !== "cote" ||
+      !problem ||
+      isCreatingThread
+    ) {
+      return;
+    }
+
+    let isCancelled = false;
+    const currentProblem = problem;
+
+    async function ensureProblemThread() {
+      const threadTitle = getHorokCoteChatThreadTitle(currentProblem);
+      const threadMap = readCoteProblemThreadMap();
+      const mappedThreadId = threadMap[currentProblem.slug];
+      const currentState = await loadChatState();
+
+      if (isCancelled) {
+        return;
+      }
+
+      const matchedThread =
+        currentState?.threads.find((thread) => thread.id === mappedThreadId) ??
+        currentState?.threads.find((thread) => thread.title === threadTitle);
+
+      if (matchedThread) {
+        threadMap[currentProblem.slug] = matchedThread.id;
+        writeCoteProblemThreadMap(threadMap);
+
+        if (currentState?.activeThreadId !== matchedThread.id) {
+          await loadChatState(matchedThread.id);
+        }
+
+        setView("chat");
+        return;
+      }
+
+      setIsCreatingThread(true);
+
+      try {
+        const response = await fetch("/api/chat/threads", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            platform,
+            title: threadTitle,
+            initialAssistantMessage:
+              getHorokCoteChatIntroMessage(currentProblem),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to create problem thread");
+        }
+
+        const data = (await response.json()) as {
+          threadId: string;
+        };
+
+        const threadPlatformMap = readThreadPlatformMap();
+        threadPlatformMap[data.threadId] = platform;
+        writeThreadPlatformMap(threadPlatformMap);
+
+        threadMap[currentProblem.slug] = data.threadId;
+        writeCoteProblemThreadMap(threadMap);
+        await loadChatState(data.threadId);
+        setView("chat");
+      } catch (createError) {
+        console.error("Failed to create problem thread", createError);
+      } finally {
+        if (!isCancelled) {
+          setIsCreatingThread(false);
+        }
+      }
+    }
+
+    void ensureProblemThread();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isCreatingThread, loadChatState, platform, problem, sessionStatus]);
 
   async function handleSelectThread(nextThreadId: string) {
     if (nextThreadId === threadId) {
@@ -1369,7 +1537,7 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                 ? "flex min-h-0 flex-1 flex-col"
                 : "flex min-h-0 flex-1 flex-col",
               platform === "cote"
-                ? "bg-white dark:bg-zinc-950"
+                ? "bg-white dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]"
                 : "bg-white dark:bg-zinc-950",
             )}
           >
@@ -1602,10 +1770,10 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                                     "rounded-3xl px-4 py-3 text-sm leading-5 shadow-sm",
                                     isUser
                                       ? platform === "cote"
-                                        ? "rounded-br-lg bg-[#06923E] text-white dark:bg-[#06923E] dark:text-white"
+                                        ? "rounded-br-lg border border-[#06923E]/20 bg-white text-slate-800 dark:border-[#06923E]/25 dark:bg-slate-950 dark:text-slate-100"
                                         : "rounded-br-lg bg-orange-500 text-white dark:bg-orange-500 dark:text-white"
                                       : platform === "cote"
-                                        ? "border border-[#06923E]/10 bg-white text-slate-800 dark:border-[#06923E]/20 dark:bg-zinc-900 dark:text-zinc-100"
+                                        ? "border border-[#06923E]/10 bg-white text-slate-800 dark:border-[#06923E]/20 dark:bg-slate-950 dark:text-slate-100"
                                         : "border border-orange-100 bg-white text-slate-800 dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-100",
                                   )}
                                 >
@@ -1618,12 +1786,12 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                                     </p>
                                   ) : (
                                     <MarkdownRenderer
-                                      content={text}
+                                      content={escapeBackticksForChatDisplay(
+                                        text,
+                                      )}
                                       className={cn(
-                                        "text-inherit !leading-5 [&_a]:text-inherit [&_a]:underline [&_blockquote]:!my-1 [&_blockquote]:border-current/20 [&_blockquote]:py-0.5 [&_blockquote]:text-inherit/80 [&_code]:text-inherit [&_h1]:!mt-1.5 [&_h1]:!mb-1 [&_h1]:text-base [&_h2]:!mt-1.5 [&_h2]:!mb-1 [&_h2]:text-sm [&_h3]:!mt-1 [&_h3]:!mb-0.5 [&_h3]:text-sm [&_img]:!my-1 [&_img]:rounded-2xl [&_ol]:!my-1 [&_ol]:pl-5 [&_p]:!my-0 [&_p]:!leading-5 [&_p+p]:!mt-0.5 [&_pre]:!my-1 [&_table]:!my-1 [&_td]:border-current/15 [&_th]:border-current/15 [&_th]:bg-black/5 [&_ul]:!my-1 [&_ul]:pl-5",
-                                        isUser
-                                          ? "[&_code]:bg-white/20 [&_th]:bg-white/15"
-                                          : "",
+                                        "text-inherit !leading-5 [&_a]:text-inherit [&_a]:underline [&_blockquote]:!my-1 [&_blockquote]:border-current/20 [&_blockquote]:py-0.5 [&_blockquote]:text-inherit/80 [&_code]:rounded-none [&_code]:bg-transparent [&_code]:px-0 [&_code]:py-0 [&_code]:text-inherit [&_h1]:!mt-1.5 [&_h1]:!mb-1 [&_h1]:text-base [&_h2]:!mt-1.5 [&_h2]:!mb-1 [&_h2]:text-sm [&_h3]:!mt-1 [&_h3]:!mb-0.5 [&_h3]:text-sm [&_img]:!my-1 [&_img]:rounded-2xl [&_ol]:!my-1 [&_ol]:pl-5 [&_p]:!my-0 [&_p]:!leading-5 [&_p+p]:!mt-0.5 [&_pre]:!my-1 [&_table]:!my-1 [&_td]:border-current/15 [&_th]:border-current/15 [&_th]:bg-black/5 [&_ul]:!my-1 [&_ul]:pl-5",
+                                        isUser ? "[&_th]:bg-white/15" : "",
                                       )}
                                     />
                                   )}
@@ -1686,9 +1854,9 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                       <div className="flex items-end gap-2">
                         <div
                           className={cn(
-                            "rounded-3xl rounded-bl-lg border bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:bg-zinc-900 dark:text-zinc-300",
+                            "rounded-3xl rounded-bl-lg border bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:text-zinc-300",
                             platform === "cote"
-                              ? "border-[#06923E]/10 dark:border-[#06923E]/20"
+                              ? "border-[#06923E]/10 dark:border-[#06923E]/20 dark:bg-slate-950 dark:text-slate-300"
                               : "border-orange-100 dark:border-orange-400/20",
                           )}
                         >
@@ -1722,10 +1890,10 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                 >
                   <div
                     className={cn(
-                      "relative rounded-3xl border bg-white shadow-sm dark:bg-zinc-900",
+                      "relative rounded-3xl border bg-white shadow-sm",
                       platform === "cote"
-                        ? "border-[#06923E]/25 dark:border-[#06923E]/30"
-                        : "border-orange-200 dark:border-orange-400/25",
+                        ? "border-[#06923E]/25 dark:border-[#06923E]/30 dark:bg-slate-950"
+                        : "border-orange-200 dark:border-orange-400/25 dark:bg-zinc-900",
                     )}
                   >
                     <input
