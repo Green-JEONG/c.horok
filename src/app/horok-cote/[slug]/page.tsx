@@ -1,6 +1,7 @@
 import { FileCode2, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import HorokChat from "@/components/chat/HorokChat";
 import HorokCoteBackgroundPattern from "@/components/horok-cote/HorokCoteBackgroundPattern";
 import HorokCoteIDE from "@/components/horok-cote/HorokCoteIDE";
 import HorokCoteProblemHeader from "@/components/horok-cote/HorokCoteProblemHeader";
@@ -60,7 +61,7 @@ export default async function HorokCoteProblemPage({
             title={problem.title}
           />
 
-          <div className="mt-5 grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(540px,1.05fr)]">
+          <div className="mt-5 grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,0.8fr)_minmax(440px,1fr)_minmax(320px,0.72fr)]">
             <section className="scrollbar-hide min-h-0 overflow-y-auto rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-5 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]">
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
@@ -155,6 +156,8 @@ export default async function HorokCoteProblemPage({
             </section>
 
             <HorokCoteIDE problem={problem} />
+
+            <HorokChat variant="embedded" />
           </div>
         </section>
       </div>
