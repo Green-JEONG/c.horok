@@ -1,17 +1,31 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 import GoBackButton from "@/components/common/GoBackButton";
+import { cn } from "@/lib/utils";
 
 type Props = {
   code: number;
   message: string;
   action?: ReactNode;
+  className?: string;
+  contentClassName?: string;
 };
 
-export default function ErrorState({ code, message, action }: Props) {
+export default function ErrorState({
+  code,
+  message,
+  action,
+  className,
+  contentClassName,
+}: Props) {
   return (
-    <main className="flex min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-center px-6 py-10 text-center">
-      <div className="w-full max-w-[1400px] space-y-5">
+    <div
+      className={cn(
+        "flex min-h-full w-full flex-col items-center justify-center text-center",
+        className,
+      )}
+    >
+      <div className={cn("w-full max-w-[1400px] space-y-5", contentClassName)}>
         <div className="space-y-3">
           <p className="text-center text-5xl font-extrabold tracking-tight text-primary sm:text-6xl">
             {code}
@@ -35,6 +49,6 @@ export default function ErrorState({ code, message, action }: Props) {
           <GoBackButton />
         </div>
       </div>
-    </main>
+    </div>
   );
 }

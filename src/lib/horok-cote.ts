@@ -57,7 +57,7 @@ export const horokCoteProblems: HorokCoteProblem[] = [
       {
         input: "(입력 없음)",
         output: "Hello, Horok!",
-        explanation: "문자열을 바꾸지 않고 그대로 출력하면 됩니다.",
+        explanation: "",
       },
     ],
     starterCodes: {

@@ -1155,7 +1155,7 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
     <div
       className={cn(
         isEmbedded
-          ? "flex h-full min-h-[28rem] flex-col"
+          ? "flex h-full min-h-0 flex-col"
           : "pointer-events-none fixed z-40 flex items-end justify-end",
       )}
       style={
@@ -1738,7 +1738,7 @@ export default function HorokChat({ variant = "floating" }: HorokChatProps) {
                     <button
                       type="submit"
                       className={cn(
-                        "absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-transparent transition",
+                        "absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-transparent transition disabled:cursor-default",
                         platform === "cote"
                           ? "text-[#06923E] hover:text-[#047a33] disabled:text-[#06923E]/35"
                           : "text-orange-500 hover:text-orange-600 disabled:text-orange-200 dark:text-orange-400 dark:hover:text-orange-300 dark:disabled:text-orange-900",

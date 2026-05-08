@@ -16,7 +16,7 @@ export default function GoBackButton() {
 
         router.push("/");
       }}
-      className="rounded-md border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+      className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
     >
       이전 페이지로
     </button>

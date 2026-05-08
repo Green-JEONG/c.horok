@@ -438,40 +438,37 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
 
   return (
     <div className="space-y-4">
-      {notice.isOwner ? (
-        <div className="flex flex-wrap justify-end gap-2 text-sm">
-          <button
-            type="button"
-            disabled={isDeleting || isTogglingHidden}
-            onClick={() => {
-              setIsEditing((prev) => !prev);
-              setError(null);
-            }}
-            className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isEditing ? "닫기" : "수정"}
-          </button>
-          <button
-            type="button"
-            disabled={isDeleting || isTogglingHidden}
-            onClick={handleToggleHidden}
-            className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isTogglingHidden ? "숨김 중..." : "숨김"}
-          </button>
-          <button
-            type="button"
-            disabled={isDeleting || isTogglingHidden}
-            onClick={handleDelete}
-            className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isDeleting ? "삭제 중..." : "삭제"}
-          </button>
-        </div>
-      ) : null}
-
       {notice.isOwner && isEditing ? (
         <div className="rounded-xl border bg-background p-4">
+          <div className="mb-4 flex flex-wrap items-start justify-end gap-2 text-sm">
+            <button
+              type="button"
+              disabled={isDeleting || isTogglingHidden}
+              onClick={() => {
+                setIsEditing((prev) => !prev);
+                setError(null);
+              }}
+              className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              닫기
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting || isTogglingHidden}
+              onClick={handleToggleHidden}
+              className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isTogglingHidden ? "숨김 중..." : "숨김"}
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting || isTogglingHidden}
+              onClick={handleDelete}
+              className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeleting ? "삭제 중..." : "삭제"}
+            </button>
+          </div>
           <PostEditor
             mode="edit"
             postId={notice.id}
@@ -498,7 +495,49 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
           />
         </div>
       ) : (
-        <MarkdownRenderer content={notice.content} />
+        <div
+          className={
+            notice.isOwner
+              ? "flex flex-col items-start gap-4 md:flex-row md:justify-between"
+              : ""
+          }
+        >
+          <MarkdownRenderer
+            content={notice.content}
+            className="flex-1 [&_blockquote:first-child]:mt-0 [&_h1:first-child]:mt-0 [&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0 [&_ol:first-child]:mt-0 [&_p:first-child]:mt-0 [&_pre:first-child]:mt-0 [&_table:first-child]:mt-0 [&_ul:first-child]:mt-0"
+          />
+          {notice.isOwner ? (
+            <div className="flex shrink-0 flex-wrap items-start justify-end gap-2 self-start text-sm">
+              <button
+                type="button"
+                disabled={isDeleting || isTogglingHidden}
+                onClick={() => {
+                  setIsEditing((prev) => !prev);
+                  setError(null);
+                }}
+                className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                수정
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting || isTogglingHidden}
+                onClick={handleToggleHidden}
+                className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isTogglingHidden ? "숨김 중..." : "숨김"}
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting || isTogglingHidden}
+                onClick={handleDelete}
+                className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          ) : null}
+        </div>
       )}
 
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
