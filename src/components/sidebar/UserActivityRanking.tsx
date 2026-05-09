@@ -3,6 +3,7 @@
 import { Trophy } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 type RankingUser = {
@@ -10,10 +11,10 @@ type RankingUser = {
   userId: number;
   name: string | null;
   image: string | null;
-  postCount: number;
 };
 
 export default function UserActivityRanking() {
+  const { data: session } = useSession();
   const [ranking, setRanking] = useState<RankingUser[]>([]);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function UserActivityRanking() {
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         <Trophy className="h-[18px] w-[18px]" />
-        <h3 className="text-lg font-bold tracking-tight">랭킹</h3>
+        <h3 className="text-lg font-bold tracking-tight">활동 랭킹</h3>
       </div>
 
       {ranking.length === 0 ? (
@@ -43,7 +44,11 @@ export default function UserActivityRanking() {
           {ranking.map((user) => (
             <li key={user.userId}>
               <Link
-                href={`/users/${user.userId}`}
+                href={
+                  session?.user?.id === String(user.userId)
+                    ? "/horok-tech"
+                    : `/users/${user.userId}`
+                }
                 className="flex items-center gap-2 rounded-lg px-1 py-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
               >
                 <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-foreground/80">
@@ -58,9 +63,6 @@ export default function UserActivityRanking() {
                 />
                 <span className="min-w-0 flex-1 truncate">
                   {user.name ?? "이름 없는 사용자"}
-                </span>
-                <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                  글 {user.postCount}
                 </span>
               </Link>
             </li>

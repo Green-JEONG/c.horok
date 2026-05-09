@@ -43,6 +43,13 @@ export default function AppShell({
   ]);
   const isPortalPage = pathname === "/";
   const isHorokTechLikePage = pathname.startsWith("/horok-tech");
+  const isLegacyHorokTechPage =
+    pathname === "/likes" ||
+    pathname.startsWith("/likes/") ||
+    pathname === "/notices" ||
+    pathname.startsWith("/notices/") ||
+    pathname === "/posts" ||
+    pathname.startsWith("/posts/");
   const isMyPage = pathname === "/mypage";
   const isSearchPage = pathname === "/search";
   const isUserProfilePage =
@@ -76,7 +83,12 @@ export default function AppShell({
     isSearchPage ||
     isUserProfilePage ||
     isWideNotFoundCandidatePage;
-  const isChatEnabledPage = isHorokTechLikePage;
+  const isChatEnabledPage =
+    isHorokTechLikePage ||
+    isLegacyHorokTechPage ||
+    isSearchPage ||
+    isMyPage ||
+    isUserProfilePage;
   if (isPortalPage || isStandaloneServicePage) {
     return (
       <>

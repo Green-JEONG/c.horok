@@ -11,18 +11,24 @@ export async function GET(request: Request) {
     const sort = parseSortType(url.searchParams.get("sort"));
     const requestedLimit = Number(url.searchParams.get("limit") ?? "12");
     const targetPostId = Number(url.searchParams.get("targetPostId") ?? "");
+    const categorySlug = url.searchParams.get("category") ?? undefined;
     const limit =
       Number.isFinite(requestedLimit) && requestedLimit > 0
         ? requestedLimit
         : 12;
     const userId = await requireDbUserId();
-    const totalCount = await countUserPosts(userId, { viewerUserId: userId });
+    const totalCount = await countUserPosts(userId, {
+      viewerUserId: userId,
+      categorySlug,
+    });
 
     let resolvedPage = Math.max(requestedPage, 1);
     let posts = [] as Awaited<ReturnType<typeof getMyPosts>>;
 
     if (Number.isFinite(targetPostId) && targetPostId > 0) {
-      const allPosts = await getMyPosts(userId, sort);
+      const allPosts = await getMyPosts(userId, sort, undefined, 0, {
+        categorySlug,
+      });
       const targetIndex = allPosts.findIndex(
         (post) => post.id === targetPostId,
       );
@@ -35,7 +41,9 @@ export async function GET(request: Request) {
       posts = allPosts.slice(offset, offset + limit);
     } else {
       const offset = Math.max(resolvedPage - 1, 0) * limit;
-      posts = await getMyPosts(userId, sort, limit, offset);
+      posts = await getMyPosts(userId, sort, limit, offset, {
+        categorySlug,
+      });
     }
 
     return NextResponse.json({

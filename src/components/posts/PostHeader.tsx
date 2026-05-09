@@ -35,11 +35,11 @@ export default function PostHeader({
     <header className="mb-3">
       <h1 className="flex items-center gap-2 text-3xl font-bold leading-tight">
         <span>{post.title}</span>
-        {showSecretLock ? (
-          <Lock className="h-6 w-6 shrink-0 text-muted-foreground" />
-        ) : null}
         {showHiddenIcon ? (
           <EyeOff className="h-6 w-6 shrink-0 text-muted-foreground" />
+        ) : null}
+        {showSecretLock ? (
+          <Lock className="h-6 w-6 shrink-0 text-muted-foreground" />
         ) : null}
       </h1>
 

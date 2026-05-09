@@ -1,4 +1,10 @@
-export type SortType = "latest" | "views" | "likes" | "comments";
+export type SortType =
+  | "latest"
+  | "views"
+  | "likes"
+  | "comments"
+  | "category"
+  | "categoryDesc";
 
 export const DEFAULT_SORT: SortType = "latest";
 
@@ -7,7 +13,9 @@ export function parseSortType(value?: string | null): SortType {
     value === "latest" ||
     value === "views" ||
     value === "likes" ||
-    value === "comments"
+    value === "comments" ||
+    value === "category" ||
+    value === "categoryDesc"
   ) {
     return value;
   }
@@ -23,6 +31,7 @@ export function comparePostMetrics(
     commentsCount: number;
     viewCount: number;
     id: bigint | number;
+    categoryName?: string | null;
   },
   b: {
     createdAt: Date;
@@ -30,6 +39,7 @@ export function comparePostMetrics(
     commentsCount: number;
     viewCount: number;
     id: bigint | number;
+    categoryName?: string | null;
   },
 ) {
   const latestFirst =
@@ -45,6 +55,18 @@ export function comparePostMetrics(
 
   if (sort === "comments") {
     return b.commentsCount - a.commentsCount || latestFirst;
+  }
+
+  if (sort === "category") {
+    return (
+      (a.categoryName ?? "").localeCompare(b.categoryName ?? "") || latestFirst
+    );
+  }
+
+  if (sort === "categoryDesc") {
+    return (
+      (b.categoryName ?? "").localeCompare(a.categoryName ?? "") || latestFirst
+    );
   }
 
   return latestFirst;

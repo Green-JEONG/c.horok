@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-import { parsePostSearchTarget } from "@/lib/post-search-target";
+import { parseGlobalPostSearchTarget } from "@/lib/post-search-target";
 import { parseSortType } from "@/lib/post-sort";
 import { searchPosts } from "@/lib/queries";
 
@@ -12,7 +12,9 @@ export async function GET(req: Request) {
 
   const page = Number(searchParams.get("page") ?? 1);
   const sort = parseSortType(searchParams.get("sort"));
-  const searchTarget = parsePostSearchTarget(searchParams.get("searchTarget"));
+  const searchTarget = parseGlobalPostSearchTarget(
+    searchParams.get("searchTarget"),
+  );
   const limit = 12;
   const offset = (page - 1) * limit;
 

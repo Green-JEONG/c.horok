@@ -2,9 +2,10 @@
 
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import SectionPagination from "@/components/mypage/sections/SectionPagination";
 import PostCard from "@/components/posts/PostCard";
+import PostSortButton from "@/components/posts/PostSortButton";
 import { getPostDraftStorageKey, loadPostDraft } from "@/lib/post-drafts";
 import { getTechFeedNewPostPath } from "@/lib/routes";
 
@@ -71,6 +72,10 @@ export default function MyPostsSection() {
     const value = Number(searchParams.get("postId") ?? "");
     return Number.isFinite(value) && value > 0 ? value : null;
   }, [searchParams]);
+  const categorySlug = searchParams.get("category")?.trim() || null;
+  const sort = searchParams.get("sort")?.trim() || null;
+  const listKey = `${categorySlug ?? ""}:${sort ?? ""}`;
+  const previousListKeyRef = useRef(listKey);
 
   useEffect(() => {
     const updatePageSize = () => {
@@ -92,6 +97,15 @@ export default function MyPostsSection() {
   }, []);
 
   useEffect(() => {
+    if (previousListKeyRef.current === listKey) {
+      return;
+    }
+
+    previousListKeyRef.current = listKey;
+    setPage(1);
+  }, [listKey]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadPosts = async () => {
@@ -104,6 +118,12 @@ export default function MyPostsSection() {
         });
         if (typeof targetPostId === "number") {
           params.set("targetPostId", String(targetPostId));
+        }
+        if (categorySlug) {
+          params.set("category", categorySlug);
+        }
+        if (sort) {
+          params.set("sort", sort);
         }
         const response = await fetch(`/api/mypage/posts?${params.toString()}`);
         const data: MyPostsResponse = await response.json();
@@ -168,7 +188,7 @@ export default function MyPostsSection() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize, status, targetPostId]);
+  }, [categorySlug, page, pageSize, sort, status, targetPostId]);
 
   useEffect(() => {
     if (typeof targetPostId !== "number") {
@@ -203,14 +223,18 @@ export default function MyPostsSection() {
   }, [posts, targetPostId]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const sectionTitle = categorySlug ? "게시물" : "내가 쓴 글";
 
   return (
     <section className="space-y-4" id="mypage-posts">
-      <div className="flex items-center gap-2">
-        <h2 className="text-base font-semibold">내가 쓴 글</h2>
-        <span className="text-sm font-medium text-muted-foreground">
-          {totalCount}
-        </span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold">{sectionTitle}</h2>
+          <span className="text-sm font-medium text-muted-foreground">
+            {totalCount}
+          </span>
+        </div>
+        {categorySlug ? <PostSortButton /> : null}
       </div>
 
       {loading ? (

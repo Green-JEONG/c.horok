@@ -143,9 +143,12 @@ export default function UserProfiles() {
               className="h-12 w-12 rounded-full border object-cover"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold">
+              <Link
+                href={profile.isSelf ? "/horok-tech" : `/users/${profile.id}`}
+                className="block truncate text-base font-semibold transition hover:text-foreground/80"
+              >
                 {profile.name ?? "이름 없는 사용자"}
-              </p>
+              </Link>
               <p className="mt-1 text-xs text-muted-foreground">
                 구독자 {profile.followerCount}명 · 글 {profile.postCount}개
               </p>
