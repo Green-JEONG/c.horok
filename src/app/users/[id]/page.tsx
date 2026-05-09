@@ -1,9 +1,11 @@
+import { ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import ContributionGrid from "@/components/contributions/ContributionGrid";
 import MyPostList from "@/components/posts/MyPostList";
 import PostListHeader from "@/components/posts/PostListHeader";
+import { getCategoryBySlug } from "@/lib/categories";
 import { findUserById } from "@/lib/db";
 import { countUserPosts } from "@/lib/queries";
 
@@ -53,28 +55,44 @@ export default async function UserPage({ params, searchParams }: Props) {
     notFound();
   }
 
-  const postCount = await countUserPosts(Number(id), {
-    viewerUserId:
-      typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
-        ? viewerUserId
-        : null,
-    query: q,
-    categorySlug: category,
-  });
+  const [postCount, selectedCategory] = await Promise.all([
+    countUserPosts(Number(id), {
+      viewerUserId:
+        typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
+          ? viewerUserId
+          : null,
+      query: q,
+      categorySlug: category,
+    }),
+    category?.trim() ? getCategoryBySlug(category.trim()) : null,
+  ]);
+  const displayName = user.name ?? "이 유저";
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold">{user.name ?? "이 유저"}님의 홈</h1>
-      <ContributionGrid userId={Number(id)} />
+      {selectedCategory ? (
+        <h1 className="inline-flex min-w-0 items-center gap-1 text-lg font-semibold">
+          <span className="truncate">{displayName}님의 홈</span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="shrink-0">카테고리</span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate">{selectedCategory.name}</span>
+        </h1>
+      ) : (
+        <h1 className="text-lg font-semibold">{displayName}님의 홈</h1>
+      )}
+      {selectedCategory ? null : <ContributionGrid userId={Number(id)} />}
       <PostListHeader
-        title="작성한 글"
+        title={selectedCategory ? "게시물" : "작성한 글"}
         showWriteButton={false}
         titleAction={
           <span className="text-sm font-medium text-muted-foreground">
             {postCount}
           </span>
         }
-        searchPlaceholder={`${user.name ?? "이 유저"}님의 글 검색`}
+        searchPlaceholder={
+          selectedCategory ? undefined : `${user.name ?? "이 유저"}님의 글 검색`
+        }
       />
       <MyPostList
         sort={sort}

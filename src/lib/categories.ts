@@ -1,4 +1,4 @@
-import { isNoticeCategoryName } from "@/lib/notice-categories";
+import { normalizeNoticeCategory } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
 function normalizeCategoryName(name: string) {
@@ -12,7 +12,13 @@ function slugifyCategoryName(name: string) {
     .replace(/\s+/g, "-");
 }
 
-export async function getCategoryBySlug(slug: string) {
+export async function getCategoryBySlug(
+  slug: string,
+  options?: {
+    requireVisiblePosts?: boolean;
+  },
+) {
+  const requireVisiblePosts = options?.requireVisiblePosts ?? true;
   const category = await prisma.category.findUnique({
     where: { slug },
     select: {
@@ -32,7 +38,9 @@ export async function getCategoryBySlug(slug: string) {
     },
   });
 
-  if (category && isNoticeCategoryName(category.name)) {
+  const noticeCategory = normalizeNoticeCategory(category?.name);
+
+  if (noticeCategory === "FAQ" || noticeCategory === "QnA") {
     return null;
   }
 
@@ -40,7 +48,7 @@ export async function getCategoryBySlug(slug: string) {
     return null;
   }
 
-  return category && category._count.posts > 0
+  return category && (!requireVisiblePosts || category._count.posts > 0)
     ? {
         id: Number(category.id),
         name: category.name,

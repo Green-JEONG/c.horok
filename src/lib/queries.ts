@@ -1,7 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import {
   ALL_NOTICE_TAG_OPTIONS,
+  getNoticeCategoryQueryNames,
   isNoticeCategoryName,
+  normalizeNoticeCategory,
 } from "@/lib/notice-categories";
 import {
   type PostSearchTarget,
@@ -125,28 +127,49 @@ function buildSearchWhere(
     isDeleted: false,
     isHidden: false,
     OR: tokens.map((token) =>
-      searchTarget === "author"
+      searchTarget === "all"
         ? {
-            user: {
-              is: {
-                name: { contains: token, mode: "insensitive" },
+            OR: [
+              { title: { contains: token, mode: "insensitive" } },
+              { content: { contains: token, mode: "insensitive" } },
+              {
+                user: {
+                  is: {
+                    name: { contains: token, mode: "insensitive" },
+                  },
+                },
               },
-            },
+              {
+                category: {
+                  is: {
+                    name: { contains: token, mode: "insensitive" },
+                  },
+                },
+              },
+            ],
           }
-        : searchTarget === "category"
+        : searchTarget === "author"
           ? {
-              category: {
+              user: {
                 is: {
                   name: { contains: token, mode: "insensitive" },
                 },
               },
             }
-          : {
-              OR: [
-                { title: { contains: token, mode: "insensitive" } },
-                { content: { contains: token, mode: "insensitive" } },
-              ],
-            },
+          : searchTarget === "category"
+            ? {
+                category: {
+                  is: {
+                    name: { contains: token, mode: "insensitive" },
+                  },
+                },
+              }
+            : {
+                OR: [
+                  { title: { contains: token, mode: "insensitive" } },
+                  { content: { contains: token, mode: "insensitive" } },
+                ],
+              },
     ),
   };
 
@@ -179,11 +202,15 @@ function scoreSearchMatch(
 ) {
   const normalizedKeyword = normalizeSearchText(keyword);
   const normalizedTarget = normalizeSearchText(
-    searchTarget === "author"
-      ? (post.user.name ?? "")
-      : searchTarget === "category"
-        ? (post.category?.name ?? "")
-        : `${post.title} ${post.content}`,
+    searchTarget === "all"
+      ? `${post.title} ${post.content} ${post.user.name ?? ""} ${
+          post.category?.name ?? ""
+        }`
+      : searchTarget === "author"
+        ? (post.user.name ?? "")
+        : searchTarget === "category"
+          ? (post.category?.name ?? "")
+          : `${post.title} ${post.content}`,
   );
 
   let score = 0;
@@ -216,7 +243,10 @@ export async function searchPosts(
 ): Promise<DbPost[]> {
   const tokens = tokenizeSearchQuery(keyword);
   const includeNotices = options?.includeNotices ?? false;
-  const searchTarget = parsePostSearchTarget(options?.searchTarget);
+  const searchTarget =
+    options?.searchTarget === "all"
+      ? "all"
+      : parsePostSearchTarget(options?.searchTarget);
 
   if (tokens.length === 0) {
     return [];
@@ -261,6 +291,7 @@ export async function searchPosts(
           likeCount: a._count.likes,
           commentsCount: a._count.comments,
           viewCount: Number(a.views?.viewCount ?? 0),
+          categoryName: a.category?.name,
         },
         {
           id: b.id,
@@ -268,6 +299,7 @@ export async function searchPosts(
           likeCount: b._count.likes,
           commentsCount: b._count.comments,
           viewCount: Number(b.views?.viewCount ?? 0),
+          categoryName: b.category?.name,
         },
       );
     })
@@ -276,6 +308,128 @@ export async function searchPosts(
     .filter(
       (post) => includeNotices || !isNoticeCategoryName(post.category_name),
     );
+}
+
+export async function countSearchPosts(
+  keyword: string,
+  options?: {
+    includeNotices?: boolean;
+    searchTarget?: PostSearchTarget;
+  },
+) {
+  const tokens = tokenizeSearchQuery(keyword);
+  const includeNotices = options?.includeNotices ?? false;
+  const searchTarget =
+    options?.searchTarget === "all"
+      ? "all"
+      : parsePostSearchTarget(options?.searchTarget);
+
+  if (tokens.length === 0) {
+    return 0;
+  }
+
+  return prisma.post.count({
+    where: buildSearchWhere(tokens, includeNotices, searchTarget),
+  });
+}
+
+export async function countSearchPostsByPreviewGroup(
+  keyword: string,
+  options?: {
+    searchTarget?: PostSearchTarget;
+  },
+) {
+  const tokens = tokenizeSearchQuery(keyword);
+  const searchTarget =
+    options?.searchTarget === "all"
+      ? "all"
+      : parsePostSearchTarget(options?.searchTarget);
+
+  if (tokens.length === 0) {
+    return {
+      posts: 0,
+      notice: 0,
+      faq: 0,
+      qna: 0,
+    };
+  }
+
+  const baseWhere = buildSearchWhere(tokens, true, searchTarget);
+  const countWithCategoryWhere = (where: Prisma.PostWhereInput) =>
+    prisma.post.count({
+      where: {
+        AND: [baseWhere, where],
+      },
+    });
+
+  const [posts, notice, faq, qna] = await Promise.all([
+    countWithCategoryWhere({
+      OR: [
+        { category: null },
+        {
+          category: {
+            is: {
+              name: {
+                notIn: [...ALL_NOTICE_TAG_OPTIONS],
+              },
+            },
+          },
+        },
+      ],
+    }),
+    countWithCategoryWhere({
+      category: {
+        is: {
+          name: {
+            in: getNoticeCategoryQueryNames("공지"),
+          },
+        },
+      },
+    }),
+    countWithCategoryWhere({
+      category: {
+        is: {
+          name: {
+            in: getNoticeCategoryQueryNames("FAQ"),
+          },
+        },
+      },
+    }),
+    countWithCategoryWhere({
+      category: {
+        is: {
+          name: {
+            in: getNoticeCategoryQueryNames("QnA"),
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    posts,
+    notice,
+    faq,
+    qna,
+  };
+}
+
+export async function countUsersByName(keyword: string) {
+  const query = keyword.trim();
+
+  if (!query) {
+    return 0;
+  }
+
+  return prisma.user.count({
+    where: {
+      isBlocked: false,
+      name: {
+        contains: query,
+        mode: "insensitive",
+      },
+    },
+  });
 }
 
 export async function searchUsersByName(
@@ -372,7 +526,9 @@ export async function getPostsByCategorySlug(
     };
   }
 
-  if (isNoticeCategoryName(category.name)) {
+  const noticeCategory = normalizeNoticeCategory(category.name);
+
+  if (noticeCategory === "FAQ" || noticeCategory === "QnA") {
     return {
       categoryName: null,
       posts: [],
@@ -424,6 +580,7 @@ export async function getPostsByCategorySlug(
             likeCount: a._count.likes,
             commentsCount: a._count.comments,
             viewCount: Number(a.views?.viewCount ?? 0),
+            categoryName: a.category?.name,
           },
           {
             id: b.id,
@@ -431,6 +588,7 @@ export async function getPostsByCategorySlug(
             likeCount: b._count.likes,
             commentsCount: b._count.comments,
             viewCount: Number(b.views?.viewCount ?? 0),
+            categoryName: b.category?.name,
           },
         );
       })
@@ -515,6 +673,7 @@ export async function getUserPosts(
           likeCount: a._count.likes,
           commentsCount: a._count.comments,
           viewCount: Number(a.views?.viewCount ?? 0),
+          categoryName: a.category?.name,
         },
         {
           id: b.id,
@@ -522,6 +681,7 @@ export async function getUserPosts(
           likeCount: b._count.likes,
           commentsCount: b._count.comments,
           viewCount: Number(b.views?.viewCount ?? 0),
+          categoryName: b.category?.name,
         },
       );
     })
@@ -586,9 +746,13 @@ export async function getMyPosts(
   sort: SortType = DEFAULT_SORT,
   limit?: number,
   offset = 0,
+  options?: {
+    categorySlug?: string;
+  },
 ): Promise<DbPost[]> {
   return getUserPosts(userId, sort, limit, offset, {
     viewerUserId: userId,
+    categorySlug: options?.categorySlug,
   });
 }
 
@@ -636,6 +800,7 @@ export async function getMyQnaPosts(
           likeCount: a._count.likes,
           commentsCount: a._count.comments,
           viewCount: Number(a.views?.viewCount ?? 0),
+          categoryName: a.category?.name,
         },
         {
           id: b.id,
@@ -643,6 +808,7 @@ export async function getMyQnaPosts(
           likeCount: b._count.likes,
           commentsCount: b._count.comments,
           viewCount: Number(b.views?.viewCount ?? 0),
+          categoryName: b.category?.name,
         },
       );
     })
@@ -749,6 +915,7 @@ export async function getLikedPosts(
           likeCount: a._count.likes,
           commentsCount: a._count.comments,
           viewCount: Number(a.views?.viewCount ?? 0),
+          categoryName: a.category?.name,
         },
         {
           id: b.id,
@@ -756,6 +923,7 @@ export async function getLikedPosts(
           likeCount: b._count.likes,
           commentsCount: b._count.comments,
           viewCount: Number(b.views?.viewCount ?? 0),
+          categoryName: b.category?.name,
         },
       );
     })

@@ -325,6 +325,7 @@ export async function findPostsPaged(
           likeCount: a._count.likes,
           commentsCount: a._count.comments,
           viewCount: Number(a.views?.viewCount ?? 0),
+          categoryName: a.category?.name,
         },
         {
           id: b.id,
@@ -332,6 +333,7 @@ export async function findPostsPaged(
           likeCount: b._count.likes,
           commentsCount: b._count.comments,
           viewCount: Number(b.views?.viewCount ?? 0),
+          categoryName: b.category?.name,
         },
       );
     })

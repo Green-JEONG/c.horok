@@ -15,7 +15,36 @@ const SORT_LABEL: Record<SortType, string> = {
   views: "조회순",
   likes: "좋아요순",
   comments: "댓글순",
+  category: "카테고리순 (오름차)",
+  categoryDesc: "카테고리순 (내림차)",
 };
+
+const DEFAULT_SORT_OPTIONS: SortType[] = [
+  "latest",
+  "views",
+  "likes",
+  "comments",
+  "category",
+  "categoryDesc",
+];
+
+function getSortMenuWidth(trigger: HTMLButtonElement, sortOptions: SortType[]) {
+  const context = document.createElement("canvas").getContext("2d");
+  const font = window.getComputedStyle(trigger).font;
+  const labelWidth =
+    context && font
+      ? Math.ceil(
+          Math.max(
+            ...sortOptions.map((option) => {
+              context.font = font;
+              return context.measureText(SORT_LABEL[option]).width;
+            }),
+          ),
+        )
+      : 112;
+
+  return labelWidth + 24;
+}
 
 type Props = {
   title?: string;
@@ -34,7 +63,7 @@ export default function PostListHeader({
   title: customTitle,
   showWriteButton,
   titleAction,
-  sortOptions = ["latest", "views", "likes", "comments"],
+  sortOptions = DEFAULT_SORT_OPTIONS,
   writeButtonHref,
   writeButtonLabel,
   searchPlaceholder,
@@ -109,7 +138,7 @@ export default function PostListHeader({
 
       const rect = trigger.getBoundingClientRect();
       const padding = 8;
-      const menuWidth = Math.max(rect.width, 112);
+      const menuWidth = getSortMenuWidth(trigger, sortOptions);
       const estimatedHeight = 168;
       const canOpenDownward =
         rect.bottom + padding + estimatedHeight <= window.innerHeight - padding;
@@ -119,7 +148,7 @@ export default function PostListHeader({
           ? rect.bottom + padding
           : Math.max(padding, rect.top - estimatedHeight - padding),
         left: Math.min(
-          Math.max(padding, rect.right - menuWidth),
+          Math.max(padding, rect.left),
           window.innerWidth - menuWidth - padding,
         ),
         width: menuWidth,
@@ -157,7 +186,7 @@ export default function PostListHeader({
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [open, sortOptions]);
 
   useEffect(() => {
     if (!showSearch) {
@@ -340,7 +369,7 @@ export default function PostListHeader({
                       router.push(`${pathname}?${params.toString()}`);
                       setOpen(false);
                     }}
-                    className="w-full px-3 py-2 text-left hover:bg-muted"
+                    className="w-full whitespace-nowrap px-3 py-2 text-left hover:bg-muted"
                   >
                     {SORT_LABEL[key]}
                   </button>

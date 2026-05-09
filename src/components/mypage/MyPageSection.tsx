@@ -11,6 +11,7 @@ import MyQnaSection from "./sections/MyQnaSection";
 export default function MyPageSection() {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
+  const isCategoryView = Boolean(searchParams.get("category")?.trim());
 
   const postsRef = useRef<HTMLDivElement>(null);
   const qnaRef = useRef<HTMLDivElement>(null);
@@ -58,17 +59,21 @@ export default function MyPageSection() {
         <MyPostsSection />
       </div>
 
-      <div ref={qnaRef}>
-        <MyQnaSection />
-      </div>
+      {isCategoryView ? null : (
+        <>
+          <div ref={qnaRef}>
+            <MyQnaSection />
+          </div>
 
-      <div ref={commentsRef}>
-        <MyCommentsSection />
-      </div>
+          <div ref={commentsRef}>
+            <MyCommentsSection />
+          </div>
 
-      <div ref={friendsRef}>
-        <MyFriendsSection />
-      </div>
+          <div ref={friendsRef}>
+            <MyFriendsSection />
+          </div>
+        </>
+      )}
     </section>
   );
 }

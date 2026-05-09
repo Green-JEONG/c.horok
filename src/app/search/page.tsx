@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 import PostListInfinite from "@/components/posts/PostListInfinite";
 import {
   POST_SEARCH_TARGET_LABEL,
-  parsePostSearchTarget,
+  parseGlobalPostSearchTarget,
 } from "@/lib/post-search-target";
 import { parseSortType } from "@/lib/post-sort";
 import {
@@ -42,7 +42,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const categorySlug = category?.trim();
   const keyword = q?.trim();
   const parsedSort = parseSortType(sort);
-  const parsedSearchTarget = parsePostSearchTarget(searchTarget);
+  const parsedSearchTarget = parseGlobalPostSearchTarget(searchTarget);
   const parsedUserSort = parseUserSearchSort(userSort);
   const session = await auth();
   const viewerUserId =
@@ -87,7 +87,18 @@ export default async function SearchPage({ searchParams }: Props) {
 
     return (
       <div className="space-y-4">
-        <PostListHeader title={`#${categoryName}`} showWriteButton={false} />
+        <PostListHeader
+          title="홈"
+          titleAction={
+            <span className="inline-flex min-w-0 items-center gap-1 text-lg font-bold tracking-tight text-foreground">
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="shrink-0">카테고리</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{categoryName}</span>
+            </span>
+          }
+          showWriteButton={false}
+        />
 
         <PostListInfinite
           initialPosts={posts}
@@ -103,7 +114,7 @@ export default async function SearchPage({ searchParams }: Props) {
   }
 
   const [users, posts] = await Promise.all([
-    parsedSearchTarget === "author"
+    parsedSearchTarget === "all" || parsedSearchTarget === "author"
       ? searchUsersByName(keyword ?? "", 60, parsedUserSort, viewerUserId)
       : [],
     searchPosts(keyword ?? "", 12, 0, parsedSort, {
@@ -127,10 +138,14 @@ export default async function SearchPage({ searchParams }: Props) {
         title="검색"
         titleAction={
           <span className="inline-flex min-w-0 items-center gap-1 text-lg font-bold tracking-tight text-foreground">
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="shrink-0">
-              {POST_SEARCH_TARGET_LABEL[parsedSearchTarget]}
-            </span>
+            {parsedSearchTarget === "all" ? null : (
+              <>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="shrink-0">
+                  {POST_SEARCH_TARGET_LABEL[parsedSearchTarget]}
+                </span>
+              </>
+            )}
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="truncate">{keyword}</span>
             <span className="ml-1 shrink-0 text-sm font-medium text-muted-foreground">
@@ -156,7 +171,13 @@ export default async function SearchPage({ searchParams }: Props) {
         <div>
           <PostListInfinite
             initialPosts={posts}
-            endpoint={`/api/search?q=${encodeURIComponent(keyword ?? "")}&searchTarget=${parsedSearchTarget}`}
+            endpoint={
+              parsedSearchTarget === "all"
+                ? `/api/search?q=${encodeURIComponent(keyword ?? "")}`
+                : `/api/search?q=${encodeURIComponent(
+                    keyword ?? "",
+                  )}&searchTarget=${parsedSearchTarget}`
+            }
             initialSort={parsedSort}
             syncSortWithSearchParams
             groupBySearchCategory
