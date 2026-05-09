@@ -154,7 +154,6 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
         redirectPath="/horok-tech/notices"
         categoryLocked
         fixedTagOptions={fixedTagOptions}
-        showThumbnailTab={!isUserQnaMode}
         showBannerOption={!isUserQnaMode}
         allowNoticeBannerForAllCategories={isAdmin}
         headerPost={noticePost}

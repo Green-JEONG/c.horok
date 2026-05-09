@@ -13,6 +13,7 @@ type ProfileCard = {
   name: string | null;
   image: string | null;
   followerCount: number;
+  postCount: number;
   isSelf: boolean;
   isFriend: boolean;
 };
@@ -24,8 +25,6 @@ export default function UserProfiles() {
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [isSubscribedHovering, setIsSubscribedHovering] = useState(false);
-  const profileTitle =
-    !loading && profile && !profile.isSelf ? "프로필" : "내 프로필";
 
   useEffect(() => {
     const load = async () => {
@@ -43,62 +42,37 @@ export default function UserProfiles() {
               name: session.user.name ?? null,
               image: session.user.image ?? null,
               followerCount: 0,
+              postCount: 0,
               isSelf: true,
               isFriend: false,
             }))
         : null;
 
-      if (!pathname.startsWith("/horok-tech/feeds/posts/")) {
-        const userPageMatch = pathname.match(/^\/users\/(\d+)$/);
+      const userPageMatch = pathname.match(/^\/users\/(\d+)$/);
 
-        if (userPageMatch) {
-          try {
-            setLoading(true);
+      if (userPageMatch) {
+        try {
+          setLoading(true);
 
-            const response = await fetch(
-              `/api/users/${userPageMatch[1]}/profile`,
-            );
-            if (!response.ok) {
-              throw new Error();
-            }
-
-            const data = await response.json();
-            setProfile(data.isSelf ? selfProfile : data);
-          } catch {
-            setProfile(selfProfile);
-          } finally {
-            setLoading(false);
+          const response = await fetch(
+            `/api/users/${userPageMatch[1]}/profile`,
+          );
+          if (!response.ok) {
+            throw new Error();
           }
-          return;
-        }
 
-        setProfile(selfProfile);
-        setLoading(false);
+          const data = await response.json();
+          setProfile(data.isSelf ? selfProfile : data);
+        } catch {
+          setProfile(selfProfile);
+        } finally {
+          setLoading(false);
+        }
         return;
       }
 
-      const match = pathname.match(/^\/horok-tech\/feeds\/posts\/(\d+)$/);
-      if (!match) {
-        setProfile(selfProfile);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-
-        const response = await fetch(`/api/posts/${match[1]}/author-profile`);
-        if (!response.ok) {
-          throw new Error();
-        }
-
-        const data = await response.json();
-        setProfile(data.isSelf ? selfProfile : data);
-      } catch {
-        setProfile(selfProfile);
-      } finally {
-        setLoading(false);
-      }
+      setProfile(selfProfile);
+      setLoading(false);
     };
 
     load();
@@ -149,7 +123,7 @@ export default function UserProfiles() {
     <section className="-mx-6 px-6 space-y-3">
       <div className="flex items-center gap-2">
         <UserRound className="h-[18px] w-[18px]" />
-        <h3 className="text-lg font-bold tracking-tight">{profileTitle}</h3>
+        <h3 className="text-lg font-bold tracking-tight">프로필</h3>
       </div>
 
       {loading ? (
@@ -169,14 +143,11 @@ export default function UserProfiles() {
               className="h-12 w-12 rounded-full border object-cover"
             />
             <div className="min-w-0 flex-1">
-              <Link
-                href={profile.isSelf ? "/mypage" : `/users/${profile.id}`}
-                className="block truncate text-base font-semibold transition hover:text-primary"
-              >
+              <p className="truncate text-base font-semibold">
                 {profile.name ?? "이름 없는 사용자"}
-              </Link>
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                구독자 {profile.followerCount}명
+                구독자 {profile.followerCount}명 · 글 {profile.postCount}개
               </p>
             </div>
           </div>

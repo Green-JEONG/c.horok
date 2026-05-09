@@ -3,7 +3,7 @@ export type PostDraftPayload = {
   content: string;
   tags: string[];
   selectedFixedTag: string;
-  thumbnailUrl: string | null;
+  thumbnailUrl?: string | null;
   isBanner: boolean;
   isSecret: boolean;
   savedAt: string;

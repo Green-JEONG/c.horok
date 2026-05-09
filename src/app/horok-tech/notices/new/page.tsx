@@ -1,3 +1,4 @@
+import { PenSquare } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
@@ -40,12 +41,18 @@ export default async function HorokTechNewNoticePage({
 
   return (
     <main className="w-full">
+      <div className="mb-6 flex items-center gap-2">
+        <PenSquare className="h-[18px] w-[18px]" />
+        <h1 className="text-lg font-bold tracking-tight">
+          {initialCategoryName} 작성
+        </h1>
+      </div>
       <PostEditor
         initialCategoryName={initialCategoryName}
         categoryLocked
         successPathPrefix="/horok-tech/notices"
         fixedTagOptions={fixedTagOptions}
-        showThumbnailTab
+        showCategoryField={false}
         showBannerOption
         allowNoticeBannerForAllCategories={isAdmin}
       />

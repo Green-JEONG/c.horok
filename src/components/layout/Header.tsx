@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import HomeWriteButton from "@/components/home/HomeWriteButton";
 import HeaderActions from "./HeaderActions";
 import HeaderNav from "./HeaderNav";
 import HeaderSearch from "./HeaderSearch";
@@ -27,6 +28,10 @@ export default async function Header() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <HomeWriteButton
+              buttonClassName="px-2.5 py-1.5"
+              className="shrink-0"
+            />
             <ThemeToggle />
             <HeaderActions />
           </div>
@@ -59,6 +64,7 @@ export default async function Header() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <HomeWriteButton className="shrink-0" />
           <ThemeToggle />
           <HeaderActions />
         </div>

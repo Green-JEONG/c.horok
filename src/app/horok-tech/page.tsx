@@ -86,11 +86,13 @@ export default async function HorokTechPage({
 
   return (
     <div className="space-y-6">
+      <h1 className="text-lg font-semibold">마이 홈</h1>
       <Suspense
         fallback={<div className="h-6 w-32 animate-pulse rounded bg-muted" />}
       >
         <ContributionGrid />
         <PostListHeader
+          showSortButton={false}
           titleAction={
             session?.user ? (
               <Button asChild variant="outline" size="sm">

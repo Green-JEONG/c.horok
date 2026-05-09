@@ -5,8 +5,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { parsePostSearchTarget } from "@/lib/post-search-target";
 import { parseSortType, type SortType } from "@/lib/post-sort";
 import HomeWriteButton from "../home/HomeWriteButton";
+import SearchTargetDropdown from "./SearchTargetDropdown";
 
 const SORT_LABEL: Record<SortType, string> = {
   latest: "최신순",
@@ -24,6 +26,8 @@ type Props = {
   writeButtonLabel?: string;
   searchPlaceholder?: string;
   searchQueryParam?: string;
+  searchTargetParam?: string;
+  showSortButton?: boolean;
 };
 
 export default function PostListHeader({
@@ -35,6 +39,8 @@ export default function PostListHeader({
   writeButtonLabel,
   searchPlaceholder,
   searchQueryParam = "q",
+  searchTargetParam,
+  showSortButton = true,
 }: Props = {}) {
   const [open, setOpen] = useState(false);
   const [searchHighlighted, setSearchHighlighted] = useState(false);
@@ -54,7 +60,11 @@ export default function PostListHeader({
   const sort = parseSortType(searchParams.get("sort"));
   const category = searchParams.get("category");
   const searchQuery = searchParams.get(searchQueryParam) ?? "";
+  const searchTarget = parsePostSearchTarget(
+    searchTargetParam ? searchParams.get(searchTargetParam) : null,
+  );
   const showSearch = Boolean(searchPlaceholder);
+  const showSearchTarget = Boolean(searchTargetParam);
 
   const isFeedPage =
     pathname === "/horok-tech/feeds" ||
@@ -73,7 +83,7 @@ export default function PostListHeader({
           ? "소식"
           : "내 글");
 
-  const canShowWriteButton = showWriteButton ?? !isLikesPage;
+  const canShowWriteButton = showWriteButton ?? false;
 
   useEffect(() => {
     setSearchInput(searchQuery);
@@ -215,6 +225,7 @@ export default function PostListHeader({
         params.delete(searchQueryParam);
       }
 
+      params.delete("page");
       router.replace(`${pathname}?${params.toString()}`);
     }, 250);
 
@@ -253,18 +264,32 @@ export default function PostListHeader({
             onFocusCapture={() => {
               setSearchHighlighted(true);
             }}
-            className={`flex h-9 w-64 items-center overflow-hidden rounded-md border bg-background transition-colors ${
+            className={`flex h-9 items-center overflow-hidden rounded-md border bg-background transition-colors ${
               searchHighlighted
                 ? "border-primary bg-primary/5"
-                : "border-border bg-background hover:bg-muted"
-            }`}
+                : "border-border bg-background"
+            } ${showSearchTarget ? "w-80" : "w-64"}`}
           >
+            {showSearchTarget && searchTargetParam ? (
+              <SearchTargetDropdown
+                value={searchTarget}
+                onChange={(nextTarget) => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set(searchTargetParam, nextTarget);
+                  params.delete("page");
+                  router.replace(`${pathname}?${params.toString()}`);
+                  searchInputRef.current?.focus();
+                }}
+              />
+            ) : null}
             <input
               ref={searchInputRef}
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               onFocus={() => setSearchHighlighted(true)}
-              placeholder={searchPlaceholder}
+              placeholder={
+                showSearchTarget ? `${searchPlaceholder}` : searchPlaceholder
+              }
               className="h-full min-w-0 flex-1 bg-transparent pl-3 text-sm outline-none"
             />
             <button
@@ -281,20 +306,22 @@ export default function PostListHeader({
             </button>
           </form>
         ) : null}
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className="flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-          aria-haspopup="menu"
-          aria-expanded={open}
-        >
-          {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
-          <ChevronDown className="h-4 w-4" />
-        </button>
+        {showSortButton ? (
+          <button
+            ref={buttonRef}
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
+            aria-haspopup="menu"
+            aria-expanded={open}
+          >
+            {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
 
-      {open && menuStyle
+      {showSortButton && open && menuStyle
         ? createPortal(
             <ul
               ref={menuRef}

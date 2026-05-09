@@ -15,6 +15,7 @@ import MyPageSection from "@/components/mypage/MyPageSection";
 export default function MyPage() {
   return (
     <div className="w-full space-y-12">
+      <h1 className="text-lg font-semibold">마이페이지</h1>
       <Suspense fallback={<MyPageLoading />}>
         <MyPageSection />
       </Suspense>

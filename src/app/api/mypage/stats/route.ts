@@ -3,6 +3,7 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { coteAuth } from "@/app/api/cote-auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
+import { countUserPosts } from "@/lib/queries";
 
 export async function GET(req: Request) {
   try {
@@ -43,12 +44,7 @@ export async function GET(req: Request) {
     }
 
     const [first, second, third] = await Promise.all([
-      prisma.post.count({
-        where: {
-          userId: BigInt(userId),
-          isDeleted: false,
-        },
-      }),
+      countUserPosts(userId, { viewerUserId: userId }),
       prisma.comment.count({
         where: {
           userId: BigInt(userId),
