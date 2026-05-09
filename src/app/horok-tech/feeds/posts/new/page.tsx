@@ -1,3 +1,4 @@
+import { PenSquare } from "lucide-react";
 import type { Metadata } from "next";
 import PostEditor from "@/components/posts/PostEditor";
 
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function HorokTechWritePostPage() {
   return (
     <main className="w-full">
-      <h1 className="mb-6 text-2xl font-bold">글 작성</h1>
+      <div className="mb-6 flex items-center gap-2">
+        <PenSquare className="h-[18px] w-[18px]" />
+        <h1 className="text-lg font-bold tracking-tight">글 작성</h1>
+      </div>
       <PostEditor />
     </main>
   );

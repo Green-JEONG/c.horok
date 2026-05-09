@@ -1,7 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { parseSortType, type SortType } from "@/lib/post-sort";
 import PostCard from "./PostCard";
 
@@ -35,7 +37,31 @@ type Props = {
   syncSortWithSearchParams?: boolean;
   autoloadFirstPage?: boolean;
   postRouteSection?: "feeds" | "likes";
+  groupBySearchCategory?: boolean;
+  searchGroupTitleAction?: ReactNode;
+  faqSearchGroupTitleAction?: ReactNode;
 };
+
+const SEARCH_RESULT_GROUPS = [
+  {
+    label: "게시물",
+    matches: (post: PostListItem) => !isNoticeCategoryName(post.category_name),
+  },
+  {
+    label: "공지",
+    matches: (post: PostListItem) => post.category_name === "공지",
+  },
+  {
+    label: "FAQ",
+    matches: (post: PostListItem) => post.category_name === "FAQ",
+  },
+  {
+    label: "QnA",
+    matches: (post: PostListItem) => post.category_name === "QnA",
+  },
+] as const;
+
+const SEARCH_SORTABLE_GROUPS = new Set(["게시물", "공지", "QnA"]);
 
 function readPostsFromPayload(
   payload: unknown,
@@ -70,6 +96,9 @@ export default function PostListInfinite({
   syncSortWithSearchParams = false,
   autoloadFirstPage = false,
   postRouteSection = "feeds",
+  groupBySearchCategory = false,
+  searchGroupTitleAction,
+  faqSearchGroupTitleAction,
 }: Props) {
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
@@ -172,31 +201,63 @@ export default function PostListInfinite({
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
 
+  const groupedPosts = groupBySearchCategory
+    ? SEARCH_RESULT_GROUPS.map((group) => ({
+        label: group.label,
+        posts: posts.filter(group.matches),
+      })).filter((group) => group.posts.length > 0)
+    : [];
+
+  const renderPostCard = (post: PostListItem) => (
+    <PostCard
+      key={post.id}
+      id={post.id}
+      title={post.title}
+      description={post.content}
+      thumbnail={post.thumbnail}
+      category={post.category_name}
+      author={post.author_name}
+      authorImage={post.author_image}
+      likes={post.likes_count}
+      comments={post.comments_count}
+      createdAt={new Date(post.created_at)}
+      isHidden={post.is_hidden}
+      isSecret={post.is_secret}
+      canViewSecret={post.can_view_secret}
+      postRouteSection={postRouteSection}
+    />
+  );
+
   return (
     <>
-      {posts.length > 0 && (
-        <div className={gridClassName}>
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              id={post.id}
-              title={post.title}
-              description={post.content}
-              thumbnail={post.thumbnail}
-              category={post.category_name}
-              author={post.author_name}
-              authorImage={post.author_image}
-              likes={post.likes_count}
-              comments={post.comments_count}
-              createdAt={new Date(post.created_at)}
-              isHidden={post.is_hidden}
-              isSecret={post.is_secret}
-              canViewSecret={post.can_view_secret}
-              postRouteSection={postRouteSection}
-            />
+      {groupBySearchCategory && groupedPosts.length > 0 ? (
+        <div className="space-y-8">
+          {groupedPosts.map((group) => (
+            <section key={group.label} className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-semibold">{group.label}</h2>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {group.posts.length}
+                  </span>
+                </div>
+                {group.label === "FAQ"
+                  ? faqSearchGroupTitleAction
+                  : SEARCH_SORTABLE_GROUPS.has(group.label)
+                    ? searchGroupTitleAction
+                    : null}
+              </div>
+              <div className={gridClassName}>
+                {group.posts.map((post) => renderPostCard(post))}
+              </div>
+            </section>
           ))}
         </div>
-      )}
+      ) : posts.length > 0 ? (
+        <div className={gridClassName}>
+          {posts.map((post) => renderPostCard(post))}
+        </div>
+      ) : null}
 
       {hasMore && <div ref={loaderRef} className="h-16 w-full" />}
 

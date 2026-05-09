@@ -9,6 +9,7 @@ import Header from "@/components/layout/Header";
 import LoginWelcomeToast from "@/components/layout/LoginWelcomeToast";
 import AuthSessionProvider from "@/components/providers/SessionProvider";
 import PopularPosts from "@/components/sidebar/PopularPosts";
+import UserActivityRanking from "@/components/sidebar/UserActivityRanking";
 import UserProfiles from "@/components/sidebar/UserProfiles";
 // import RecommendedKeywords from "@/components/sidebar/RecommendedKeywords";
 import "@/app/globals.css";
@@ -74,6 +75,7 @@ export default function RootLayout({
                 <Suspense fallback={null}>
                   <RecommendedCategories />
                 </Suspense>
+                <UserActivityRanking />
               </>
             }
             footer={

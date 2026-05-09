@@ -1,8 +1,7 @@
-// src/app/api/mypage/posts/route.ts
 import { NextResponse } from "next/server";
 import { requireDbUserId } from "@/lib/auth-db";
 import { parseSortType } from "@/lib/post-sort";
-import { countUserPosts, getMyPosts } from "@/lib/queries";
+import { countMyQnaPosts, getMyQnaPosts } from "@/lib/queries";
 
 export async function GET(request: Request) {
   try {
@@ -16,13 +15,13 @@ export async function GET(request: Request) {
         ? requestedLimit
         : 12;
     const userId = await requireDbUserId();
-    const totalCount = await countUserPosts(userId, { viewerUserId: userId });
+    const totalCount = await countMyQnaPosts(userId);
 
     let resolvedPage = Math.max(requestedPage, 1);
-    let posts = [] as Awaited<ReturnType<typeof getMyPosts>>;
+    let posts = [] as Awaited<ReturnType<typeof getMyQnaPosts>>;
 
     if (Number.isFinite(targetPostId) && targetPostId > 0) {
-      const allPosts = await getMyPosts(userId, sort);
+      const allPosts = await getMyQnaPosts(userId, sort);
       const targetIndex = allPosts.findIndex(
         (post) => post.id === targetPostId,
       );
@@ -35,7 +34,7 @@ export async function GET(request: Request) {
       posts = allPosts.slice(offset, offset + limit);
     } else {
       const offset = Math.max(resolvedPage - 1, 0) * limit;
-      posts = await getMyPosts(userId, sort, limit, offset);
+      posts = await getMyQnaPosts(userId, sort, limit, offset);
     }
 
     return NextResponse.json({
@@ -44,7 +43,7 @@ export async function GET(request: Request) {
       resolvedPage,
     });
   } catch (e) {
-    console.error("🔥 MY POSTS API ERROR", e);
+    console.error("MY QNA API ERROR", e);
     return NextResponse.json(
       { posts: [], totalCount: 0, resolvedPage: 1 },
       { status: 500 },

@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import NoticeCategorySearch from "@/components/posts/NoticeCategorySearch";
 import NoticeListInfinite from "@/components/posts/NoticeListInfinite";
 import PostListHeader from "@/components/posts/PostListHeader";
+import PostSortButton from "@/components/posts/PostSortButton";
 import {
+  NOTICE_SEARCH_PARAM_BY_CATEGORY,
   NOTICE_TAG_OPTIONS,
   parseNoticeCategory,
+  parseNoticeSearchTarget,
 } from "@/lib/notice-categories";
 import { findNotices } from "@/lib/notices";
 import { parseSortType } from "@/lib/post-sort";
@@ -26,11 +30,30 @@ export default async function HorokTechNoticesPage({
     category?: string;
     page?: string;
     target?: string;
+    noticeQ?: string;
+    faqQ?: string;
+    qnaQ?: string;
+    noticeSearchTarget?: string;
   }>;
 }) {
-  const { sort, category, page, target } = await searchParams;
+  const {
+    sort,
+    category,
+    page,
+    target,
+    noticeQ,
+    faqQ,
+    qnaQ,
+    noticeSearchTarget,
+  } = await searchParams;
   const parsedSort = parseSortType(sort);
   const parsedCategory = parseNoticeCategory(category) ?? NOTICE_TAG_OPTIONS[0];
+  const searchTarget = parseNoticeSearchTarget(noticeSearchTarget);
+  const searchQueryByCategory = {
+    공지: noticeQ,
+    FAQ: faqQ,
+    QnA: qnaQ,
+  };
   const parsedPage = Number(page ?? "1");
   const targetNoticeId = Number(target ?? "");
   const currentPage =
@@ -38,12 +61,16 @@ export default async function HorokTechNoticesPage({
   const session = await auth();
   const sessionUserId =
     typeof session?.user?.id === "string" ? Number(session.user.id) : null;
+  const validSessionUserId =
+    typeof sessionUserId === "number" && !Number.isNaN(sessionUserId)
+      ? sessionUserId
+      : null;
+  const isQnaCategory = parsedCategory === "QnA";
   const notices = await findNotices(parsedSort, parsedCategory, {
-    viewerUserId:
-      typeof sessionUserId === "number" && !Number.isNaN(sessionUserId)
-        ? sessionUserId
-        : null,
+    viewerUserId: validSessionUserId,
     isAdmin: session?.user?.role === "ADMIN",
+    query: searchQueryByCategory[parsedCategory],
+    searchTarget,
   });
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(notices.length / pageSize));
@@ -66,7 +93,6 @@ export default async function HorokTechNoticesPage({
     (safePage - 1) * pageSize,
     safePage * pageSize,
   );
-  const isQnaCategory = parsedCategory === "QnA";
   const isFaqCategory = parsedCategory === "FAQ";
   const isAdmin = session?.user?.role === "ADMIN";
   const canWriteNotice = isQnaCategory ? Boolean(session?.user) : isAdmin;
@@ -80,6 +106,7 @@ export default async function HorokTechNoticesPage({
       <PostListHeader
         title="공지사항"
         showWriteButton={canWriteNotice}
+        showSortButton={false}
         writeButtonHref={
           isQnaCategory
             ? "/horok-tech/notices/new?category=QnA"
@@ -92,35 +119,58 @@ export default async function HorokTechNoticesPage({
         }
       />
 
-      <div className="flex flex-wrap gap-2">
-        {categoryTabs.map((tab) => {
-          const params = new URLSearchParams();
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {categoryTabs.map((tab) => {
+            const params = new URLSearchParams();
 
-          if (sort) {
-            params.set("sort", sort);
-          }
+            if (sort) {
+              params.set("sort", sort);
+            }
 
-          params.set("category", tab.value);
+            if (noticeSearchTarget) {
+              params.set("noticeSearchTarget", searchTarget);
+            }
 
-          const href = params.toString()
-            ? `/horok-tech/notices?${params.toString()}`
-            : "/horok-tech/notices";
-          const isActive = parsedCategory === tab.value;
+            for (const [noticeCategory, paramName] of Object.entries(
+              NOTICE_SEARCH_PARAM_BY_CATEGORY,
+            )) {
+              const value =
+                searchQueryByCategory[
+                  noticeCategory as keyof typeof searchQueryByCategory
+                ];
 
-          return (
-            <Link
-              key={tab.label}
-              href={href}
-              className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                isActive
-                  ? "border-primary bg-background text-primary"
-                  : "border-border bg-background text-foreground hover:border-muted-foreground"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
+              if (value) {
+                params.set(paramName, value);
+              }
+            }
+
+            params.set("category", tab.value);
+
+            const href = params.toString()
+              ? `/horok-tech/notices?${params.toString()}`
+              : "/horok-tech/notices";
+            const isActive = parsedCategory === tab.value;
+
+            return (
+              <Link
+                key={tab.label}
+                href={href}
+                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                  isActive
+                    ? "border-primary bg-background text-primary"
+                    : "border-border bg-background text-foreground hover:border-muted-foreground"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <NoticeCategorySearch category={parsedCategory} />
+          <PostSortButton />
+        </div>
       </div>
       <NoticeListInfinite
         notices={pagedNotices}

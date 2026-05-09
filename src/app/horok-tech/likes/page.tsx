@@ -4,6 +4,7 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 import LikedPostList from "@/components/posts/LikedPostList";
 import PostListHeader from "@/components/posts/PostListHeader";
 import { getUserIdByEmail } from "@/lib/db";
+import { parsePostSearchTarget } from "@/lib/post-search-target";
 import { countLikedPosts } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -21,14 +22,17 @@ export const metadata: Metadata = {
 export default async function HorokTechLikesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; searchTarget?: string }>;
 }) {
   const session = await auth();
-  const { sort } = await searchParams;
+  const { q, sort, searchTarget } = await searchParams;
+  const parsedSearchTarget = parsePostSearchTarget(searchTarget);
   const userId = session?.user?.email
     ? await getUserIdByEmail(session.user.email)
     : null;
-  const likedCount = userId ? await countLikedPosts(userId) : 0;
+  const likedCount = userId
+    ? await countLikedPosts(userId, q, parsedSearchTarget)
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -41,10 +45,12 @@ export default async function HorokTechLikesPage({
               {likedCount}
             </span>
           }
+          searchPlaceholder="좋아요한 글 검색"
+          searchTargetParam="searchTarget"
         />
       </Suspense>
 
-      <LikedPostList sort={sort} />
+      <LikedPostList query={q} searchTarget={parsedSearchTarget} sort={sort} />
     </div>
   );
 }

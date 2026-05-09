@@ -33,6 +33,7 @@ type Friend = {
   name: string | null;
   image: string | null;
   followerCount: number;
+  postCount: number;
 };
 
 type FriendsResponse = {
@@ -142,7 +143,7 @@ function FriendList({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h2 className="text-base font-semibold">{title}</h2>
         <span className="text-sm font-medium text-muted-foreground">
           {friends.length}
         </span>
@@ -178,7 +179,7 @@ function FriendList({
                     {friend.name ?? "이름 없는 사용자"}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    구독자 {friend.followerCount}명
+                    구독자 {friend.followerCount}명 · 글 {friend.postCount}개
                   </p>
                 </Link>
               </li>
@@ -225,14 +226,14 @@ export default function MyFriendsSection() {
       <section className="space-y-16">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">나를 구독하는 유저</h2>
+            <h2 className="text-base font-semibold">나를 구독하는 유저</h2>
             <span className="text-sm font-medium text-muted-foreground">0</span>
           </div>
           <p className="text-sm text-muted-foreground">불러오는 중…</p>
         </div>
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">내가 구독하는 유저</h2>
+            <h2 className="text-base font-semibold">내가 구독하는 유저</h2>
             <span className="text-sm font-medium text-muted-foreground">0</span>
           </div>
           <p className="text-sm text-muted-foreground">불러오는 중…</p>

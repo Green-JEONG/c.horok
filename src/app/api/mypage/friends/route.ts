@@ -1,22 +1,37 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { countVisibleUserPosts } from "@/lib/queries";
 
-function serializeUser(user: {
+async function serializeUser(
+  user: {
+    id: bigint;
+    name: string | null;
+    email: string;
+    image: string | null;
+    _count: { followers: number };
+  },
+  viewerUserId: number,
+) {
+  const userId = Number(user.id);
+
+  return {
+    id: userId,
+    name: user.name,
+    email: user.email,
+    image: user.image,
+    followerCount: user._count.followers,
+    postCount: await countVisibleUserPosts(userId, viewerUserId),
+  };
+}
+
+type FriendUser = {
   id: bigint;
   name: string | null;
   email: string;
   image: string | null;
   _count: { followers: number };
-}) {
-  return {
-    id: Number(user.id),
-    name: user.name,
-    email: user.email,
-    image: user.image,
-    followerCount: user._count.followers,
-  };
-}
+};
 
 export async function GET() {
   try {
@@ -27,6 +42,7 @@ export async function GET() {
     }
 
     const userId = BigInt(session.user.id);
+    const viewerUserId = Number(session.user.id);
 
     const [followersRows, followingRows] = await Promise.all([
       prisma.friend.findMany({
@@ -73,10 +89,20 @@ export async function GET() {
       }),
     ]);
 
-    return NextResponse.json({
-      followers: followersRows.map((row) => serializeUser(row.user)),
-      following: followingRows.map((row) => serializeUser(row.friendUser)),
-    });
+    const [followers, following] = await Promise.all([
+      Promise.all(
+        followersRows.map((row) =>
+          serializeUser(row.user as FriendUser, viewerUserId),
+        ),
+      ),
+      Promise.all(
+        followingRows.map((row) =>
+          serializeUser(row.friendUser as FriendUser, viewerUserId),
+        ),
+      ),
+    ]);
+
+    return NextResponse.json({ followers, following });
   } catch (e) {
     console.error("FRIENDS API ERROR:", e);
     return NextResponse.json({ followers: [], following: [] }, { status: 500 });

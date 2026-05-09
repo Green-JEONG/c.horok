@@ -318,7 +318,7 @@ function clampFloatingPosition(
     return position;
   }
 
-  const minX = 0;
+  const minX = isOpen ? Math.max(0, size.width - FLOATING_BUTTON_SIZE) : 0;
   const maxX = Math.max(minX, window.innerWidth - FLOATING_BUTTON_SIZE);
   const minY = isOpen ? size.height + FLOATING_PANEL_GAP : 0;
   const maxY = Math.max(minY, window.innerHeight - FLOATING_BUTTON_SIZE);
@@ -507,10 +507,14 @@ export default function HorokChat({
       return false;
     }
 
-    const buttonCenter = floatingPosition.x + FLOATING_BUTTON_SIZE / 2;
+    const panelLeft = isOpen
+      ? floatingPosition.x + FLOATING_BUTTON_SIZE - floatingSize.width
+      : floatingPosition.x;
+    const panelWidth = isOpen ? floatingSize.width : FLOATING_BUTTON_SIZE;
+    const buttonCenter = panelLeft + panelWidth / 2;
 
     return buttonCenter < window.innerWidth / 2;
-  }, [floatingPosition, isEmbedded]);
+  }, [floatingPosition, floatingSize.width, isEmbedded, isOpen]);
   const filteredThreads = useMemo(() => {
     const nextThreads =
       threadCategory === "all"
@@ -1277,6 +1281,9 @@ export default function HorokChat({
       return;
     }
 
+    event.preventDefault();
+    event.stopPropagation();
+
     dragStateRef.current = {
       pointerOffsetX: event.clientX - floatingPosition.x,
       pointerOffsetY: event.clientY - floatingPosition.y,
@@ -1359,7 +1366,7 @@ export default function HorokChat({
               ? "flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] border bg-white dark:bg-zinc-950"
               : cn(
                   "pointer-events-auto absolute bottom-[calc(100%+0.75rem)] flex flex-col overflow-hidden rounded-[24px] border bg-white transition-all duration-300 dark:bg-zinc-950 sm:rounded-[28px]",
-                  isFloatingPanelLeftOfCenter ? "left-0" : "right-0",
+                  "right-0",
                 ),
             platform === "cote"
               ? "border-[#06923E]/20 dark:border-[#06923E]/30"
@@ -1387,10 +1394,12 @@ export default function HorokChat({
             {!isEmbedded ? (
               <button
                 type="button"
-                className="absolute inset-0 cursor-move"
+                className="absolute left-1/2 top-1 z-20 flex h-3 w-20 -translate-x-1/2 cursor-grab touch-none items-center justify-center rounded-full transition active:cursor-grabbing"
                 aria-label="채팅창 이동"
                 onMouseDown={handleFloatingDragStart}
-              />
+              >
+                <span className="h-1 w-10 rounded-full bg-white/55 shadow-sm transition hover:bg-white/80" />
+              </button>
             ) : null}
             <div className="relative flex items-center">
               {!isThreadMode && sessionStatus === "authenticated" ? (
@@ -2018,6 +2027,16 @@ export default function HorokChat({
             type="button"
             onClick={() => setIsOpen((open) => !open)}
             className="pointer-events-auto group relative block size-16 transition hover:-translate-y-0.5 sm:size-[72px]"
+            style={
+              isOpen && isFloatingPanelLeftOfCenter
+                ? {
+                    marginLeft: -Math.max(
+                      0,
+                      floatingSize.width - FLOATING_BUTTON_SIZE,
+                    ),
+                  }
+                : undefined
+            }
             aria-label={isOpen ? "챗봇 접기" : "챗봇 열기"}
           >
             <Image

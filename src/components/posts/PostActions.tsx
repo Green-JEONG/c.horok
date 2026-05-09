@@ -27,7 +27,6 @@ type Props = {
   redirectPath?: string;
   categoryLocked?: boolean;
   fixedTagOptions?: string[];
-  showThumbnailTab?: boolean;
   showBannerOption?: boolean;
   allowNoticeBannerForAllCategories?: boolean;
   children?: ReactNode;
@@ -48,7 +47,6 @@ export default function PostActions({
   redirectPath = "/horok-tech/feeds",
   categoryLocked = false,
   fixedTagOptions,
-  showThumbnailTab = true,
   showBannerOption = true,
   allowNoticeBannerForAllCategories = false,
   children,
@@ -176,7 +174,11 @@ export default function PostActions({
   return (
     <div className="space-y-3">
       {headerPost ? (
-        <PostHeader post={headerPost} actionSlot={actionSlot} />
+        <PostHeader
+          post={headerPost}
+          actionSlot={actionSlot}
+          isOwner={isOwner}
+        />
       ) : null}
 
       {isOwner && isEditing ? (
@@ -193,7 +195,6 @@ export default function PostActions({
             initialIsSecret={initialIsSecret}
             categoryLocked={categoryLocked}
             fixedTagOptions={fixedTagOptions}
-            showThumbnailTab={showThumbnailTab}
             showBannerOption={showBannerOption}
             allowNoticeBannerForAllCategories={
               allowNoticeBannerForAllCategories

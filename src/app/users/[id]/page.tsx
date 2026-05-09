@@ -64,6 +64,7 @@ export default async function UserPage({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-6">
+      <h1 className="text-lg font-semibold">{user.name ?? "이 유저"}님의 홈</h1>
       <ContributionGrid userId={Number(id)} />
       <PostListHeader
         title="작성한 글"
@@ -73,7 +74,7 @@ export default async function UserPage({ params, searchParams }: Props) {
             {postCount}
           </span>
         }
-        searchPlaceholder={`${user.name ?? "이 유저"}의 글 검색`}
+        searchPlaceholder={`${user.name ?? "이 유저"}님의 글 검색`}
       />
       <MyPostList
         sort={sort}

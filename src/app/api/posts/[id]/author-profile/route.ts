@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { countVisibleUserPosts } from "@/lib/queries";
 
 export async function GET(
   _req: Request,
@@ -45,6 +46,10 @@ export async function GET(
         ? BigInt(session.user.id)
         : null;
     const isSelf = currentUserId === post.user.id;
+    const postCount = await countVisibleUserPosts(
+      Number(post.user.id),
+      currentUserId ? Number(currentUserId) : null,
+    );
 
     const existingFriend = currentUserId
       ? await prisma.friend.findUnique({
@@ -65,6 +70,7 @@ export async function GET(
       name: post.user.name,
       image: post.user.image,
       followerCount: post.user._count.followers,
+      postCount,
       isSelf,
       isFriend: Boolean(existingFriend),
     });

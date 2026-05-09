@@ -67,7 +67,7 @@ export default function MyPostPreviewGrid({
           id: -1,
           title: draft.title.trim() || "임시저장된 글",
           content: draft.content.trim() || "임시 저장된 글입니다.",
-          thumbnail: draft.thumbnailUrl,
+          thumbnail: draft.thumbnailUrl ?? null,
           created_at: draft.savedAt,
           author_name: "나",
           category_name: "임시저장",
