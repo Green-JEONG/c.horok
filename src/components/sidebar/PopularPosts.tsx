@@ -44,21 +44,27 @@ export default function PopularPosts() {
         />
         <h3 className="text-lg font-bold tracking-tight">인기</h3>
       </div>
-      <ul className="space-y-2 text-sm">
-        {posts.map((post, index) => (
-          <li key={post.id}>
-            <Link
-              href={getTechFeedPostPath(post.id)}
-              className="flex items-start gap-1 overflow-hidden text-muted-foreground hover:text-foreground"
-            >
-              <span className="min-w-4 text-sm font-semibold tabular-nums text-foreground/80">
-                {index + 1}
-              </span>
-              <span className="block truncate">{post.title}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {posts.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          아직 인기 글이 없습니다.
+        </p>
+      ) : (
+        <ul className="space-y-2 text-sm">
+          {posts.map((post, index) => (
+            <li key={post.id}>
+              <Link
+                href={getTechFeedPostPath(post.id)}
+                className="flex items-start gap-1 overflow-hidden text-muted-foreground hover:text-foreground"
+              >
+                <span className="min-w-4 text-sm font-semibold tabular-nums text-foreground/80">
+                  {index + 1}
+                </span>
+                <span className="block truncate">{post.title}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

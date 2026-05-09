@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-import { isNoticeCategoryName } from "@/lib/notice-categories";
+import { normalizeNoticeCategory } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
 function getCategorySortGroup(name: string) {
@@ -58,6 +58,14 @@ function sortCategoriesByName(a: { name: string }, b: { name: string }) {
   });
 }
 
+function isVisibleRecommendedCategory(name: string) {
+  const noticeCategory = normalizeNoticeCategory(name);
+
+  return (
+    name !== "미분류" && (noticeCategory === null || noticeCategory === "공지")
+  );
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const userId = Number(url.searchParams.get("userId") ?? "");
@@ -106,9 +114,7 @@ export async function GET(request: Request) {
       }))
       .filter(
         (category) =>
-          category.postCount > 0 &&
-          !isNoticeCategoryName(category.name) &&
-          category.name !== "미분류",
+          category.postCount > 0 && isVisibleRecommendedCategory(category.name),
       )
       .sort(sortCategoriesByName)
       .slice(0, 10),

@@ -1,10 +1,19 @@
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
+import type { PostSearchTarget } from "@/lib/post-search-target";
 import { parseSortType } from "@/lib/post-sort";
 import { getLikedPosts } from "@/lib/queries";
 import PostListInfinite from "./PostListInfinite";
 
-export default async function LikedPostList({ sort }: { sort?: string }) {
+export default async function LikedPostList({
+  query,
+  searchTarget,
+  sort,
+}: {
+  query?: string;
+  searchTarget?: PostSearchTarget;
+  sort?: string;
+}) {
   const session = await auth();
 
   if (!session?.user?.email) {
@@ -28,6 +37,8 @@ export default async function LikedPostList({ sort }: { sort?: string }) {
   const parsedSort = parseSortType(sort);
   const posts = await getLikedPosts(userId, parsedSort, 12, 0, {
     isAdmin: session.user.role === "ADMIN",
+    query,
+    searchTarget,
   });
 
   if (posts.length === 0) {
@@ -41,7 +52,7 @@ export default async function LikedPostList({ sort }: { sort?: string }) {
   return (
     <PostListInfinite
       initialPosts={posts}
-      endpoint="/api/likes/posts"
+      endpoint={`/api/likes/posts${searchTarget ? `?searchTarget=${searchTarget}` : ""}`}
       initialSort={parsedSort}
       syncSortWithSearchParams
       gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"

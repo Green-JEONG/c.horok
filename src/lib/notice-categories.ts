@@ -12,6 +12,20 @@ export const ALL_NOTICE_TAG_OPTIONS = [
 
 export type NoticeTag = (typeof NOTICE_TAG_OPTIONS)[number];
 
+export const NOTICE_SEARCH_TARGET_OPTIONS = [
+  "text",
+  "author",
+  "category",
+] as const;
+
+export type NoticeSearchTarget = (typeof NOTICE_SEARCH_TARGET_OPTIONS)[number];
+
+export const NOTICE_SEARCH_PARAM_BY_CATEGORY = {
+  공지: "noticeQ",
+  FAQ: "faqQ",
+  QnA: "qnaQ",
+} as const satisfies Record<NoticeTag, string>;
+
 export function normalizeNoticeCategory(
   value?: string | null,
 ): NoticeTag | null {
@@ -42,6 +56,18 @@ export function parseNoticeCategory(
   value?: string | null,
 ): NoticeTag | undefined {
   return normalizeNoticeCategory(value) ?? undefined;
+}
+
+export function parseNoticeSearchTarget(
+  value?: string | null,
+): NoticeSearchTarget {
+  if (value === "title" || value === "content") {
+    return "text";
+  }
+
+  return NOTICE_SEARCH_TARGET_OPTIONS.includes(value as NoticeSearchTarget)
+    ? (value as NoticeSearchTarget)
+    : "text";
 }
 
 export function getNoticeCategoryQueryNames(category?: NoticeTag) {

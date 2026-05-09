@@ -502,10 +502,15 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
               : ""
           }
         >
-          <MarkdownRenderer
-            content={notice.content}
-            className="flex-1 [&_blockquote:first-child]:mt-0 [&_h1:first-child]:mt-0 [&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0 [&_ol:first-child]:mt-0 [&_p:first-child]:mt-0 [&_pre:first-child]:mt-0 [&_table:first-child]:mt-0 [&_ul:first-child]:mt-0"
-          />
+          <div className="flex min-w-0 flex-1 items-start gap-2">
+            <span className="shrink-0 text-sm font-semibold text-primary">
+              A.
+            </span>
+            <MarkdownRenderer
+              content={notice.content}
+              className="min-w-0 flex-1 [&_blockquote:first-child]:mt-0 [&_h1:first-child]:mt-0 [&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0 [&_ol:first-child]:mt-0 [&_p:first-child]:mt-0 [&_pre:first-child]:mt-0 [&_table:first-child]:mt-0 [&_ul:first-child]:mt-0"
+            />
+          </div>
           {notice.isOwner ? (
             <div className="flex shrink-0 flex-wrap items-start justify-end gap-2 self-start text-sm">
               <button

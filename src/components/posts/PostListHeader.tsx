@@ -5,15 +5,46 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { parsePostSearchTarget } from "@/lib/post-search-target";
 import { parseSortType, type SortType } from "@/lib/post-sort";
 import HomeWriteButton from "../home/HomeWriteButton";
+import SearchTargetDropdown from "./SearchTargetDropdown";
 
 const SORT_LABEL: Record<SortType, string> = {
   latest: "최신순",
   views: "조회순",
   likes: "좋아요순",
   comments: "댓글순",
+  category: "카테고리순 (오름차)",
+  categoryDesc: "카테고리순 (내림차)",
 };
+
+const DEFAULT_SORT_OPTIONS: SortType[] = [
+  "latest",
+  "views",
+  "likes",
+  "comments",
+  "category",
+  "categoryDesc",
+];
+
+function getSortMenuWidth(trigger: HTMLButtonElement, sortOptions: SortType[]) {
+  const context = document.createElement("canvas").getContext("2d");
+  const font = window.getComputedStyle(trigger).font;
+  const labelWidth =
+    context && font
+      ? Math.ceil(
+          Math.max(
+            ...sortOptions.map((option) => {
+              context.font = font;
+              return context.measureText(SORT_LABEL[option]).width;
+            }),
+          ),
+        )
+      : 112;
+
+  return labelWidth + 24;
+}
 
 type Props = {
   title?: string;
@@ -24,17 +55,21 @@ type Props = {
   writeButtonLabel?: string;
   searchPlaceholder?: string;
   searchQueryParam?: string;
+  searchTargetParam?: string;
+  showSortButton?: boolean;
 };
 
 export default function PostListHeader({
   title: customTitle,
   showWriteButton,
   titleAction,
-  sortOptions = ["latest", "views", "likes", "comments"],
+  sortOptions = DEFAULT_SORT_OPTIONS,
   writeButtonHref,
   writeButtonLabel,
   searchPlaceholder,
   searchQueryParam = "q",
+  searchTargetParam,
+  showSortButton = true,
 }: Props = {}) {
   const [open, setOpen] = useState(false);
   const [searchHighlighted, setSearchHighlighted] = useState(false);
@@ -54,7 +89,11 @@ export default function PostListHeader({
   const sort = parseSortType(searchParams.get("sort"));
   const category = searchParams.get("category");
   const searchQuery = searchParams.get(searchQueryParam) ?? "";
+  const searchTarget = parsePostSearchTarget(
+    searchTargetParam ? searchParams.get(searchTargetParam) : null,
+  );
   const showSearch = Boolean(searchPlaceholder);
+  const showSearchTarget = Boolean(searchTargetParam);
 
   const isFeedPage =
     pathname === "/horok-tech/feeds" ||
@@ -73,7 +112,7 @@ export default function PostListHeader({
           ? "소식"
           : "내 글");
 
-  const canShowWriteButton = showWriteButton ?? !isLikesPage;
+  const canShowWriteButton = showWriteButton ?? false;
 
   useEffect(() => {
     setSearchInput(searchQuery);
@@ -99,7 +138,7 @@ export default function PostListHeader({
 
       const rect = trigger.getBoundingClientRect();
       const padding = 8;
-      const menuWidth = Math.max(rect.width, 112);
+      const menuWidth = getSortMenuWidth(trigger, sortOptions);
       const estimatedHeight = 168;
       const canOpenDownward =
         rect.bottom + padding + estimatedHeight <= window.innerHeight - padding;
@@ -109,7 +148,7 @@ export default function PostListHeader({
           ? rect.bottom + padding
           : Math.max(padding, rect.top - estimatedHeight - padding),
         left: Math.min(
-          Math.max(padding, rect.right - menuWidth),
+          Math.max(padding, rect.left),
           window.innerWidth - menuWidth - padding,
         ),
         width: menuWidth,
@@ -147,7 +186,7 @@ export default function PostListHeader({
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [open, sortOptions]);
 
   useEffect(() => {
     if (!showSearch) {
@@ -215,6 +254,7 @@ export default function PostListHeader({
         params.delete(searchQueryParam);
       }
 
+      params.delete("page");
       router.replace(`${pathname}?${params.toString()}`);
     }, 250);
 
@@ -253,18 +293,32 @@ export default function PostListHeader({
             onFocusCapture={() => {
               setSearchHighlighted(true);
             }}
-            className={`flex h-9 w-64 items-center overflow-hidden rounded-md border bg-background transition-colors ${
+            className={`flex h-9 items-center overflow-hidden rounded-md border bg-background transition-colors ${
               searchHighlighted
                 ? "border-primary bg-primary/5"
-                : "border-border bg-background hover:bg-muted"
-            }`}
+                : "border-border bg-background"
+            } ${showSearchTarget ? "w-80" : "w-64"}`}
           >
+            {showSearchTarget && searchTargetParam ? (
+              <SearchTargetDropdown
+                value={searchTarget}
+                onChange={(nextTarget) => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set(searchTargetParam, nextTarget);
+                  params.delete("page");
+                  router.replace(`${pathname}?${params.toString()}`);
+                  searchInputRef.current?.focus();
+                }}
+              />
+            ) : null}
             <input
               ref={searchInputRef}
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               onFocus={() => setSearchHighlighted(true)}
-              placeholder={searchPlaceholder}
+              placeholder={
+                showSearchTarget ? `${searchPlaceholder}` : searchPlaceholder
+              }
               className="h-full min-w-0 flex-1 bg-transparent pl-3 text-sm outline-none"
             />
             <button
@@ -281,20 +335,22 @@ export default function PostListHeader({
             </button>
           </form>
         ) : null}
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className="flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-          aria-haspopup="menu"
-          aria-expanded={open}
-        >
-          {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
-          <ChevronDown className="h-4 w-4" />
-        </button>
+        {showSortButton ? (
+          <button
+            ref={buttonRef}
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
+            aria-haspopup="menu"
+            aria-expanded={open}
+          >
+            {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
 
-      {open && menuStyle
+      {showSortButton && open && menuStyle
         ? createPortal(
             <ul
               ref={menuRef}
@@ -313,7 +369,7 @@ export default function PostListHeader({
                       router.push(`${pathname}?${params.toString()}`);
                       setOpen(false);
                     }}
-                    className="w-full px-3 py-2 text-left hover:bg-muted"
+                    className="w-full whitespace-nowrap px-3 py-2 text-left hover:bg-muted"
                   >
                     {SORT_LABEL[key]}
                   </button>

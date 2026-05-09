@@ -66,7 +66,7 @@ export default function RecommendedCategories() {
                 if (pathname === "/mypage" && session?.user?.id) {
                   const params = new URLSearchParams(searchParams.toString());
                   params.set("category", c.slug);
-                  router.push(`/users/${session.user.id}?${params.toString()}`);
+                  router.push(`/mypage?${params.toString()}`);
                   return;
                 }
 

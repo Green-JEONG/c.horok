@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { ensureCategoryByName } from "@/lib/categories";
 import {
   ALL_NOTICE_TAG_OPTIONS,
@@ -5,6 +6,7 @@ import {
   isNoticeCategoryName,
   type NoticeTag,
   normalizeNoticeCategory,
+  parseNoticeSearchTarget,
 } from "@/lib/notice-categories";
 import {
   comparePostMetrics,
@@ -178,23 +180,54 @@ export async function findNotices(
   options?: {
     viewerUserId?: number | null;
     isAdmin?: boolean;
+    query?: string | null;
+    searchTarget?: ReturnType<typeof parseNoticeSearchTarget>;
   },
 ) {
+  const normalizedQuery = options?.query?.trim();
+  const searchTarget = parseNoticeSearchTarget(options?.searchTarget);
+  const searchWhere: Prisma.PostWhereInput =
+    normalizedQuery && searchTarget === "author"
+      ? {
+          user: {
+            is: {
+              name: { contains: normalizedQuery, mode: "insensitive" },
+            },
+          },
+        }
+      : normalizedQuery && searchTarget === "category"
+        ? {
+            category: {
+              is: {
+                name: { contains: normalizedQuery, mode: "insensitive" },
+              },
+            },
+          }
+        : normalizedQuery
+          ? {
+              OR: [
+                { title: { contains: normalizedQuery, mode: "insensitive" } },
+                { content: { contains: normalizedQuery, mode: "insensitive" } },
+              ],
+            }
+          : {};
+  const where: Prisma.PostWhereInput = {
+    isDeleted: false,
+    isHidden: false,
+    category: {
+      is: {
+        name: {
+          in: getNoticeCategoryQueryNames(category),
+        },
+      },
+    },
+    ...(normalizedQuery ? { AND: [searchWhere] } : {}),
+  };
   const notices = await prisma.post.findMany({
     omit: {
       isResolved: true,
     },
-    where: {
-      isDeleted: false,
-      isHidden: false,
-      category: {
-        is: {
-          name: {
-            in: getNoticeCategoryQueryNames(category),
-          },
-        },
-      },
-    },
+    where,
     include: {
       user: {
         select: { name: true, image: true },
@@ -254,6 +287,7 @@ export async function findNotices(
           likeCount: a._count.likes,
           commentsCount: a._count.comments,
           viewCount: Number(a.views?.viewCount ?? 0),
+          categoryName: a.category?.name,
         },
         {
           id: b.id,
@@ -261,6 +295,7 @@ export async function findNotices(
           likeCount: b._count.likes,
           commentsCount: b._count.comments,
           viewCount: Number(b.views?.viewCount ?? 0),
+          categoryName: b.category?.name,
         },
       ),
     )
