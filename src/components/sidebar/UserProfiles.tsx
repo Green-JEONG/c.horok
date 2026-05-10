@@ -136,7 +136,7 @@ export default function UserProfiles() {
         <div className="rounded-xl border bg-background p-4">
           <div className="flex items-center gap-3">
             <Image
-              src={profile.image ?? "/logo.svg"}
+              src={profile.image ?? "/logo.png"}
               alt={`${profile.name ?? "사용자"} 프로필`}
               width={52}
               height={52}

@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     siteName: "c.Horok",
     images: [
       {
-        url: "/logo.svg",
+        url: "/logo.png",
         alt: "Horok Logo",
       },
     ],

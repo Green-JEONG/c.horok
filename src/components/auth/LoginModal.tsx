@@ -307,7 +307,7 @@ export default function LoginModal({ open, onClose }: Props) {
           {/* 로고 */}
           <div className="my-6 flex flex-col items-center">
             <Image
-              src="/logo.svg"
+              src="/logo.png"
               alt="c.horok"
               width={60}
               height={60}

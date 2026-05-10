@@ -91,7 +91,7 @@ export default function RootPortal() {
             <div className="absolute inset-0">
               <div className="absolute left-[3%] top-[6%] z-0 w-[31%] sm:w-[37%]">
                 <Image
-                  src="/logo_body.png"
+                  src="/logo_arms.png"
                   alt="horok mascot"
                   width={707}
                   height={833}

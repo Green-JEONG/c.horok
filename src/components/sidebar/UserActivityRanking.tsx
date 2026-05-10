@@ -55,7 +55,7 @@ export default function UserActivityRanking() {
                   {user.rank}
                 </span>
                 <Image
-                  src={user.image ?? "/logo.svg"}
+                  src={user.image ?? "/logo.png"}
                   alt={`${user.name ?? "유저"} 프로필`}
                   width={28}
                   height={28}

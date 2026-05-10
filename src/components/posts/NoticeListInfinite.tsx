@@ -276,7 +276,7 @@ export default function NoticeListInfinite({
                 <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground md:hidden">
                   <span className="inline-flex items-center gap-1.5">
                     <Image
-                      src={notice.authorImage ?? "/logo.svg"}
+                      src={notice.authorImage ?? "/logo.png"}
                       alt={`${notice.authorName} 프로필`}
                       width={18}
                       height={18}
@@ -299,7 +299,7 @@ export default function NoticeListInfinite({
 
               <div className="hidden md:flex md:items-center md:justify-center md:gap-2">
                 <Image
-                  src={notice.authorImage ?? "/logo.svg"}
+                  src={notice.authorImage ?? "/logo.png"}
                   alt={`${notice.authorName} 프로필`}
                   width={24}
                   height={24}
@@ -503,7 +503,7 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
           }
         >
           <div className="flex min-w-0 flex-1 items-start gap-2">
-            <span className="shrink-0 text-sm font-semibold text-primary">
+            <span className="shrink-0 text-sm font-semibold leading-7 text-primary">
               A.
             </span>
             <MarkdownRenderer

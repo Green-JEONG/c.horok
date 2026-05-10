@@ -21,7 +21,7 @@ export default function PostHeader({
   const authorProfile = (
     <>
       <Image
-        src={post.author_image ?? "/logo.svg"}
+        src={post.author_image ?? "/logo.png"}
         alt={`${post.author_name} 프로필`}
         width={24}
         height={24}
