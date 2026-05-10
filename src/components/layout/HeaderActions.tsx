@@ -112,7 +112,7 @@ export default function HeaderActions() {
         aria-label="마이페이지 열기"
       >
         <Image
-          src={platformProfile?.image ?? session?.user?.image ?? "/logo.svg"}
+          src={platformProfile?.image ?? session?.user?.image ?? "/logo.png"}
           alt={
             (platformProfile?.name ?? session?.user?.name)
               ? `${platformProfile?.name ?? session?.user?.name} 프로필`

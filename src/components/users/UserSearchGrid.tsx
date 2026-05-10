@@ -93,7 +93,7 @@ export default function UserSearchGrid({
               className="flex h-full min-w-0 flex-col items-center rounded-xl border bg-background px-4 py-4 text-center transition-colors hover:bg-muted"
             >
               <Image
-                src={user.image ?? "/logo.svg"}
+                src={user.image ?? "/logo.png"}
                 alt={`${user.name ?? "검색 유저"} 프로필`}
                 width={72}
                 height={72}

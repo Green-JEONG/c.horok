@@ -283,7 +283,7 @@ export default function HeaderSearch() {
                         className="flex items-center gap-3 px-4 py-3 transition hover:bg-muted/60"
                       >
                         <Image
-                          src={user.image ?? "/logo.svg"}
+                          src={user.image ?? "/logo.png"}
                           alt={`${user.name ?? "사용자"} 프로필`}
                           width={40}
                           height={40}
@@ -319,7 +319,7 @@ export default function HeaderSearch() {
                       >
                         <div className="relative w-14 shrink-0 self-stretch overflow-hidden rounded-lg bg-zinc-900">
                           <Image
-                            src={post.thumbnail ?? "/thumbnails/default.png"}
+                            src={post.thumbnail ?? "/thumbnails.png"}
                             alt={post.title}
                             fill
                             unoptimized={Boolean(post.thumbnail)}

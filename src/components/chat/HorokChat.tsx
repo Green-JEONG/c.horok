@@ -1756,7 +1756,7 @@ export default function HorokChat({
                             >
                               {!isUser ? (
                                 <Image
-                                  src="/profile_horok.png"
+                                  src="/logo.png"
                                   alt="호록 프로필"
                                   width={32}
                                   height={32}
@@ -1849,7 +1849,7 @@ export default function HorokChat({
                   {isLoading ? (
                     <div className="flex items-start justify-start gap-2">
                       <Image
-                        src="/profile_horok.png"
+                        src="/logo.png"
                         alt="호록 프로필"
                         width={32}
                         height={32}

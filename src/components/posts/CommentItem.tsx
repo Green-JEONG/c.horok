@@ -165,7 +165,7 @@ export default function CommentItem({
       <div className="flex justify-between gap-3 text-sm">
         <span className="inline-flex min-w-0 items-center gap-2 font-medium">
           <Image
-            src={comment.author_image ?? "/logo.svg"}
+            src={comment.author_image ?? "/logo.png"}
             alt={`${comment.author} 프로필`}
             width={24}
             height={24}

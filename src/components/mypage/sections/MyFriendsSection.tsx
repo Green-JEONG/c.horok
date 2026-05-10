@@ -169,7 +169,7 @@ function FriendList({
                   }`}
                 >
                   <Image
-                    src={friend.image ?? "/logo.svg"}
+                    src={friend.image ?? "/logo.png"}
                     alt={`${friend.name ?? "구독 유저"} 프로필`}
                     width={72}
                     height={72}

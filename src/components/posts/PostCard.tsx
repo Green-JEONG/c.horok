@@ -90,7 +90,7 @@ export default function PostCard({
     >
       <div className="relative flex h-30 items-center justify-center bg-zinc-900">
         <Image
-          src={thumbnail ?? "/thumbnails/default.png"}
+          src={thumbnail ?? "/thumbnails.png"}
           alt={title}
           fill
           unoptimized={Boolean(thumbnail)}
@@ -102,7 +102,7 @@ export default function PostCard({
         <div className="mb-2 flex min-w-0 items-center gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <Image
-              src={authorImage ?? "/logo.svg"}
+              src={authorImage ?? "/logo.png"}
               alt={`${author} 프로필`}
               width={20}
               height={20}

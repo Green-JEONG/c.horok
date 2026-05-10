@@ -21,7 +21,7 @@ import {
 import { getTechFeedNewPostPath } from "@/lib/routes";
 import { supabase } from "@/lib/supabase";
 
-const DEFAULT_THUMBNAIL_URL = "/thumbnails/default.png";
+const DEFAULT_THUMBNAIL_URL = "/thumbnails.png";
 
 const markdownTools = [
   { label: "H1", action: "heading1" },

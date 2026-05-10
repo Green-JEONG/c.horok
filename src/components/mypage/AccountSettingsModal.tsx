@@ -426,7 +426,7 @@ export default function AccountSettingsModal({
               <p className="text-sm text-muted-foreground">프로필 사진</p>
               <div className="flex items-center gap-4">
                 <Image
-                  src={imageUrl ?? "/logo.svg"}
+                  src={imageUrl ?? "/logo.png"}
                   alt="프로필 사진"
                   width={72}
                   height={72}

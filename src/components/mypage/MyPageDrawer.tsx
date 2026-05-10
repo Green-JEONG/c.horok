@@ -257,7 +257,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         {/* profile */}
         <div className="px-4 flex flex-col items-center gap-3">
           <Image
-            src={profile?.image ?? session?.user?.image ?? "/logo.svg"}
+            src={profile?.image ?? session?.user?.image ?? "/logo.png"}
             alt="profile"
             width={100}
             height={100}
