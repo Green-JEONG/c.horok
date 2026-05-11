@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Lock } from "lucide-react";
+import { ChevronDown, EyeOff, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -23,6 +23,7 @@ type NoticeListItem = {
   isPinned: boolean;
   isLocked: boolean;
   isSecret: boolean;
+  isHidden?: boolean;
   canViewSecret: boolean;
   isBanner: boolean;
   isOwner: boolean;
@@ -202,11 +203,11 @@ export default function NoticeListInfinite({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden border-y bg-background">
+      <div className="overflow-x-auto border-y bg-background">
         <div
-          className={`hidden items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground md:grid ${
+          className={`grid min-w-[560px] items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground ${
             isQnaCategory
-              ? "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
+              ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
               : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
           }`}
         >
@@ -228,7 +229,7 @@ export default function NoticeListInfinite({
               className="flex w-full min-w-0 items-center gap-1.5 text-left"
               aria-expanded={isFaqOpen}
             >
-              <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground md:hidden">
+              <span className="hidden shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
                 {noticeNumber}
               </span>
               <span className="shrink-0 text-sm font-semibold text-primary">
@@ -240,6 +241,9 @@ export default function NoticeListInfinite({
               {notice.isLocked ? (
                 <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               ) : null}
+              {notice.isHidden ? (
+                <EyeOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : null}
               <ChevronDown
                 className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
                   isFaqOpen ? "rotate-180" : ""
@@ -248,7 +252,7 @@ export default function NoticeListInfinite({
             </button>
           ) : (
             <div className="flex min-w-0 items-center gap-1.5">
-              <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground md:hidden">
+              <span className="hidden shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
                 {noticeNumber}
               </span>
               <p className="truncate text-sm font-semibold text-foreground">
@@ -257,23 +261,26 @@ export default function NoticeListInfinite({
               {notice.isLocked ? (
                 <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               ) : null}
+              {notice.isHidden ? (
+                <EyeOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : null}
             </div>
           );
 
           const rowContent = (
             <div
-              className={`flex flex-col gap-3 px-4 py-4 md:grid md:items-center md:gap-3 md:px-5 ${
+              className={`grid min-w-[560px] items-center gap-3 px-5 py-4 ${
                 isQnaCategory
-                  ? "md:grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
-                  : "md:grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
+                  ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
+                  : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
               }`}
             >
-              <span className="hidden text-center text-sm font-semibold tabular-nums text-muted-foreground md:block">
+              <span className="text-center text-sm font-semibold tabular-nums text-muted-foreground">
                 {noticeNumber}
               </span>
               <div className="min-w-0">
                 {titleNode}
-                <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground md:hidden">
+                <div className="hidden mt-2 items-center gap-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <Image
                       src={notice.authorImage ?? "/logo.png"}
@@ -297,7 +304,7 @@ export default function NoticeListInfinite({
                 </div>
               </div>
 
-              <div className="hidden md:flex md:items-center md:justify-center md:gap-2">
+              <div className="flex min-w-0 items-center justify-center gap-2">
                 <Image
                   src={notice.authorImage ?? "/logo.png"}
                   alt={`${notice.authorName} 프로필`}
@@ -309,15 +316,15 @@ export default function NoticeListInfinite({
                   {notice.authorName}
                 </span>
               </div>
-              <span className="hidden text-center text-sm text-muted-foreground md:block">
+              <span className="text-center text-sm text-muted-foreground">
                 {notice.publishedAt}
               </span>
-              <div className="hidden text-center text-sm text-muted-foreground md:block">
+              <div className="text-center text-sm text-muted-foreground">
                 {viewCounts[notice.id] ?? notice.viewCount}
               </div>
               {isQnaCategory ? (
                 <div
-                  className={`hidden text-center font-semibold md:block ${getQnaStatusSizeClassName(notice.isResolved, false)} ${getQnaStatusClassName(notice.isResolved)}`}
+                  className={`text-center font-semibold ${getQnaStatusSizeClassName(notice.isResolved, false)} ${getQnaStatusClassName(notice.isResolved)}`}
                   title={getQnaStatusLabel(notice.isResolved)}
                 >
                   {getQnaStatusLabel(notice.isResolved)}

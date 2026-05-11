@@ -10,7 +10,7 @@ export type UserSearchSort = (typeof USER_SEARCH_SORT_OPTIONS)[number];
 export const USER_SEARCH_SORT_LABEL: Record<UserSearchSort, string> = {
   nameAsc: "오름차순",
   nameDesc: "내림차순",
-  followers: "구독자수",
+  followers: "팔로잉 수",
   posts: "글작성 수",
 };
 

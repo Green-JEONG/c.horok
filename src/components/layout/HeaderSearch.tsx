@@ -204,6 +204,7 @@ export default function HeaderSearch() {
   }, []);
 
   const shouldShowSuggestions = query.trim().length >= 2 && isOpen;
+  const canSubmitSearch = query.trim().length > 0;
   const hasSuggestions = userSuggestions.length > 0 || suggestions.length > 0;
   const suggestionGroups = SEARCH_PREVIEW_GROUPS.map((group) => ({
     label: group.label,
@@ -216,7 +217,7 @@ export default function HeaderSearch() {
     <div ref={wrapperRef} className="relative w-full">
       <form
         onSubmit={onSubmit}
-        className="flex h-9 w-full items-center overflow-hidden rounded-full border bg-background focus-within:ring-2 focus-within:ring-primary"
+        className="flex h-9 w-full items-center overflow-hidden rounded-full border bg-background transition-colors focus-within:bg-primary/5 focus-within:ring-2 focus-within:ring-primary"
       >
         <input
           ref={inputRef}
@@ -228,7 +229,7 @@ export default function HeaderSearch() {
             }
           }}
           placeholder="검색"
-          className="h-full min-w-0 flex-1 bg-transparent px-2 text-sm outline-none"
+          className="h-full min-w-0 flex-1 bg-transparent pl-3 text-sm outline-none"
         />
         <span className="flex h-9 w-6 shrink-0 items-center justify-center text-[11px] text-muted-foreground">
           {query.trim().length >= 2 && totalResultCount !== null
@@ -249,7 +250,12 @@ export default function HeaderSearch() {
         ) : null}
         <button
           type="submit"
-          className="flex h-9 w-6 shrink-0 items-center justify-center text-muted-foreground"
+          disabled={!canSubmitSearch}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center transition-colors ${
+            canSubmitSearch
+              ? "text-muted-foreground hover:text-foreground"
+              : "cursor-not-allowed text-muted-foreground/35"
+          }`}
           aria-label="검색"
         >
           <Search className="h-4 w-4" />
@@ -294,7 +300,7 @@ export default function HeaderSearch() {
                             {user.name ?? "이름 없는 사용자"}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {`구독자 ${user.followerCount}명 · 글 ${user.postCount}개`}
+                            {`팔로워 ${user.followerCount}명 · 글 ${user.postCount}개`}
                           </p>
                         </div>
                       </Link>

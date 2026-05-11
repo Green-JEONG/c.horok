@@ -30,8 +30,10 @@ export type DbPost = {
   author_name: string;
   author_image: string | null;
   category_name: string;
+  view_count: number;
   likes_count: number;
   comments_count: number;
+  is_resolved: boolean;
   is_hidden: boolean;
   is_secret: boolean;
   can_view_secret: boolean;
@@ -44,6 +46,8 @@ export type DbUserSearchResult = {
   followerCount: number;
   postCount: number;
 };
+
+export type SearchPostGroup = "posts" | "notice" | "faq" | "qna";
 
 function buildVisibleUserPostCountWhere(
   userId: number,
@@ -58,7 +62,7 @@ function buildVisibleUserPostCountWhere(
     category: {
       is: {
         name: {
-          notIn: ["FAQ", "QnA"],
+          notIn: [...ALL_NOTICE_TAG_OPTIONS],
         },
       },
     },
@@ -84,8 +88,10 @@ function mapPost(
     isHidden: boolean;
     isSecret: boolean;
     userId: bigint;
+    isResolved?: boolean;
     user: { name: string | null; image?: string | null };
     category: { name: string } | null;
+    views?: { viewCount: bigint | number } | null;
     _count: { likes: number; comments: number };
   },
   options?: {
@@ -110,8 +116,10 @@ function mapPost(
     author_name: post.user.name ?? "Unknown",
     author_image: post.user.image ?? null,
     category_name: post.category?.name ?? "",
+    view_count: Number(post.views?.viewCount ?? 0),
     likes_count: post._count.likes,
     comments_count: post._count.comments,
+    is_resolved: post.isResolved ?? false,
     is_hidden: post.isHidden,
     is_secret: post.isSecret,
     can_view_secret: canViewSecret,
@@ -189,6 +197,79 @@ function buildSearchWhere(
   };
 }
 
+function buildSearchPostGroupWhere(
+  group?: SearchPostGroup,
+): Prisma.PostWhereInput {
+  if (group === "posts") {
+    return {
+      OR: [
+        { category: null },
+        {
+          category: {
+            is: {
+              name: {
+                notIn: [...ALL_NOTICE_TAG_OPTIONS],
+              },
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  if (group === "notice" || group === "faq" || group === "qna") {
+    const noticeCategory =
+      group === "notice" ? "공지" : group === "faq" ? "FAQ" : "QnA";
+
+    return {
+      category: {
+        is: {
+          name: {
+            in: getNoticeCategoryQueryNames(noticeCategory),
+          },
+        },
+      },
+    };
+  }
+
+  return {};
+}
+
+async function getResolvedQnaPostIdSet(
+  posts: Array<{
+    id: bigint;
+    category: { name: string } | null;
+  }>,
+) {
+  const qnaPostIds = posts
+    .filter((post) => normalizeNoticeCategory(post.category?.name) === "QnA")
+    .map((post) => post.id);
+
+  if (qnaPostIds.length === 0) {
+    return new Set<number>();
+  }
+
+  const resolvedRows = await prisma.comment.findMany({
+    where: {
+      postId: {
+        in: qnaPostIds,
+      },
+      isDeleted: false,
+      user: {
+        is: {
+          role: "ADMIN",
+        },
+      },
+    },
+    select: {
+      postId: true,
+    },
+    distinct: ["postId"],
+  });
+
+  return new Set(resolvedRows.map((row) => Number(row.postId)));
+}
+
 function scoreSearchMatch(
   post: {
     title: string;
@@ -239,6 +320,7 @@ export async function searchPosts(
     viewerUserId?: number | null;
     isAdmin?: boolean;
     searchTarget?: PostSearchTarget;
+    postGroup?: SearchPostGroup;
   },
 ): Promise<DbPost[]> {
   const tokens = tokenizeSearchQuery(keyword);
@@ -253,10 +335,12 @@ export async function searchPosts(
   }
 
   const posts = await prisma.post.findMany({
-    omit: {
-      isResolved: true,
+    where: {
+      AND: [
+        buildSearchWhere(tokens, includeNotices, searchTarget),
+        buildSearchPostGroupWhere(options?.postGroup),
+      ],
     },
-    where: buildSearchWhere(tokens, includeNotices, searchTarget),
     take: Math.max(limit + offset, 48),
     include: {
       user: { select: { name: true, image: true } },
@@ -273,7 +357,7 @@ export async function searchPosts(
     },
   });
 
-  return posts
+  const sortedPosts = posts
     .sort((a, b) => {
       const scoreDiff =
         scoreSearchMatch(b, keyword, tokens, searchTarget) -
@@ -303,8 +387,21 @@ export async function searchPosts(
         },
       );
     })
-    .slice(offset, offset + limit)
-    .map((post) => mapPost(post, options))
+    .slice(offset, offset + limit);
+  const resolvedQnaPostIdSet = await getResolvedQnaPostIdSet(sortedPosts);
+
+  return sortedPosts
+    .map((post) => {
+      const mappedPost = mapPost(post, options);
+
+      return {
+        ...mappedPost,
+        is_resolved:
+          normalizeNoticeCategory(post.category?.name) === "QnA"
+            ? resolvedQnaPostIdSet.has(Number(post.id))
+            : mappedPost.is_resolved,
+      };
+    })
     .filter(
       (post) => includeNotices || !isNoticeCategoryName(post.category_name),
     );
@@ -437,6 +534,7 @@ export async function searchUsersByName(
   limit = 12,
   sort: UserSearchSort = "nameAsc",
   viewerUserId?: number | null,
+  offset = 0,
 ): Promise<DbUserSearchResult[]> {
   const query = keyword.trim();
   const parsedSort = parseUserSearchSort(sort);
@@ -469,7 +567,7 @@ export async function searchUsersByName(
         : parsedSort === "posts"
           ? [{ posts: { _count: "desc" } }, { name: "asc" }]
           : [{ name: parsedSort === "nameDesc" ? "desc" : "asc" }],
-    ...(parsedSort === "posts" ? {} : { take: limit }),
+    ...(parsedSort === "posts" ? {} : { skip: offset, take: limit }),
   });
 
   const usersWithPostCount = await Promise.all(
@@ -492,16 +590,10 @@ export async function searchUsersByName(
           b.postCount - a.postCount ||
           (a.name ?? "").localeCompare(b.name ?? ""),
       )
-      .slice(0, limit);
+      .slice(offset, offset + limit);
   }
 
-  return usersWithPostCount.map((user) => ({
-    id: Number(user.id),
-    name: user.name,
-    image: user.image,
-    followerCount: user.followerCount,
-    postCount: user.postCount,
-  }));
+  return usersWithPostCount;
 }
 
 export async function getPostsByCategorySlug(
@@ -528,7 +620,7 @@ export async function getPostsByCategorySlug(
 
   const noticeCategory = normalizeNoticeCategory(category.name);
 
-  if (noticeCategory === "FAQ" || noticeCategory === "QnA") {
+  if (noticeCategory !== null) {
     return {
       categoryName: null,
       posts: [],
@@ -543,9 +635,6 @@ export async function getPostsByCategorySlug(
   }
 
   const posts = await prisma.post.findMany({
-    omit: {
-      isResolved: true,
-    },
     where: {
       isDeleted: false,
       isHidden: false,
@@ -606,17 +695,87 @@ export async function getUserPosts(
     viewerUserId?: number | null;
     isAdmin?: boolean;
     query?: string;
+    searchTarget?: PostSearchTarget;
     categorySlug?: string;
   },
 ): Promise<DbPost[]> {
   const canSeeHiddenPosts = options?.viewerUserId === userId;
   const normalizedQuery = options?.query?.trim();
   const normalizedCategorySlug = options?.categorySlug?.trim();
+  const searchTarget =
+    options?.searchTarget === "all"
+      ? "all"
+      : parsePostSearchTarget(options?.searchTarget);
+  const orderBy: Prisma.PostOrderByWithRelationInput[] =
+    sort === "oldest"
+      ? [{ createdAt: "asc" }, { id: "asc" }]
+      : sort === "views"
+        ? [
+            { views: { viewCount: "desc" } },
+            { createdAt: "desc" },
+            { id: "desc" },
+          ]
+        : sort === "likes"
+          ? [
+              { likes: { _count: "desc" } },
+              { createdAt: "desc" },
+              { id: "desc" },
+            ]
+          : sort === "comments"
+            ? [
+                { comments: { _count: "desc" } },
+                { createdAt: "desc" },
+                { id: "desc" },
+              ]
+            : sort === "category"
+              ? [
+                  { category: { name: "asc" } },
+                  { createdAt: "desc" },
+                  { id: "desc" },
+                ]
+              : sort === "categoryDesc"
+                ? [
+                    { category: { name: "desc" } },
+                    { createdAt: "desc" },
+                    { id: "desc" },
+                  ]
+                : [{ createdAt: "desc" }, { id: "desc" }];
+  const searchWhere: Prisma.PostWhereInput =
+    normalizedQuery && searchTarget === "category"
+      ? {
+          category: {
+            is: {
+              name: { contains: normalizedQuery, mode: "insensitive" },
+            },
+          },
+        }
+      : normalizedQuery && searchTarget === "text"
+        ? {
+            OR: [
+              { title: { contains: normalizedQuery, mode: "insensitive" } },
+              { content: { contains: normalizedQuery, mode: "insensitive" } },
+            ],
+          }
+        : normalizedQuery
+          ? {
+              OR: [
+                { title: { contains: normalizedQuery, mode: "insensitive" } },
+                { content: { contains: normalizedQuery, mode: "insensitive" } },
+                {
+                  category: {
+                    is: {
+                      name: {
+                        contains: normalizedQuery,
+                        mode: "insensitive",
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : {};
 
   const posts = await prisma.post.findMany({
-    omit: {
-      isResolved: true,
-    },
     where: {
       userId: BigInt(userId),
       isDeleted: false,
@@ -625,29 +784,15 @@ export async function getUserPosts(
         is: {
           ...(normalizedCategorySlug ? { slug: normalizedCategorySlug } : {}),
           name: {
-            notIn: ["FAQ", "QnA"],
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
           },
         },
       },
-      ...(normalizedQuery
-        ? {
-            OR: [
-              {
-                title: {
-                  contains: normalizedQuery,
-                  mode: "insensitive",
-                },
-              },
-              {
-                content: {
-                  contains: normalizedQuery,
-                  mode: "insensitive",
-                },
-              },
-            ],
-          }
-        : {}),
+      ...(normalizedQuery ? { AND: [searchWhere] } : {}),
     },
+    orderBy,
+    skip: offset,
+    ...(typeof limit === "number" ? { take: limit } : {}),
     include: {
       user: { select: { name: true, image: true } },
       category: { select: { name: true } },
@@ -663,35 +808,12 @@ export async function getUserPosts(
     },
   });
 
-  return posts
-    .sort((a, b) => {
-      return comparePostMetrics(
-        sort,
-        {
-          id: a.id,
-          createdAt: a.createdAt,
-          likeCount: a._count.likes,
-          commentsCount: a._count.comments,
-          viewCount: Number(a.views?.viewCount ?? 0),
-          categoryName: a.category?.name,
-        },
-        {
-          id: b.id,
-          createdAt: b.createdAt,
-          likeCount: b._count.likes,
-          commentsCount: b._count.comments,
-          viewCount: Number(b.views?.viewCount ?? 0),
-          categoryName: b.category?.name,
-        },
-      );
-    })
-    .slice(offset, limit ? offset + limit : undefined)
-    .map((post) =>
-      mapPost(post, {
-        viewerUserId: options?.viewerUserId ?? null,
-        isAdmin: options?.isAdmin,
-      }),
-    );
+  return posts.map((post) =>
+    mapPost(post, {
+      viewerUserId: options?.viewerUserId ?? null,
+      isAdmin: options?.isAdmin,
+    }),
+  );
 }
 
 export async function countUserPosts(
@@ -700,11 +822,50 @@ export async function countUserPosts(
     viewerUserId?: number | null;
     categorySlug?: string;
     query?: string;
+    searchTarget?: PostSearchTarget;
   },
 ) {
   const canSeeHiddenPosts = options?.viewerUserId === userId;
   const normalizedQuery = options?.query?.trim();
   const normalizedCategorySlug = options?.categorySlug?.trim();
+  const searchTarget =
+    options?.searchTarget === "all"
+      ? "all"
+      : parsePostSearchTarget(options?.searchTarget);
+  const searchWhere: Prisma.PostWhereInput =
+    normalizedQuery && searchTarget === "category"
+      ? {
+          category: {
+            is: {
+              name: { contains: normalizedQuery, mode: "insensitive" },
+            },
+          },
+        }
+      : normalizedQuery && searchTarget === "text"
+        ? {
+            OR: [
+              { title: { contains: normalizedQuery, mode: "insensitive" } },
+              { content: { contains: normalizedQuery, mode: "insensitive" } },
+            ],
+          }
+        : normalizedQuery
+          ? {
+              OR: [
+                { title: { contains: normalizedQuery, mode: "insensitive" } },
+                { content: { contains: normalizedQuery, mode: "insensitive" } },
+                {
+                  category: {
+                    is: {
+                      name: {
+                        contains: normalizedQuery,
+                        mode: "insensitive",
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : {};
 
   return prisma.post.count({
     where: {
@@ -715,28 +876,11 @@ export async function countUserPosts(
         is: {
           ...(normalizedCategorySlug ? { slug: normalizedCategorySlug } : {}),
           name: {
-            notIn: ["FAQ", "QnA"],
+            notIn: [...ALL_NOTICE_TAG_OPTIONS],
           },
         },
       },
-      ...(normalizedQuery
-        ? {
-            OR: [
-              {
-                title: {
-                  contains: normalizedQuery,
-                  mode: "insensitive",
-                },
-              },
-              {
-                content: {
-                  contains: normalizedQuery,
-                  mode: "insensitive",
-                },
-              },
-            ],
-          }
-        : {}),
+      ...(normalizedQuery ? { AND: [searchWhere] } : {}),
     },
   });
 }
@@ -748,11 +892,15 @@ export async function getMyPosts(
   offset = 0,
   options?: {
     categorySlug?: string;
+    query?: string;
+    searchTarget?: PostSearchTarget;
   },
 ): Promise<DbPost[]> {
   return getUserPosts(userId, sort, limit, offset, {
     viewerUserId: userId,
     categorySlug: options?.categorySlug,
+    query: options?.query,
+    searchTarget: options?.searchTarget,
   });
 }
 
@@ -761,11 +909,52 @@ export async function getMyQnaPosts(
   sort: SortType = DEFAULT_SORT,
   limit?: number,
   offset = 0,
+  options?: {
+    query?: string;
+    searchTarget?: PostSearchTarget;
+  },
 ): Promise<DbPost[]> {
+  const normalizedQuery = options?.query?.trim();
+  const searchTarget =
+    options?.searchTarget === "all"
+      ? "all"
+      : parsePostSearchTarget(options?.searchTarget);
+  const searchWhere: Prisma.PostWhereInput =
+    normalizedQuery && searchTarget === "category"
+      ? {
+          category: {
+            is: {
+              name: { contains: normalizedQuery, mode: "insensitive" },
+            },
+          },
+        }
+      : normalizedQuery && searchTarget === "text"
+        ? {
+            OR: [
+              { title: { contains: normalizedQuery, mode: "insensitive" } },
+              { content: { contains: normalizedQuery, mode: "insensitive" } },
+            ],
+          }
+        : normalizedQuery
+          ? {
+              OR: [
+                { title: { contains: normalizedQuery, mode: "insensitive" } },
+                { content: { contains: normalizedQuery, mode: "insensitive" } },
+                {
+                  category: {
+                    is: {
+                      name: {
+                        contains: normalizedQuery,
+                        mode: "insensitive",
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : {};
+
   const posts = await prisma.post.findMany({
-    omit: {
-      isResolved: true,
-    },
     where: {
       userId: BigInt(userId),
       isDeleted: false,
@@ -774,6 +963,7 @@ export async function getMyQnaPosts(
           name: "QnA",
         },
       },
+      ...(normalizedQuery ? { AND: [searchWhere] } : {}),
     },
     include: {
       user: { select: { name: true, image: true } },
@@ -816,7 +1006,53 @@ export async function getMyQnaPosts(
     .map((post) => mapPost(post, { viewerUserId: userId }));
 }
 
-export async function countMyQnaPosts(userId: number) {
+export async function countMyQnaPosts(
+  userId: number,
+  options?: {
+    query?: string;
+    searchTarget?: PostSearchTarget;
+  },
+) {
+  const normalizedQuery = options?.query?.trim();
+  const searchTarget =
+    options?.searchTarget === "all"
+      ? "all"
+      : parsePostSearchTarget(options?.searchTarget);
+  const searchWhere: Prisma.PostWhereInput =
+    normalizedQuery && searchTarget === "category"
+      ? {
+          category: {
+            is: {
+              name: { contains: normalizedQuery, mode: "insensitive" },
+            },
+          },
+        }
+      : normalizedQuery && searchTarget === "text"
+        ? {
+            OR: [
+              { title: { contains: normalizedQuery, mode: "insensitive" } },
+              { content: { contains: normalizedQuery, mode: "insensitive" } },
+            ],
+          }
+        : normalizedQuery
+          ? {
+              OR: [
+                { title: { contains: normalizedQuery, mode: "insensitive" } },
+                { content: { contains: normalizedQuery, mode: "insensitive" } },
+                {
+                  category: {
+                    is: {
+                      name: {
+                        contains: normalizedQuery,
+                        mode: "insensitive",
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : {};
+
   return prisma.post.count({
     where: {
       userId: BigInt(userId),
@@ -826,6 +1062,7 @@ export async function countMyQnaPosts(userId: number) {
           name: "QnA",
         },
       },
+      ...(normalizedQuery ? { AND: [searchWhere] } : {}),
     },
   });
 }

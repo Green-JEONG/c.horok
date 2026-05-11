@@ -27,7 +27,9 @@ export default async function HorokTechNewNoticePage({
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const isAdmin = session.user.role === "ADMIN";
-  const fixedTagOptions = isAdmin ? [...NOTICE_TAG_OPTIONS] : ["QnA"];
+  const fixedTagOptions = isAdmin
+    ? [...NOTICE_TAG_OPTIONS]
+    : ["QnA", "버그 제보"];
   const requestedCategory =
     typeof resolvedSearchParams?.category === "string"
       ? resolvedSearchParams.category

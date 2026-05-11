@@ -1,7 +1,8 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { getPostDraftStorageKey, loadPostDraft } from "@/lib/post-drafts";
+import { getPostDraftStorageKey, loadPostDrafts } from "@/lib/post-drafts";
 import { getTechFeedNewPostPath } from "@/lib/routes";
 import PostCard from "./PostCard";
 
@@ -14,6 +15,7 @@ type PreviewPost = {
   author_name: string;
   author_image?: string | null;
   category_name: string;
+  view_count?: number;
   likes_count: number;
   comments_count: number;
   is_hidden: boolean;
@@ -53,6 +55,7 @@ export default function MyPostPreviewGrid({
   posts: PreviewPost[];
   limit: number;
 }) {
+  const { data: session } = useSession();
   const [mergedPosts, setMergedPosts] = useState<DraftPreviewPost[]>(posts);
 
   useEffect(() => {
@@ -61,30 +64,31 @@ export default function MyPostPreviewGrid({
       fixedTagOptions: [],
       categoryLocked: false,
     });
-    const draft = loadPostDraft(draftStorageKey);
-    const draftPost = draft
-      ? ({
-          id: -1,
-          title: draft.title.trim() || "임시저장된 글",
-          content: draft.content.trim() || "임시 저장된 글입니다.",
-          thumbnail: draft.thumbnailUrl ?? null,
-          created_at: draft.savedAt,
-          author_name: "나",
-          category_name: "임시저장",
-          likes_count: 0,
-          comments_count: 0,
-          is_hidden: false,
-          is_draft: true,
-          href_override: getTechFeedNewPostPath(),
-        } satisfies DraftPreviewPost)
-      : null;
+    const draftPosts = loadPostDrafts(draftStorageKey).map((draft, index) => ({
+      id: -1 - index,
+      title: draft.title.trim() || "임시저장된 글",
+      content: draft.content.trim() || "임시 저장된 글입니다.",
+      thumbnail: draft.thumbnailUrl ?? null,
+      created_at: draft.savedAt,
+      author_name: "나",
+      author_image: session?.user?.image ?? null,
+      category_name: "임시저장",
+      view_count: 0,
+      likes_count: 0,
+      comments_count: 0,
+      is_hidden: false,
+      is_draft: true,
+      href_override: `${getTechFeedNewPostPath()}?draftId=${encodeURIComponent(
+        draft.id ?? "",
+      )}`,
+    })) satisfies DraftPreviewPost[];
 
     setMergedPosts(
-      draftPost
-        ? [draftPost, ...posts.slice(0, limit - 1)]
+      draftPosts.length > 0
+        ? [...draftPosts, ...posts].slice(0, limit)
         : posts.slice(0, limit),
     );
-  }, [limit, posts]);
+  }, [limit, posts, session?.user?.image]);
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -100,20 +104,14 @@ export default function MyPostPreviewGrid({
             authorImage={post.author_image}
             likes={post.likes_count}
             comments={post.comments_count}
+            views={post.view_count}
             createdAt={new Date(post.created_at)}
             isHidden={post.is_hidden}
             isSecret={post.is_secret}
+            isDraft={post.is_draft}
             canViewSecret={post.can_view_secret}
             hrefOverride={post.href_override}
             showCategoryBadge={!post.is_draft}
-            statusBadges={[
-              post.is_draft
-                ? {
-                    text: "임시저장",
-                    className: "border-sky-300 bg-sky-100 text-black",
-                  }
-                : null,
-            ].filter((badge) => badge !== null)}
           />
         </div>
       ))}

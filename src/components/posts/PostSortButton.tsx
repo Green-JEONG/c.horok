@@ -8,6 +8,7 @@ import { parseSortType, type SortType } from "@/lib/post-sort";
 
 const SORT_LABEL: Record<SortType, string> = {
   latest: "최신순",
+  oldest: "오래된순",
   views: "조회순",
   likes: "좋아요순",
   comments: "댓글순",
@@ -17,6 +18,7 @@ const SORT_LABEL: Record<SortType, string> = {
 
 const DEFAULT_SORT_OPTIONS: SortType[] = [
   "latest",
+  "oldest",
   "views",
   "likes",
   "comments",
@@ -86,7 +88,7 @@ export default function PostSortButton({
           ? rect.bottom + padding
           : Math.max(padding, rect.top - estimatedHeight - padding),
         left: Math.min(
-          Math.max(padding, rect.left),
+          Math.max(padding, rect.right - menuWidth),
           window.innerWidth - menuWidth - padding,
         ),
         width: menuWidth,
@@ -132,12 +134,14 @@ export default function PostSortButton({
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex h-9 items-center gap-1 rounded-md border px-3 text-sm transition-colors hover:bg-muted"
+        className="flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-3 text-sm transition-colors hover:bg-muted"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
-        <ChevronDown className="h-4 w-4" />
+        <span className="whitespace-nowrap">
+          {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0" />
       </button>
 
       {open && menuStyle

@@ -1,4 +1,11 @@
-import { EyeOff, Heart, Lock, MessageCircle } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Heart,
+  Lock,
+  MessageCircle,
+  PenSquare,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -18,10 +25,12 @@ type Props = {
   authorImage?: string | null;
   likes: number;
   comments: number;
+  views?: number;
   createdAt: Date;
   thumbnail?: string | null;
   isHidden?: boolean;
   isSecret?: boolean;
+  isDraft?: boolean;
   canViewSecret?: boolean;
   categoryBadgeText?: string;
   categoryBadgeClassName?: string;
@@ -45,9 +54,11 @@ export default function PostCard({
   authorImage = null,
   likes,
   comments,
+  views = 0,
   createdAt,
   isHidden = false,
   isSecret = false,
+  isDraft = false,
   canViewSecret = true,
   categoryBadgeText,
   categoryBadgeClassName,
@@ -82,25 +93,46 @@ export default function PostCard({
           className: categoryBadgeClassName ?? defaultBadge.className,
         }
       : null;
+  const normalizedThumbnail = thumbnail?.trim() || null;
+  const isDefaultThumbnail =
+    normalizedThumbnail === null ||
+    normalizedThumbnail === "/logo.png" ||
+    normalizedThumbnail === "/thumbnails.png";
 
   return (
     <Link
       href={href}
-      className={`group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${className}`}
+      className={`card-hover-scale group flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-background shadow-sm ${className}`}
     >
       <div className="relative flex h-30 items-center justify-center bg-zinc-900">
         <Image
-          src={thumbnail ?? "/thumbnails.png"}
+          src={normalizedThumbnail ?? "/thumbnails.png"}
           alt={title}
           fill
-          unoptimized={Boolean(thumbnail)}
-          className={`object-contain ${!thumbnail ? "p-8" : ""}`}
+          unoptimized={!isDefaultThumbnail}
+          className={isDefaultThumbnail ? "object-contain p-8" : "object-fill"}
         />
+        <div className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 pb-2 pt-10">
+          <div className="flex min-w-0 items-center gap-3 text-xs font-medium text-white drop-shadow">
+            <span className="inline-flex items-center gap-1">
+              <Heart className="h-3.5 w-3.5 fill-current text-rose-400" />
+              {likes}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <MessageCircle className="h-3.5 w-3.5" />
+              {comments}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Eye className="h-3.5 w-3.5" />
+              {views}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col p-3">
-        <div className="mb-2 flex min-w-0 items-center gap-2">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="mb-1.5 flex min-w-0 flex-col gap-1.5">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             <Image
               src={authorImage ?? "/logo.png"}
               alt={`${author} 프로필`}
@@ -108,7 +140,12 @@ export default function PostCard({
               height={20}
               className="h-5 w-5 shrink-0 rounded-full border object-cover"
             />
-            <p className="truncate text-xs text-muted-foreground">{author}</p>
+            <p className="min-w-0 flex-1 truncate">{author}</p>
+            <span className="shrink-0 whitespace-nowrap">
+              {formatSeoulDate(createdAt)}
+            </span>
+          </div>
+          <div className="flex min-h-6 min-w-0">
             {primaryBadge ? (
               <span
                 className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${primaryBadge.className}`}
@@ -129,27 +166,16 @@ export default function PostCard({
           {isSecret ? (
             <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           ) : null}
+          {isDraft ? (
+            <PenSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : null}
         </div>
 
-        <p className="mb-3 line-clamp-1 text-xs text-muted-foreground">
+        <p className="line-clamp-1 text-xs text-muted-foreground">
           {isSecret && !canViewSecret ? "비밀글입니다." : description}
         </p>
 
-        <div className="mt-auto flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="inline-flex items-center gap-1">
-              <Heart className="h-3.5 w-3.5 fill-current text-rose-500" />
-              {likes}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MessageCircle className="h-3.5 w-3.5" />
-              {comments}
-            </span>
-          </div>
-          <span className="shrink-0 whitespace-nowrap">
-            {formatSeoulDate(createdAt)}
-          </span>
-        </div>
+        <div className="mt-auto" />
       </div>
     </Link>
   );

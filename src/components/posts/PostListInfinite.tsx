@@ -1,13 +1,25 @@
 "use client";
 
+import { EyeOff, Lock } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { parseSortType, type SortType } from "@/lib/post-sort";
+import { getTechFaqPath, getTechNoticePath } from "@/lib/routes";
 import PostCard from "./PostCard";
 
 const PAGE_SIZE = 12;
+const GRID_PROBE_ITEMS = [
+  "probe-1",
+  "probe-2",
+  "probe-3",
+  "probe-4",
+  "probe-5",
+];
+const INITIAL_VISIBLE_ROW_COUNT = 3;
 
 type PostListItem = {
   id: number;
@@ -18,8 +30,10 @@ type PostListItem = {
   author_name: string;
   author_image?: string | null;
   category_name: string;
+  view_count?: number;
   likes_count: number;
   comments_count: number;
+  is_resolved?: boolean;
   is_hidden?: boolean;
   is_secret?: boolean;
   can_view_secret?: boolean;
@@ -32,7 +46,6 @@ type Props = {
   responseKey?: string;
   gridClassName?: string;
   emptyMessage?: string;
-  endMessage?: string;
   loadingMessage?: string;
   syncSortWithSearchParams?: boolean;
   autoloadFirstPage?: boolean;
@@ -40,6 +53,9 @@ type Props = {
   groupBySearchCategory?: boolean;
   searchGroupTitleAction?: ReactNode;
   faqSearchGroupTitleAction?: ReactNode;
+  noticeTableLabel?: (typeof SEARCH_RESULT_GROUPS)[number]["label"];
+  disableInfinite?: boolean;
+  responsiveRowLoading?: boolean;
 };
 
 const SEARCH_RESULT_GROUPS = [
@@ -62,6 +78,7 @@ const SEARCH_RESULT_GROUPS = [
 ] as const;
 
 const SEARCH_SORTABLE_GROUPS = new Set(["게시물", "공지", "QnA"]);
+const SEARCH_NOTICE_GROUPS = new Set(["공지", "FAQ", "QnA"]);
 
 function readPostsFromPayload(
   payload: unknown,
@@ -91,7 +108,6 @@ export default function PostListInfinite({
   responseKey,
   gridClassName = "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4",
   emptyMessage = "게시물이 없습니다.",
-  endMessage = "마지막 게시물입니다",
   loadingMessage = "불러오는 중...",
   syncSortWithSearchParams = false,
   autoloadFirstPage = false,
@@ -99,6 +115,9 @@ export default function PostListInfinite({
   groupBySearchCategory = false,
   searchGroupTitleAction,
   faqSearchGroupTitleAction,
+  noticeTableLabel,
+  disableInfinite = false,
+  responsiveRowLoading = false,
 }: Props) {
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
@@ -108,65 +127,156 @@ export default function PostListInfinite({
 
   const [posts, setPosts] = useState<PostListItem[]>(initialPosts);
   const [page, setPage] = useState(initialPosts.length > 0 ? 2 : 1);
+  const [responsivePageSize, setResponsivePageSize] = useState<number | null>(
+    responsiveRowLoading ? null : PAGE_SIZE,
+  );
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialPosts.length >= PAGE_SIZE);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(!autoloadFirstPage);
 
   const loaderRef = useRef<HTMLDivElement | null>(null);
+  const gridProbeRef = useRef<HTMLDivElement | null>(null);
   const fetchingRef = useRef(false);
+  const loadedServerPostCountRef = useRef(initialPosts.length);
 
   useEffect(() => {
     setPosts(initialPosts);
     setPage(initialPosts.length > 0 ? 2 : 1);
-    setHasMore(initialPosts.length >= PAGE_SIZE || autoloadFirstPage);
+    loadedServerPostCountRef.current = initialPosts.length;
+    setHasMore(
+      !disableInfinite &&
+        (initialPosts.length >= PAGE_SIZE ||
+          autoloadFirstPage ||
+          responsiveRowLoading),
+    );
     setHasLoadedOnce(!autoloadFirstPage || initialPosts.length > 0);
     fetchingRef.current = false;
-  }, [autoloadFirstPage, initialPosts]);
+  }, [autoloadFirstPage, disableInfinite, initialPosts, responsiveRowLoading]);
 
   useEffect(() => {
-    const loadMore = async () => {
-      if (loading || !hasMore || fetchingRef.current) return;
+    if (!responsiveRowLoading) {
+      setResponsivePageSize(PAGE_SIZE);
+      return;
+    }
 
-      fetchingRef.current = true;
-      setLoading(true);
+    const probe = gridProbeRef.current;
 
-      try {
-        const url = new URL(endpoint, window.location.origin);
+    if (!probe) {
+      return;
+    }
 
-        if (syncSortWithSearchParams) {
-          const currentParams = new URLSearchParams(searchParamsString);
+    const updatePageSize = () => {
+      const next = window
+        .getComputedStyle(probe)
+        .gridTemplateColumns.split(" ")
+        .filter(Boolean).length;
 
-          for (const [key, value] of currentParams.entries()) {
-            url.searchParams.set(key, value);
-          }
-          url.searchParams.set("sort", sort);
-        }
-
-        url.searchParams.set("page", String(page));
-
-        const res = await fetch(url.toString());
-        const data = readPostsFromPayload(await res.json(), responseKey);
-
-        setPosts((prev) => {
-          const existingIds = new Set(prev.map((post) => post.id));
-          const newPosts = data.filter((post) => !existingIds.has(post.id));
-
-          if (newPosts.length < PAGE_SIZE) {
-            setHasMore(false);
-          }
-
-          return [...prev, ...newPosts];
-        });
-
-        setPage((current) => current + 1);
-        setHasLoadedOnce(true);
-      } finally {
-        setLoading(false);
-        fetchingRef.current = false;
+      if (next <= 0) {
+        return;
       }
+
+      setResponsivePageSize((current) => (current === next ? current : next));
     };
 
-    if (autoloadFirstPage && !hasLoadedOnce && posts.length === 0) {
+    const frame = window.requestAnimationFrame(updatePageSize);
+    const observer = new ResizeObserver(updatePageSize);
+    observer.observe(probe);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [responsiveRowLoading]);
+
+  const loadMore = useCallback(async () => {
+    if (
+      disableInfinite ||
+      loading ||
+      !hasMore ||
+      fetchingRef.current ||
+      responsivePageSize === null
+    ) {
+      return;
+    }
+
+    fetchingRef.current = true;
+    setLoading(true);
+
+    try {
+      const url = new URL(endpoint, window.location.origin);
+      const requestLimit = responsiveRowLoading
+        ? hasLoadedOnce || posts.length > 0
+          ? responsivePageSize
+          : responsivePageSize * INITIAL_VISIBLE_ROW_COUNT
+        : PAGE_SIZE;
+
+      if (syncSortWithSearchParams) {
+        const currentParams = new URLSearchParams(searchParamsString);
+
+        for (const [key, value] of currentParams.entries()) {
+          url.searchParams.set(key, value);
+        }
+        url.searchParams.set("sort", sort);
+      }
+
+      if (responsiveRowLoading) {
+        url.searchParams.set("limit", String(requestLimit));
+        url.searchParams.set(
+          "offset",
+          String(loadedServerPostCountRef.current),
+        );
+      } else {
+        url.searchParams.set("page", String(page));
+      }
+
+      const res = await fetch(url.toString());
+      const data = readPostsFromPayload(await res.json(), responseKey);
+
+      setPosts((prev) => {
+        const existingIds = new Set(prev.map((post) => post.id));
+        const newPosts = data.filter((post) => !existingIds.has(post.id));
+
+        if (responsiveRowLoading) {
+          loadedServerPostCountRef.current += data.length;
+        }
+
+        if (data.length < requestLimit) {
+          setHasMore(false);
+        }
+
+        return [...prev, ...newPosts];
+      });
+
+      setPage((current) => current + 1);
+      setHasLoadedOnce(true);
+    } finally {
+      setLoading(false);
+      fetchingRef.current = false;
+    }
+  }, [
+    disableInfinite,
+    endpoint,
+    hasLoadedOnce,
+    hasMore,
+    loading,
+    page,
+    posts.length,
+    responseKey,
+    responsivePageSize,
+    responsiveRowLoading,
+    searchParamsString,
+    sort,
+    syncSortWithSearchParams,
+  ]);
+
+  useEffect(() => {
+    if (
+      !disableInfinite &&
+      autoloadFirstPage &&
+      !hasLoadedOnce &&
+      posts.length === 0 &&
+      responsivePageSize !== null
+    ) {
       void loadMore();
       return;
     }
@@ -185,16 +295,11 @@ export default function PostListInfinite({
     return () => observer.disconnect();
   }, [
     autoloadFirstPage,
-    endpoint,
+    disableInfinite,
     hasLoadedOnce,
-    hasMore,
-    loading,
-    page,
+    loadMore,
     posts.length,
-    responseKey,
-    searchParamsString,
-    sort,
-    syncSortWithSearchParams,
+    responsivePageSize,
   ]);
 
   if (!loading && posts.length === 0 && !hasMore && hasLoadedOnce) {
@@ -220,6 +325,7 @@ export default function PostListInfinite({
       authorImage={post.author_image}
       likes={post.likes_count}
       comments={post.comments_count}
+      views={post.view_count}
       createdAt={new Date(post.created_at)}
       isHidden={post.is_hidden}
       isSecret={post.is_secret}
@@ -228,9 +334,146 @@ export default function PostListInfinite({
     />
   );
 
+  const renderSearchNoticeTable = (
+    label: (typeof SEARCH_RESULT_GROUPS)[number]["label"],
+    groupPosts: PostListItem[],
+  ) => {
+    const isQnaGroup = label === "QnA";
+
+    return (
+      <div className="overflow-x-auto border-y bg-background">
+        <div
+          className={`grid min-w-[560px] items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground ${
+            isQnaGroup
+              ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
+              : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
+          }`}
+        >
+          <span>번호</span>
+          <span>제목</span>
+          <span>작성자</span>
+          <span>작성일</span>
+          <span>조회</span>
+          {isQnaGroup ? <span>상태</span> : null}
+        </div>
+
+        {groupPosts.map((post, index) => {
+          const href =
+            post.category_name === "FAQ"
+              ? getTechFaqPath(post.id)
+              : getTechNoticePath(post.id);
+          const number = groupPosts.length - index;
+          const statusLabel = post.is_resolved ? "답변완료" : "미답변";
+
+          return (
+            <Link
+              key={post.id}
+              href={href}
+              className={`grid min-w-[560px] items-center gap-3 border-b px-5 py-4 transition-colors last:border-b-0 hover:bg-muted/30 ${
+                isQnaGroup
+                  ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
+                  : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
+              }`}
+            >
+              <span className="text-center text-sm font-semibold tabular-nums text-muted-foreground">
+                {number}
+              </span>
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="hidden shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+                    {number}
+                  </span>
+                  {post.category_name === "FAQ" ? (
+                    <span className="shrink-0 text-sm font-semibold text-primary">
+                      Q.
+                    </span>
+                  ) : null}
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {post.title}
+                  </p>
+                  {post.is_secret ? (
+                    <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  ) : null}
+                  {post.is_hidden ? (
+                    <EyeOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  ) : null}
+                </div>
+                <div className="hidden mt-2 flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <Image
+                      src={post.author_image ?? "/logo.png"}
+                      alt={`${post.author_name} 프로필`}
+                      width={18}
+                      height={18}
+                      className="h-4.5 w-4.5 shrink-0 rounded-full border object-cover"
+                    />
+                    <span className="truncate">{post.author_name}</span>
+                  </span>
+                  <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                  <span>조회 {post.view_count ?? 0}</span>
+                  {isQnaGroup ? (
+                    <span
+                      className={`font-semibold ${
+                        post.is_resolved ? "text-blue-500" : "text-red-500"
+                      }`}
+                    >
+                      {statusLabel}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex min-w-0 items-center justify-center gap-2">
+                <Image
+                  src={post.author_image ?? "/logo.png"}
+                  alt={`${post.author_name} 프로필`}
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 shrink-0 rounded-full border object-cover"
+                />
+                <span className="truncate text-sm text-muted-foreground">
+                  {post.author_name}
+                </span>
+              </div>
+              <span className="text-center text-sm text-muted-foreground">
+                {new Date(post.created_at).toLocaleDateString()}
+              </span>
+              <span className="text-center text-sm text-muted-foreground">
+                {post.view_count ?? 0}
+              </span>
+              {isQnaGroup ? (
+                <span
+                  className={`text-center text-sm font-semibold ${
+                    post.is_resolved ? "text-blue-500" : "text-red-500"
+                  }`}
+                >
+                  {statusLabel}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <>
-      {groupBySearchCategory && groupedPosts.length > 0 ? (
+      {responsiveRowLoading ? (
+        <div
+          ref={gridProbeRef}
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-0 top-0 -z-10 h-px overflow-hidden opacity-0 ${gridClassName}`}
+        >
+          {GRID_PROBE_ITEMS.map((item) => (
+            <span key={item} className="h-px min-w-0" />
+          ))}
+        </div>
+      ) : null}
+
+      {noticeTableLabel && posts.length > 0 ? (
+        renderSearchNoticeTable(noticeTableLabel, posts)
+      ) : groupBySearchCategory && groupedPosts.length > 0 ? (
         <div className="space-y-8">
           {groupedPosts.map((group) => (
             <section key={group.label} className="space-y-4">
@@ -247,9 +490,13 @@ export default function PostListInfinite({
                     ? searchGroupTitleAction
                     : null}
               </div>
-              <div className={gridClassName}>
-                {group.posts.map((post) => renderPostCard(post))}
-              </div>
+              {SEARCH_NOTICE_GROUPS.has(group.label) ? (
+                renderSearchNoticeTable(group.label, group.posts)
+              ) : (
+                <div className={gridClassName}>
+                  {group.posts.map((post) => renderPostCard(post))}
+                </div>
+              )}
             </section>
           ))}
         </div>
@@ -264,12 +511,6 @@ export default function PostListInfinite({
       {loading && (
         <p className="py-6 text-center text-sm text-muted-foreground">
           {loadingMessage}
-        </p>
-      )}
-
-      {!hasMore && posts.length > 0 && (
-        <p className="py-6 text-center text-lg font-bold tracking-tight text-muted-foreground">
-          {endMessage}
         </p>
       )}
     </>

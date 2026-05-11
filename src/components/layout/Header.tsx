@@ -42,7 +42,7 @@ export default async function Header() {
         </div>
       </div>
 
-      <div className="hidden h-14 w-full items-center px-4 md:flex">
+      <div className="hidden h-14 w-full items-center gap-5 px-4 md:flex">
         <div className="flex shrink-0 items-center gap-6">
           <Link
             href="/horok-tech"
@@ -59,7 +59,7 @@ export default async function Header() {
           <HeaderNav />
         </div>
 
-        <div className="ml-auto mr-2 flex w-[270px] shrink-0 justify-end lg:w-[330px] xl:w-[360px]">
+        <div className="flex min-w-0 flex-1 justify-end">
           <HeaderSearch />
         </div>
 

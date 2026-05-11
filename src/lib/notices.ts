@@ -96,6 +96,7 @@ export type NoticeListItem = {
   authorImage: string | null;
   isPinned: boolean;
   isLocked: boolean;
+  isHidden: boolean;
   isSecret: boolean;
   canViewSecret: boolean;
   isBanner: boolean;
@@ -174,6 +175,93 @@ export function isPinnedNotice(categoryName: string, title: string) {
   return categoryName !== "공지" || normalizedTitle === "c.horok 오픈 안내";
 }
 
+function buildNoticeSearchWhere(
+  query?: string | null,
+  searchTarget?: ReturnType<typeof parseNoticeSearchTarget>,
+): Prisma.PostWhereInput {
+  const normalizedQuery = query?.trim();
+  const parsedSearchTarget = parseNoticeSearchTarget(searchTarget);
+
+  if (!normalizedQuery) {
+    return {};
+  }
+
+  if (parsedSearchTarget === "author") {
+    return {
+      user: {
+        is: {
+          name: { contains: normalizedQuery, mode: "insensitive" },
+        },
+      },
+    };
+  }
+
+  if (parsedSearchTarget === "category") {
+    return {
+      category: {
+        is: {
+          name: { contains: normalizedQuery, mode: "insensitive" },
+        },
+      },
+    };
+  }
+
+  return {
+    OR: [
+      { title: { contains: normalizedQuery, mode: "insensitive" } },
+      { content: { contains: normalizedQuery, mode: "insensitive" } },
+    ],
+  };
+}
+
+function buildNoticeWhere(
+  category?: NoticeTag,
+  options?: {
+    query?: string | null;
+    searchTarget?: ReturnType<typeof parseNoticeSearchTarget>;
+  },
+): Prisma.PostWhereInput {
+  const searchWhere = buildNoticeSearchWhere(
+    options?.query,
+    options?.searchTarget,
+  );
+
+  return {
+    isDeleted: false,
+    isHidden: false,
+    category: {
+      is: {
+        name: {
+          in: getNoticeCategoryQueryNames(category),
+        },
+      },
+    },
+    ...(options?.query?.trim() ? { AND: [searchWhere] } : {}),
+  };
+}
+
+export async function countNoticesByCategory(
+  queryByCategory: Partial<Record<NoticeTag, string | undefined>>,
+  searchTarget?: ReturnType<typeof parseNoticeSearchTarget>,
+) {
+  const entries = await Promise.all(
+    (["공지", "FAQ", "QnA", "버그 제보"] as NoticeTag[]).map(
+      async (category) => {
+        const count = await prisma.post.count({
+          where: buildNoticeWhere(category, {
+            query: queryByCategory[category],
+            searchTarget,
+          }),
+        });
+
+        return [category, count] as const;
+      },
+    ),
+  );
+
+  return Object.fromEntries(entries) as Record<NoticeTag, number>;
+}
+
 export async function findNotices(
   sort: SortType = DEFAULT_SORT,
   category?: NoticeTag,
@@ -184,45 +272,10 @@ export async function findNotices(
     searchTarget?: ReturnType<typeof parseNoticeSearchTarget>;
   },
 ) {
-  const normalizedQuery = options?.query?.trim();
-  const searchTarget = parseNoticeSearchTarget(options?.searchTarget);
-  const searchWhere: Prisma.PostWhereInput =
-    normalizedQuery && searchTarget === "author"
-      ? {
-          user: {
-            is: {
-              name: { contains: normalizedQuery, mode: "insensitive" },
-            },
-          },
-        }
-      : normalizedQuery && searchTarget === "category"
-        ? {
-            category: {
-              is: {
-                name: { contains: normalizedQuery, mode: "insensitive" },
-              },
-            },
-          }
-        : normalizedQuery
-          ? {
-              OR: [
-                { title: { contains: normalizedQuery, mode: "insensitive" } },
-                { content: { contains: normalizedQuery, mode: "insensitive" } },
-              ],
-            }
-          : {};
-  const where: Prisma.PostWhereInput = {
-    isDeleted: false,
-    isHidden: false,
-    category: {
-      is: {
-        name: {
-          in: getNoticeCategoryQueryNames(category),
-        },
-      },
-    },
-    ...(normalizedQuery ? { AND: [searchWhere] } : {}),
-  };
+  const where = buildNoticeWhere(category, {
+    query: options?.query,
+    searchTarget: options?.searchTarget,
+  });
   const notices = await prisma.post.findMany({
     omit: {
       isResolved: true,
@@ -321,6 +374,7 @@ export async function findNotices(
         authorImage: notice.user.image ?? null,
         isPinned: isPinnedNotice(normalizedCategory, notice.title),
         isLocked: notice.isSecret,
+        isHidden: notice.isHidden,
         isSecret: notice.isSecret,
         canViewSecret,
         isBanner: notice.isBanner,

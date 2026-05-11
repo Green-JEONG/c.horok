@@ -30,12 +30,12 @@ export default function HomeWriteButton({
         type="button"
         onClick={() => router.push(href)}
         className={cn(
-          "inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white shadow transition-colors hover:opacity-90",
+          "inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white shadow transition-colors hover:opacity-90",
           buttonClassName,
         )}
       >
-        <PenSquare size={16} />
-        {label}
+        <PenSquare className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>{label}</span>
       </button>
     </div>
   );

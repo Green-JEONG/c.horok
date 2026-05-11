@@ -11,6 +11,9 @@ export const metadata: Metadata = {
 };
 
 import { Suspense } from "react";
+import MyPageHeading, {
+  MYPAGE_HEADING_ACTIONS_SLOT_ID,
+} from "@/components/mypage/MyPageHeading";
 import MyPageSection from "@/components/mypage/MyPageSection";
 import { getCategoryBySlug } from "@/lib/categories";
 
@@ -26,21 +29,33 @@ export default async function MyPage({ searchParams }: Props) {
     : null;
 
   return (
-    <div className="w-full space-y-12">
-      {selectedCategory ? (
-        <h1 className="inline-flex min-w-0 items-center gap-1 text-lg font-semibold">
-          <span className="truncate">마이 홈</span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="shrink-0">카테고리</span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="truncate">{selectedCategory.name}</span>
-        </h1>
-      ) : (
-        <h1 className="text-lg font-semibold">마이페이지</h1>
-      )}
-      <Suspense fallback={<MyPageLoading />}>
-        <MyPageSection />
-      </Suspense>
+    <div className="flex h-full min-h-0 w-full flex-col gap-6">
+      <div className="flex shrink-0 items-center justify-between gap-3">
+        {selectedCategory ? (
+          <h1 className="inline-flex min-w-0 max-w-[52%] shrink-0 items-center gap-1 text-lg font-semibold sm:max-w-none">
+            <span className="truncate">마이홈</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="shrink-0">카테고리</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">{selectedCategory.name}</span>
+          </h1>
+        ) : (
+          <h1 className="inline-flex min-w-0 max-w-[52%] shrink-0 items-center gap-1 text-lg font-semibold sm:max-w-none">
+            <Suspense fallback={<span className="shrink-0">마이페이지</span>}>
+              <MyPageHeading />
+            </Suspense>
+          </h1>
+        )}
+        <div
+          id={MYPAGE_HEADING_ACTIONS_SLOT_ID}
+          className="ml-auto flex min-w-0 flex-1 flex-row items-center justify-end gap-2"
+        />
+      </div>
+      <div className="min-h-0 flex-1">
+        <Suspense fallback={<MyPageLoading />}>
+          <MyPageSection />
+        </Suspense>
+      </div>
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import { Trophy } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 type RankingUser = {
@@ -14,7 +13,6 @@ type RankingUser = {
 };
 
 export default function UserActivityRanking() {
-  const { data: session } = useSession();
   const [ranking, setRanking] = useState<RankingUser[]>([]);
 
   useEffect(() => {
@@ -44,11 +42,7 @@ export default function UserActivityRanking() {
           {ranking.map((user) => (
             <li key={user.userId}>
               <Link
-                href={
-                  session?.user?.id === String(user.userId)
-                    ? "/horok-tech"
-                    : `/users/${user.userId}`
-                }
+                href={`/users/${user.userId}`}
                 className="flex items-center gap-2 rounded-lg px-1 py-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
               >
                 <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-foreground/80">

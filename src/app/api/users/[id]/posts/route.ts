@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { parsePostSearchTarget } from "@/lib/post-search-target";
 import { parseSortType } from "@/lib/post-sort";
 import { getUserPosts } from "@/lib/queries";
 
@@ -17,6 +18,9 @@ export async function GET(
   const page = Number(url.searchParams.get("page") ?? "1");
   const sort = parseSortType(url.searchParams.get("sort"));
   const query = url.searchParams.get("q") ?? undefined;
+  const searchTarget = parsePostSearchTarget(
+    url.searchParams.get("searchTarget"),
+  );
   const categorySlug = url.searchParams.get("category") ?? undefined;
 
   if (page < 1) {
@@ -35,6 +39,7 @@ export async function GET(
         : null,
     isAdmin: session?.user?.role === "ADMIN",
     query,
+    searchTarget,
     categorySlug,
   });
 

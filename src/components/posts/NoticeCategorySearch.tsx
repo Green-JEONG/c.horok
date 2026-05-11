@@ -152,7 +152,7 @@ export default function NoticeCategorySearch({ category }: Props) {
       onSubmit={(event) => {
         event.preventDefault();
       }}
-      className={`flex h-9 w-full items-center overflow-hidden rounded-md border bg-background transition-colors sm:w-80 ${
+      className={`flex h-9 min-w-0 flex-1 items-center overflow-hidden rounded-md border bg-background transition-colors sm:max-w-80 ${
         focused ? "border-primary bg-primary/5" : "border-border bg-background"
       }`}
     >
@@ -160,13 +160,15 @@ export default function NoticeCategorySearch({ category }: Props) {
         ref={targetButtonRef}
         type="button"
         onClick={() => setTargetMenuOpen((value) => !value)}
-        className="flex h-full shrink-0 items-center gap-1 border-r bg-transparent px-2 text-xs font-medium outline-none transition-colors hover:bg-muted"
+        className="flex h-full max-w-24 shrink-0 items-center gap-1 border-r bg-transparent px-2 text-xs font-medium outline-none transition-colors hover:bg-muted sm:max-w-none"
         aria-haspopup="menu"
         aria-expanded={targetMenuOpen}
         aria-label="검색 범위"
       >
-        {SEARCH_TARGET_LABEL[searchTarget]}
-        <ChevronDown className="h-3.5 w-3.5" />
+        <span className="min-w-0 truncate whitespace-nowrap">
+          {SEARCH_TARGET_LABEL[searchTarget]}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 shrink-0" />
       </button>
       <input
         ref={inputRef}

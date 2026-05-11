@@ -7,32 +7,12 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import MyPageHeadingPortal from "@/components/mypage/MyPageHeadingPortal";
 import SectionPagination from "@/components/mypage/sections/SectionPagination";
-import { getTechNoticePath } from "@/lib/routes";
+import { getTechFaqPath, getTechNoticePath } from "@/lib/routes";
 import { formatSeoulDate } from "@/lib/utils";
 
-const DEFAULT_PREVIEW_PAGE_SIZE = 4;
+const PAGE_SIZE = 10;
 
-function getResponsivePageSize() {
-  if (typeof window === "undefined") {
-    return DEFAULT_PREVIEW_PAGE_SIZE;
-  }
-
-  if (window.innerWidth >= 1280) {
-    return 10;
-  }
-
-  if (window.innerWidth >= 1024) {
-    return 8;
-  }
-
-  if (window.innerWidth >= 640) {
-    return 6;
-  }
-
-  return 4;
-}
-
-type MyQnaPost = {
+type AdminPost = {
   id: number;
   title: string;
   content: string;
@@ -44,35 +24,42 @@ type MyQnaPost = {
   view_count?: number;
   likes_count: number;
   comments_count: number;
-  is_resolved?: boolean;
   is_hidden: boolean;
   is_secret: boolean;
 };
 
-type MyQnaResponse = {
-  posts: MyQnaPost[];
+type AdminPostsResponse = {
+  posts: AdminPost[];
   totalCount: number;
   resolvedPage?: number;
 };
 
-export default function MyQnaSection() {
+type Props = {
+  category: "공지" | "FAQ";
+  title: string;
+  emptyMessage: string;
+};
+
+export default function MyAdminPostsSection({
+  category,
+  title,
+  emptyMessage,
+}: Props) {
   const searchParams = useSearchParams();
-  const [posts, setPosts] = useState<MyQnaPost[]>([]);
+  const [posts, setPosts] = useState<AdminPost[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(DEFAULT_PREVIEW_PAGE_SIZE);
-  const [highlightedPostId, setHighlightedPostId] = useState<number | null>(
-    null,
-  );
   const targetPostId = useMemo(() => {
-    const value = Number(searchParams.get("qnaPostId") ?? "");
+    const value = Number(searchParams.get("postId") ?? "");
     return Number.isFinite(value) && value > 0 ? value : null;
   }, [searchParams]);
   const sort = searchParams.get("sort")?.trim() || null;
   const query = searchParams.get("q")?.trim() || null;
   const searchTarget = searchParams.get("searchTarget")?.trim() || null;
-  const listKey = `${sort ?? ""}:${query ?? ""}:${searchTarget ?? ""}`;
+  const listKey = `${category}:${sort ?? ""}:${query ?? ""}:${
+    searchTarget ?? ""
+  }`;
   const previousListKeyRef = useRef(listKey);
 
   useEffect(() => {
@@ -85,25 +72,6 @@ export default function MyQnaSection() {
   }, [listKey]);
 
   useEffect(() => {
-    const updatePageSize = () => {
-      setPageSize((current) => {
-        const next = getResponsivePageSize();
-        if (current !== next) {
-          setPage(1);
-        }
-        return current === next ? current : next;
-      });
-    };
-
-    updatePageSize();
-    window.addEventListener("resize", updatePageSize);
-
-    return () => {
-      window.removeEventListener("resize", updatePageSize);
-    };
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
 
     const loadPosts = async () => {
@@ -111,8 +79,9 @@ export default function MyQnaSection() {
 
       try {
         const params = new URLSearchParams({
+          category,
           page: String(page),
-          limit: String(pageSize),
+          limit: String(PAGE_SIZE),
         });
         if (typeof targetPostId === "number") {
           params.set("targetPostId", String(targetPostId));
@@ -127,8 +96,10 @@ export default function MyQnaSection() {
           params.set("searchTarget", searchTarget);
         }
 
-        const response = await fetch(`/api/mypage/qna?${params.toString()}`);
-        const data: MyQnaResponse = await response.json();
+        const response = await fetch(
+          `/api/mypage/admin-posts?${params.toString()}`,
+        );
+        const data: AdminPostsResponse = await response.json();
 
         if (cancelled) return;
 
@@ -139,6 +110,7 @@ export default function MyQnaSection() {
         ) {
           setPage(data.resolvedPage);
         }
+
         setPosts(Array.isArray(data.posts) ? data.posts : []);
         setTotalCount(
           typeof data.totalCount === "number" ? data.totalCount : 0,
@@ -159,44 +131,13 @@ export default function MyQnaSection() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize, query, searchTarget, sort, targetPostId]);
+  }, [category, page, query, searchTarget, sort, targetPostId]);
 
-  useEffect(() => {
-    if (typeof targetPostId !== "number") {
-      return;
-    }
-
-    const targetExists = posts.some((post) => post.id === targetPostId);
-    if (!targetExists) {
-      return;
-    }
-
-    setHighlightedPostId(targetPostId);
-
-    const scrollTimeout = window.setTimeout(() => {
-      const element = document.getElementById(`mypage-qna-${targetPostId}`);
-      element?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 150);
-
-    const highlightTimeout = window.setTimeout(() => {
-      setHighlightedPostId((current) =>
-        current === targetPostId ? null : current,
-      );
-    }, 2600);
-
-    return () => {
-      window.clearTimeout(scrollTimeout);
-      window.clearTimeout(highlightTimeout);
-    };
-  }, [posts, targetPostId]);
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const isFaqCategory = category === "FAQ";
   const headingContent = (
     <span className="inline-flex min-w-0 items-center gap-2">
-      <span className="truncate">내 질문</span>
+      <span className="truncate">{title}</span>
       <span className="text-sm font-medium text-muted-foreground">
         {totalCount}
       </span>
@@ -204,38 +145,34 @@ export default function MyQnaSection() {
   );
 
   return (
-    <section className="space-y-4" id="mypage-qna">
+    <section className="space-y-4">
       <MyPageHeadingPortal>{headingContent}</MyPageHeadingPortal>
 
       {loading ? (
         <p className="text-sm text-muted-foreground">불러오는 중…</p>
       ) : posts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">작성한 QnA가 없습니다.</p>
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
         <>
           <div className="overflow-hidden border-y bg-background">
-            <div className="hidden grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px] items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground md:grid">
+            <div className="hidden grid-cols-[48px_minmax(0,1fr)_88px_92px_56px] items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground md:grid">
               <span>번호</span>
               <span>제목</span>
               <span>작성자</span>
               <span>작성일</span>
               <span>조회</span>
-              <span>상태</span>
             </div>
             {posts.map((post, index) => {
-              const postNumber = totalCount - (page - 1) * pageSize - index;
-              const statusLabel = post.is_resolved ? "답변완료" : "미답변";
+              const postNumber = totalCount - (page - 1) * PAGE_SIZE - index;
+              const href = isFaqCategory
+                ? getTechFaqPath(post.id)
+                : getTechNoticePath(post.id);
 
               return (
                 <Link
-                  href={getTechNoticePath(post.id)}
                   key={post.id}
-                  id={`mypage-qna-${post.id}`}
-                  className={`flex flex-col gap-3 border-b px-4 py-4 transition-colors last:border-b-0 hover:bg-muted/30 md:grid md:grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px] md:items-center md:gap-3 md:px-5 ${
-                    highlightedPostId === post.id
-                      ? "border-primary bg-primary/5"
-                      : ""
-                  }`}
+                  href={href}
+                  className="flex flex-col gap-3 border-b px-4 py-4 transition-colors last:border-b-0 hover:bg-muted/30 md:grid md:grid-cols-[48px_minmax(0,1fr)_88px_92px_56px] md:items-center md:gap-3 md:px-5"
                 >
                   <span className="hidden text-center text-sm font-semibold tabular-nums text-muted-foreground md:block">
                     {postNumber}
@@ -245,6 +182,11 @@ export default function MyQnaSection() {
                       <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground md:hidden">
                         {postNumber}
                       </span>
+                      {isFaqCategory ? (
+                        <span className="shrink-0 text-sm font-semibold text-primary">
+                          Q.
+                        </span>
+                      ) : null}
                       <p className="truncate text-sm font-semibold text-foreground">
                         {post.title}
                       </p>
@@ -268,13 +210,6 @@ export default function MyQnaSection() {
                       </span>
                       <span>{formatSeoulDate(post.created_at)}</span>
                       <span>조회 {post.view_count ?? 0}</span>
-                      <span
-                        className={`font-semibold ${
-                          post.is_resolved ? "text-blue-500" : "text-red-500"
-                        }`}
-                      >
-                        {statusLabel}
-                      </span>
                     </div>
                   </div>
                   <div className="hidden min-w-0 items-center justify-center gap-2 md:flex">
@@ -294,13 +229,6 @@ export default function MyQnaSection() {
                   </span>
                   <span className="hidden text-center text-sm text-muted-foreground md:block">
                     {post.view_count ?? 0}
-                  </span>
-                  <span
-                    className={`hidden text-center text-sm font-semibold md:block ${
-                      post.is_resolved ? "text-blue-500" : "text-red-500"
-                    }`}
-                  >
-                    {statusLabel}
                   </span>
                 </Link>
               );

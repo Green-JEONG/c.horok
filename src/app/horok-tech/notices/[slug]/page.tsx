@@ -92,6 +92,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
   }
   const isAdmin = session?.user?.role === "ADMIN";
   const isQnaNotice = notice.categoryName === "QnA";
+  const isBugNotice = notice.categoryName === "버그 제보";
   const isFaqNotice = notice.categoryName === "FAQ";
 
   if (isFaqNotice) {
@@ -104,8 +105,10 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
       (isPublicNoticeCategory(notice.categoryName) &&
         typeof sessionUserId === "number" &&
         notice.userId === sessionUserId);
-  const fixedTagOptions = isAdmin ? [...NOTICE_TAG_OPTIONS] : ["QnA"];
-  const isUserQnaMode = isQnaNotice;
+  const fixedTagOptions = isAdmin
+    ? [...NOTICE_TAG_OPTIONS]
+    : ["QnA", "버그 제보"];
+  const isUserNoticeMode = isQnaNotice || isBugNotice;
   const adminAnswer = isQnaNotice
     ? await getAdminAnswerByPost(notice.id, {
         viewerUserId:
@@ -154,7 +157,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
         redirectPath="/horok-tech/notices"
         categoryLocked
         fixedTagOptions={fixedTagOptions}
-        showBannerOption={!isUserQnaMode}
+        showBannerOption={!isUserNoticeMode}
         allowNoticeBannerForAllCategories={isAdmin}
         headerPost={noticePost}
       >
