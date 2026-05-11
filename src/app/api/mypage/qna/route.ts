@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireDbUserId } from "@/lib/auth-db";
+import { parsePostSearchTarget } from "@/lib/post-search-target";
 import { parseSortType } from "@/lib/post-sort";
 import { countMyQnaPosts, getMyQnaPosts } from "@/lib/queries";
 
@@ -10,18 +11,28 @@ export async function GET(request: Request) {
     const sort = parseSortType(url.searchParams.get("sort"));
     const requestedLimit = Number(url.searchParams.get("limit") ?? "12");
     const targetPostId = Number(url.searchParams.get("targetPostId") ?? "");
+    const query = url.searchParams.get("q") ?? undefined;
+    const searchTarget = parsePostSearchTarget(
+      url.searchParams.get("searchTarget"),
+    );
     const limit =
       Number.isFinite(requestedLimit) && requestedLimit > 0
         ? requestedLimit
         : 12;
     const userId = await requireDbUserId();
-    const totalCount = await countMyQnaPosts(userId);
+    const totalCount = await countMyQnaPosts(userId, {
+      query,
+      searchTarget,
+    });
 
     let resolvedPage = Math.max(requestedPage, 1);
     let posts = [] as Awaited<ReturnType<typeof getMyQnaPosts>>;
 
     if (Number.isFinite(targetPostId) && targetPostId > 0) {
-      const allPosts = await getMyQnaPosts(userId, sort);
+      const allPosts = await getMyQnaPosts(userId, sort, undefined, 0, {
+        query,
+        searchTarget,
+      });
       const targetIndex = allPosts.findIndex(
         (post) => post.id === targetPostId,
       );
@@ -34,7 +45,10 @@ export async function GET(request: Request) {
       posts = allPosts.slice(offset, offset + limit);
     } else {
       const offset = Math.max(resolvedPage - 1, 0) * limit;
-      posts = await getMyQnaPosts(userId, sort, limit, offset);
+      posts = await getMyQnaPosts(userId, sort, limit, offset, {
+        query,
+        searchTarget,
+      });
     }
 
     return NextResponse.json({

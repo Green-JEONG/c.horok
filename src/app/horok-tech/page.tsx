@@ -60,6 +60,7 @@ export default async function HorokTechPage({
               authorImage={post.author_image}
               likes={post.likes_count}
               comments={post.comments_count}
+              views={post.view_count}
               createdAt={post.created_at}
             />
           ))}
@@ -86,7 +87,7 @@ export default async function HorokTechPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold">마이 홈</h1>
+      <h1 className="text-lg font-semibold">마이홈</h1>
       <Suspense
         fallback={<div className="h-6 w-32 animate-pulse rounded bg-muted" />}
       >

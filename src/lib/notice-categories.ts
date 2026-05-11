@@ -1,4 +1,4 @@
-export const NOTICE_TAG_OPTIONS = ["공지", "FAQ", "QnA"] as const;
+export const NOTICE_TAG_OPTIONS = ["공지", "FAQ", "QnA", "버그 제보"] as const;
 
 const LEGACY_NOTICE_TAG_ALIASES = {
   중요: "FAQ",
@@ -24,6 +24,7 @@ export const NOTICE_SEARCH_PARAM_BY_CATEGORY = {
   공지: "noticeQ",
   FAQ: "faqQ",
   QnA: "qnaQ",
+  "버그 제보": "bugQ",
 } as const satisfies Record<NoticeTag, string>;
 
 export function normalizeNoticeCategory(
@@ -49,7 +50,8 @@ export function isNoticeCategoryName(value?: string | null) {
 }
 
 export function isPublicNoticeCategory(value?: string | null) {
-  return normalizeNoticeCategory(value) === "QnA";
+  const category = normalizeNoticeCategory(value);
+  return category === "QnA" || category === "버그 제보";
 }
 
 export function parseNoticeCategory(

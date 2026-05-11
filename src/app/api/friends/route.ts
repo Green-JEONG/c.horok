@@ -10,7 +10,10 @@ async function getFriendUserId(req: Request) {
       ? String(body.friendUserId)
       : null;
 
-  return friendUserId && /^\d+$/.test(friendUserId) ? friendUserId : null;
+  return {
+    friendUserId:
+      friendUserId && /^\d+$/.test(friendUserId) ? friendUserId : null,
+  };
 }
 
 async function getSessionUserId() {
@@ -33,7 +36,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const friendUserId = await getFriendUserId(req);
+    const { friendUserId } = await getFriendUserId(req);
     if (!friendUserId) {
       return NextResponse.json(
         { message: "올바른 유저 정보가 아닙니다." },
@@ -124,7 +127,7 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const friendUserId = await getFriendUserId(req);
+    const { friendUserId } = await getFriendUserId(req);
     if (!friendUserId) {
       return NextResponse.json(
         { message: "올바른 유저 정보가 아닙니다." },

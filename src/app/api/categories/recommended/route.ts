@@ -61,9 +61,7 @@ function sortCategoriesByName(a: { name: string }, b: { name: string }) {
 function isVisibleRecommendedCategory(name: string) {
   const noticeCategory = normalizeNoticeCategory(name);
 
-  return (
-    name !== "미분류" && (noticeCategory === null || noticeCategory === "공지")
-  );
+  return name !== "미분류" && noticeCategory === null;
 }
 
 export async function GET(request: Request) {

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import SectionPagination from "@/components/mypage/sections/SectionPagination";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import MyPageHeadingPortal from "@/components/mypage/MyPageHeadingPortal";
 import {
   getTechFaqPath,
   getTechFeedPostPath,
@@ -24,11 +24,20 @@ type MyComment = {
   notice_category_name?: string | null;
 };
 
+type MyCommentsResponse = {
+  comments: MyComment[];
+  totalCount: number;
+  resolvedPage?: number;
+};
+
 export default function MyCommentsSection() {
   const searchParams = useSearchParams();
   const [comments, setComments] = useState<MyComment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [nextPage, setNextPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [highlightedCommentId, setHighlightedCommentId] = useState<
     number | null
   >(null);
@@ -40,52 +49,127 @@ export default function MyCommentsSection() {
     const value = Number(searchParams.get("postId") ?? "");
     return Number.isFinite(value) && value > 0 ? value : null;
   }, [searchParams]);
+  const query = searchParams.get("q")?.trim().toLowerCase() ?? "";
+  const sort = searchParams.get("sort") ?? "latest";
+  const filterKey = `${query}:${sort}`;
+  const previousFilterKeyRef = useRef(filterKey);
+  const fetchingRef = useRef(false);
+
+  const loadComments = useCallback(
+    async (page: number, options: { replace?: boolean } = {}) => {
+      if (fetchingRef.current) {
+        return;
+      }
+
+      fetchingRef.current = true;
+      if (options.replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(PAGE_SIZE),
+          sort,
+        });
+        if (query) {
+          params.set("q", query);
+        }
+
+        const response = await fetch(`/api/mypage/comments?${params}`);
+        const data: MyCommentsResponse = await response.json();
+        const nextComments = Array.isArray(data.comments) ? data.comments : [];
+        const resolvedPage =
+          typeof data.resolvedPage === "number" && data.resolvedPage > 0
+            ? data.resolvedPage
+            : page;
+        const nextTotalCount =
+          typeof data.totalCount === "number" ? data.totalCount : 0;
+
+        setComments((current) => {
+          if (options.replace) {
+            return nextComments;
+          }
+
+          const existingIds = new Set(current.map((comment) => comment.id));
+          return [
+            ...current,
+            ...nextComments.filter((comment) => !existingIds.has(comment.id)),
+          ];
+        });
+        setTotalCount(nextTotalCount);
+        setNextPage(resolvedPage + 1);
+        setHasMore(resolvedPage * PAGE_SIZE < nextTotalCount);
+      } catch {
+        if (options.replace) {
+          setComments([]);
+          setTotalCount(0);
+          setHasMore(false);
+        }
+      } finally {
+        fetchingRef.current = false;
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [query, sort],
+  );
 
   useEffect(() => {
-    fetch("/api/mypage/comments")
-      .then((res) => res.json())
-      .then(setComments)
-      .finally(() => setLoading(false));
-  }, []);
+    void loadComments(1, { replace: true });
+  }, [loadComments]);
 
-  const totalPages = Math.max(1, Math.ceil(comments.length / PAGE_SIZE));
-  const pagedComments = comments.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE,
-  );
+  useEffect(() => {
+    if (previousFilterKeyRef.current === filterKey) {
+      return;
+    }
+
+    previousFilterKeyRef.current = filterKey;
+  }, [filterKey]);
+
+  useEffect(() => {
+    const handleNearEnd = () => {
+      if (!hasMore || loading || loadingMore) {
+        return;
+      }
+
+      void loadComments(nextPage);
+    };
+
+    window.addEventListener("orange-scroll-area-near-end", handleNearEnd);
+
+    return () => {
+      window.removeEventListener("orange-scroll-area-near-end", handleNearEnd);
+    };
+  }, [hasMore, loadComments, loading, loadingMore, nextPage]);
 
   useEffect(() => {
     if (comments.length === 0) {
       return;
     }
 
-    const targetIndex =
+    const nextComment =
       typeof targetCommentId === "number"
-        ? comments.findIndex((comment) => comment.id === targetCommentId)
+        ? comments.find((comment) => comment.id === targetCommentId)
         : typeof targetPostId === "number"
-          ? comments.findIndex((comment) => comment.post_id === targetPostId)
-          : -1;
+          ? comments.find((comment) => comment.post_id === targetPostId)
+          : null;
 
-    if (targetIndex < 0) {
+    if (!nextComment) {
       return;
     }
 
-    const nextPage = Math.floor(targetIndex / PAGE_SIZE) + 1;
-    const nextCommentId = comments[targetIndex]?.id ?? null;
-
-    if (nextPage !== page) {
-      setPage(nextPage);
-    }
-
-    setHighlightedCommentId(nextCommentId);
-  }, [comments, page, targetCommentId, targetPostId]);
+    setHighlightedCommentId(nextComment.id);
+  }, [comments, targetCommentId, targetPostId]);
 
   useEffect(() => {
     if (typeof highlightedCommentId !== "number") {
       return;
     }
 
-    const visible = pagedComments.some(
+    const visible = comments.some(
       (comment) => comment.id === highlightedCommentId,
     );
     if (!visible) {
@@ -112,34 +196,35 @@ export default function MyCommentsSection() {
       window.clearTimeout(scrollTimeout);
       window.clearTimeout(highlightTimeout);
     };
-  }, [highlightedCommentId, pagedComments]);
+  }, [comments, highlightedCommentId]);
+
+  const headingContent = (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <span className="truncate">내 댓글</span>
+      <span className="text-sm font-medium text-muted-foreground">
+        {totalCount}
+      </span>
+    </span>
+  );
 
   if (loading)
     return (
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold">내가 쓴 댓글</h2>
-          <span className="text-sm font-medium text-muted-foreground">0</span>
-        </div>
+        <MyPageHeadingPortal>{headingContent}</MyPageHeadingPortal>
         <p className="text-sm text-muted-foreground">불러오는 중…</p>
       </section>
     );
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h2 className="text-base font-semibold">내가 쓴 댓글</h2>
-        <span className="text-sm font-medium text-muted-foreground">
-          {comments.length}
-        </span>
-      </div>
+      <MyPageHeadingPortal>{headingContent}</MyPageHeadingPortal>
 
       {comments.length === 0 ? (
         <p className="text-sm text-muted-foreground">작성한 댓글이 없습니다.</p>
       ) : (
         <>
           <ul className="space-y-3">
-            {pagedComments.map(
+            {comments.map(
               ({
                 id,
                 content,
@@ -160,7 +245,7 @@ export default function MyCommentsSection() {
                       className={`block rounded-lg border p-4 text-sm opacity-70 ${
                         highlightedCommentId === id
                           ? "border-primary bg-primary/5"
-                          : ""
+                          : "card-hover-scale mypage-comment-hover-scale bg-background"
                       }`}
                     >
                       <div className="mb-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
@@ -189,7 +274,7 @@ export default function MyCommentsSection() {
                       return (
                         <Link
                           href={postHref}
-                          className={`block rounded-lg border px-4 py-3 text-sm transition-colors hover:bg-muted ${
+                          className={`card-hover-scale mypage-comment-hover-scale block rounded-lg border bg-background px-4 py-3 text-sm ${
                             highlightedCommentId === id
                               ? "border-primary bg-primary/5"
                               : ""
@@ -214,12 +299,12 @@ export default function MyCommentsSection() {
               ),
             )}
           </ul>
-
-          <SectionPagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
+          {hasMore ? <div className="h-12 w-full" /> : null}
+          {loadingMore ? (
+            <p className="text-center text-sm text-muted-foreground">
+              더 불러오는 중…
+            </p>
+          ) : null}
         </>
       )}
     </section>

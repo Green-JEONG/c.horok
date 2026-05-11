@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { DbPost } from "@/lib/db";
+import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { formatSeoulDateTime } from "@/lib/utils";
 
 export default function PostHeader({
@@ -17,7 +18,9 @@ export default function PostHeader({
   const showSecretLock = post.is_secret;
   const showHiddenIcon = post.is_hidden;
   const showCategoryBadge =
-    Boolean(post.category_name) && post.category_name !== "미분류";
+    Boolean(post.category_name) &&
+    post.category_name !== "미분류" &&
+    !isNoticeCategoryName(post.category_name);
   const authorProfile = (
     <>
       <Image

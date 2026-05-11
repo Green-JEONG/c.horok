@@ -1,5 +1,6 @@
 export type SortType =
   | "latest"
+  | "oldest"
   | "views"
   | "likes"
   | "comments"
@@ -11,6 +12,7 @@ export const DEFAULT_SORT: SortType = "latest";
 export function parseSortType(value?: string | null): SortType {
   if (
     value === "latest" ||
+    value === "oldest" ||
     value === "views" ||
     value === "likes" ||
     value === "comments" ||
@@ -44,6 +46,12 @@ export function comparePostMetrics(
 ) {
   const latestFirst =
     b.createdAt.getTime() - a.createdAt.getTime() + Number(b.id) - Number(a.id);
+  const oldestFirst =
+    a.createdAt.getTime() - b.createdAt.getTime() + Number(a.id) - Number(b.id);
+
+  if (sort === "oldest") {
+    return oldestFirst;
+  }
 
   if (sort === "views") {
     return b.viewCount - a.viewCount || latestFirst;

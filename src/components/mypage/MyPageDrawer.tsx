@@ -11,6 +11,7 @@ import {
   getPlatformFromPathname,
   usePlatformProfile,
 } from "@/components/mypage/usePlatformProfile";
+import { countPostDrafts, getTechPostDraftStorageKey } from "@/lib/post-drafts";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -76,6 +77,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     second: 0,
     third: 0,
   });
+  const [draftPostCount, setDraftPostCount] = useState(0);
   const getCallbackUrl = useCallback(() => {
     if (typeof window === "undefined") {
       return "/";
@@ -180,6 +182,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
 
+    setDraftPostCount(
+      !isCote ? countPostDrafts(getTechPostDraftStorageKey()) : 0,
+    );
+
     const loadStats = async () => {
       try {
         const res = await fetch(`/api/mypage/stats?platform=${platform}`);
@@ -193,7 +199,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     };
 
     loadStats();
-  }, [open, platform]);
+  }, [isCote, open, platform]);
 
   if (!isVisible || !portalReady) return null;
 
@@ -290,11 +296,11 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           {[
             isCote ? "푼 문제" : "글",
             isCote ? "틀린 문제" : "댓글",
-            isCote ? "찜한 문제" : "구독",
+            isCote ? "찜한 문제" : "팔로워",
           ].map((label, index) => {
             const value =
               index === 0
-                ? stats.first
+                ? stats.first + (!isCote ? draftPostCount : 0)
                 : index === 1
                   ? stats.second
                   : stats.third;

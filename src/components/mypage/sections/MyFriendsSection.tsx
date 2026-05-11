@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import SectionPagination from "@/components/mypage/sections/SectionPagination";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import MyPageHeadingPortal from "@/components/mypage/MyPageHeadingPortal";
+import { Button } from "@/components/ui/button";
 
 const DEFAULT_PAGE_SIZE = 2;
 
@@ -34,43 +35,132 @@ type Friend = {
   image: string | null;
   followerCount: number;
   postCount: number;
+  followedAt?: string;
 };
 
 type FriendsResponse = {
   followers: Friend[];
   following: Friend[];
+  totalCount?: number;
+  resolvedPage?: number;
 };
 
 function FriendList({
   listKey,
   title,
-  friends,
+  onFollowingStatusChange,
   emptyMessage,
+  hideHeading = false,
 }: {
   listKey: "followers" | "following";
   title: string;
-  friends: Friend[];
+  onFollowingStatusChange?: (delta: number) => void;
   emptyMessage: string;
+  hideHeading?: boolean;
 }) {
   const searchParams = useSearchParams();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(() => getResponsiveFriendPageSize());
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [nextPage, setNextPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [highlightedFriendId, setHighlightedFriendId] = useState<number | null>(
     null,
+  );
+  const [pendingFriendId, setPendingFriendId] = useState<number | null>(null);
+  const [unfollowedFriendIds, setUnfollowedFriendIds] = useState<Set<number>>(
+    () => new Set(),
   );
   const targetFriendId = useMemo(() => {
     const value = Number(searchParams.get("friendId") ?? "");
     return Number.isFinite(value) && value > 0 ? value : null;
   }, [searchParams]);
   const targetFriendType = searchParams.get("friendType");
+  const query = searchParams.get("q")?.trim().toLowerCase() ?? "";
+  const sort = searchParams.get("sort") ?? "latest";
+  const filterKey = `${query}:${sort}`;
+  const previousFilterKeyRef = useRef(filterKey);
+  const fetchingRef = useRef(false);
+  const loadFriends = useCallback(
+    async (page: number, options: { replace?: boolean } = {}) => {
+      if (fetchingRef.current) {
+        return;
+      }
+
+      fetchingRef.current = true;
+      if (options.replace) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      try {
+        const params = new URLSearchParams({
+          listType: listKey,
+          page: String(page),
+          limit: String(pageSize),
+          sort,
+        });
+        if (query) {
+          params.set("q", query);
+        }
+
+        const response = await fetch(`/api/mypage/friends?${params}`);
+        if (!response.ok) {
+          throw new Error();
+        }
+
+        const data: FriendsResponse = await response.json();
+        const nextFriends =
+          listKey === "followers"
+            ? Array.isArray(data.followers)
+              ? data.followers
+              : []
+            : Array.isArray(data.following)
+              ? data.following
+              : [];
+        const resolvedPage =
+          typeof data.resolvedPage === "number" && data.resolvedPage > 0
+            ? data.resolvedPage
+            : page;
+        const nextTotalCount =
+          typeof data.totalCount === "number" ? data.totalCount : 0;
+
+        setFriends((current) => {
+          if (options.replace) {
+            return nextFriends;
+          }
+
+          const existingIds = new Set(current.map((friend) => friend.id));
+          return [
+            ...current,
+            ...nextFriends.filter((friend) => !existingIds.has(friend.id)),
+          ];
+        });
+        setNextPage(resolvedPage + 1);
+        setTotalCount(nextTotalCount);
+        setHasMore(resolvedPage * pageSize < nextTotalCount);
+      } catch {
+        if (options.replace) {
+          setFriends([]);
+          setTotalCount(0);
+          setHasMore(false);
+        }
+      } finally {
+        fetchingRef.current = false;
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [listKey, pageSize, query, sort],
+  );
 
   useEffect(() => {
     const updatePageSize = () => {
       setPageSize((current) => {
         const next = getResponsiveFriendPageSize();
-        if (current !== next) {
-          setPage(1);
-        }
         return current === next ? current : next;
       });
     };
@@ -83,37 +173,58 @@ function FriendList({
     };
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(friends.length / pageSize));
-  const pagedFriends = friends.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => {
+    void loadFriends(1, { replace: true });
+  }, [loadFriends]);
+
+  const headingCount =
+    listKey === "following"
+      ? Math.max(0, totalCount - unfollowedFriendIds.size)
+      : totalCount;
+
+  useEffect(() => {
+    if (previousFilterKeyRef.current === filterKey) {
+      return;
+    }
+
+    previousFilterKeyRef.current = filterKey;
+  }, [filterKey]);
+
+  useEffect(() => {
+    const handleNearEnd = () => {
+      if (!hasMore || loading || loadingMore) {
+        return;
+      }
+
+      void loadFriends(nextPage);
+    };
+
+    window.addEventListener("orange-scroll-area-near-end", handleNearEnd);
+
+    return () => {
+      window.removeEventListener("orange-scroll-area-near-end", handleNearEnd);
+    };
+  }, [hasMore, loadFriends, loading, loadingMore, nextPage]);
 
   useEffect(() => {
     if (targetFriendType !== listKey || typeof targetFriendId !== "number") {
       return;
     }
 
-    const targetIndex = friends.findIndex(
-      (friend) => friend.id === targetFriendId,
-    );
-    if (targetIndex < 0) {
+    const targetFriend = friends.find((friend) => friend.id === targetFriendId);
+    if (!targetFriend) {
       return;
     }
 
-    const nextPage = Math.floor(targetIndex / pageSize) + 1;
-    if (nextPage !== page) {
-      setPage(nextPage);
-    }
-
     setHighlightedFriendId(targetFriendId);
-  }, [friends, listKey, page, pageSize, targetFriendId, targetFriendType]);
+  }, [friends, listKey, targetFriendId, targetFriendType]);
 
   useEffect(() => {
     if (typeof highlightedFriendId !== "number") {
       return;
     }
 
-    const visible = pagedFriends.some(
-      (friend) => friend.id === highlightedFriendId,
-    );
+    const visible = friends.some((friend) => friend.id === highlightedFriendId);
     if (!visible) {
       return;
     }
@@ -138,122 +249,202 @@ function FriendList({
       window.clearTimeout(scrollTimeout);
       window.clearTimeout(highlightTimeout);
     };
-  }, [highlightedFriendId, listKey, pagedFriends]);
+  }, [friends, highlightedFriendId, listKey]);
+
+  async function handleToggleFollowing(friendId: number) {
+    if (listKey !== "following") {
+      return;
+    }
+
+    const isFollowing = !unfollowedFriendIds.has(friendId);
+
+    try {
+      setPendingFriendId(friendId);
+
+      const response = await fetch("/api/friends", {
+        method: isFollowing ? "DELETE" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ friendUserId: friendId }),
+      });
+
+      if (!response.ok) {
+        throw new Error();
+      }
+
+      setUnfollowedFriendIds((current) => {
+        const next = new Set(current);
+
+        if (isFollowing) {
+          next.add(friendId);
+        } else {
+          next.delete(friendId);
+        }
+
+        return next;
+      });
+      onFollowingStatusChange?.(isFollowing ? -1 : 1);
+      window.dispatchEvent(
+        new CustomEvent("mypage-friend-count-change", {
+          detail: { listKey, delta: isFollowing ? -1 : 1 },
+        }),
+      );
+    } catch {
+      window.alert(
+        isFollowing ? "구독 취소에 실패했습니다." : "팔로잉에 실패했습니다.",
+      );
+    } finally {
+      setPendingFriendId(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h2 className="text-base font-semibold">{title}</h2>
-        <span className="text-sm font-medium text-muted-foreground">
-          {friends.length}
-        </span>
-      </div>
+      {hideHeading ? (
+        <MyPageHeadingPortal>
+          <HeadingContent title={title} count={headingCount} />
+        </MyPageHeadingPortal>
+      ) : null}
+      {hideHeading ? null : (
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold">{title}</h2>
+          <span className="text-sm font-medium text-muted-foreground">
+            {headingCount}
+          </span>
+        </div>
+      )}
 
-      {friends.length === 0 ? (
+      {loading ? (
+        <p className="text-sm text-muted-foreground">불러오는 중…</p>
+      ) : friends.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
         <>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {pagedFriends.map((friend) => (
+            {friends.map((friend) => (
               <li
                 key={`${title}-${friend.id}`}
                 id={`mypage-${listKey}-friend-${friend.id}`}
                 className="min-w-0 rounded-xl transition-colors"
               >
-                <Link
-                  href={`/users/${friend.id}`}
-                  className={`flex h-full min-w-0 flex-col items-center rounded-xl border bg-background px-4 py-4 text-center transition-colors hover:bg-muted ${
+                <div
+                  className={`card-hover-scale relative flex h-full min-w-0 flex-col items-center rounded-xl border bg-background px-4 py-4 text-center ${
                     highlightedFriendId === friend.id
                       ? "border-primary bg-primary/5"
                       : ""
                   }`}
                 >
-                  <Image
-                    src={friend.image ?? "/logo.png"}
-                    alt={`${friend.name ?? "구독 유저"} 프로필`}
-                    width={72}
-                    height={72}
-                    className="h-18 w-18 rounded-full border object-cover"
+                  <Link
+                    href={`/users/${friend.id}`}
+                    className="absolute inset-0 z-10 rounded-xl"
+                    aria-label={`${friend.name ?? "이름 없는 사용자"} 홈으로 이동`}
                   />
-                  <p className="mt-3 w-full truncate font-medium">
-                    {friend.name ?? "이름 없는 사용자"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    구독자 {friend.followerCount}명 · 글 {friend.postCount}개
-                  </p>
-                </Link>
+                  <div className="pointer-events-none relative z-20 flex min-w-0 flex-1 flex-col items-center">
+                    <Image
+                      src={friend.image ?? "/logo.png"}
+                      alt={`${friend.name ?? "구독 유저"} 프로필`}
+                      width={72}
+                      height={72}
+                      className="h-18 w-18 rounded-full border object-cover"
+                    />
+                    <p className="mt-3 w-full truncate font-medium">
+                      {friend.name ?? "이름 없는 사용자"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      팔로워 {friend.followerCount}명 · 글 {friend.postCount}개
+                    </p>
+                  </div>
+                  {listKey === "following" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        unfollowedFriendIds.has(friend.id)
+                          ? "default"
+                          : "outline"
+                      }
+                      className={`relative z-30 mt-3 h-8 w-full text-xs ${
+                        unfollowedFriendIds.has(friend.id)
+                          ? ""
+                          : "hover:!border-destructive hover:!bg-destructive hover:!text-white dark:hover:!border-destructive dark:hover:!bg-destructive dark:hover:!text-white"
+                      }`}
+                      disabled={pendingFriendId === friend.id}
+                      onClick={() => void handleToggleFollowing(friend.id)}
+                    >
+                      {pendingFriendId === friend.id
+                        ? "처리 중..."
+                        : unfollowedFriendIds.has(friend.id)
+                          ? "팔로잉"
+                          : "팔로잉 취소"}
+                    </Button>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>
-          <SectionPagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
+          {hasMore ? <div className="h-12 w-full" /> : null}
+          {loadingMore ? (
+            <p className="text-center text-sm text-muted-foreground">
+              더 불러오는 중…
+            </p>
+          ) : null}
         </>
       )}
     </div>
   );
 }
 
-export default function MyFriendsSection() {
-  const [friends, setFriends] = useState<FriendsResponse>({
-    followers: [],
-    following: [],
-  });
-  const [loading, setLoading] = useState(true);
+type Props = {
+  listType?: "followers" | "following";
+};
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch("/api/mypage/friends");
-        if (!res.ok) throw new Error();
+function HeadingContent({ title, count }: { title: string; count?: number }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <span className="truncate">{title}</span>
+      {typeof count === "number" ? (
+        <span className="text-sm font-medium text-muted-foreground">
+          {count}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
-        const data: FriendsResponse = await res.json();
-        setFriends(data);
-      } catch {
-        setFriends({ followers: [], following: [] });
-      } finally {
-        setLoading(false);
-      }
-    };
+export default function MyFriendsSection({ listType }: Props) {
+  if (listType) {
+    const title = listType === "followers" ? "팔로워" : "팔로잉";
+    const emptyMessage =
+      listType === "followers"
+        ? "나를 구독한 유저가 없습니다."
+        : "구독 중인 유저가 없습니다.";
 
-    load();
-  }, []);
-
-  if (loading) {
     return (
       <section className="space-y-16">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold">나를 구독하는 유저</h2>
-            <span className="text-sm font-medium text-muted-foreground">0</span>
-          </div>
-          <p className="text-sm text-muted-foreground">불러오는 중…</p>
-        </div>
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold">내가 구독하는 유저</h2>
-            <span className="text-sm font-medium text-muted-foreground">0</span>
-          </div>
-          <p className="text-sm text-muted-foreground">불러오는 중…</p>
-        </div>
+        <FriendList
+          listKey={listType}
+          title={title}
+          emptyMessage={emptyMessage}
+          hideHeading
+        />
       </section>
     );
   }
 
   return (
     <section className="space-y-16">
+      <MyPageHeadingPortal>
+        <HeadingContent title="친구" />
+      </MyPageHeadingPortal>
       <FriendList
         listKey="followers"
-        title="나를 구독하는 유저"
-        friends={friends.followers}
+        title="팔로워"
         emptyMessage="나를 구독한 유저가 없습니다."
       />
       <FriendList
         listKey="following"
-        title="내가 구독하는 유저"
-        friends={friends.following}
+        title="팔로잉"
         emptyMessage="구독 중인 유저가 없습니다."
       />
     </section>

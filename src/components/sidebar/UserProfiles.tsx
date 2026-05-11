@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { countPostDrafts, getTechPostDraftStorageKey } from "@/lib/post-drafts";
 
 type ProfileCard = {
   id: number;
@@ -25,6 +26,7 @@ export default function UserProfiles() {
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [isSubscribedHovering, setIsSubscribedHovering] = useState(false);
+  const [draftPostCount, setDraftPostCount] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -78,6 +80,10 @@ export default function UserProfiles() {
     load();
   }, [pathname, session]);
 
+  useEffect(() => {
+    setDraftPostCount(countPostDrafts(getTechPostDraftStorageKey()));
+  }, []);
+
   const handleToggleFriend = async (
     friendUserId: number,
     isFriend: boolean,
@@ -112,12 +118,25 @@ export default function UserProfiles() {
       setIsSubscribedHovering(false);
     } catch {
       window.alert(
-        isFriend ? "구독 취소에 실패했습니다." : "친구 추가에 실패했습니다.",
+        isFriend ? "팔로잉 취소에 실패했습니다." : "친구 추가에 실패했습니다.",
       );
     } finally {
       setPendingId(null);
     }
   };
+  const postCount = profile
+    ? profile.postCount + (profile.isSelf ? draftPostCount : 0)
+    : 0;
+  const followersHref = profile?.isSelf
+    ? "/mypage?tab=followers&friendType=followers"
+    : profile
+      ? `/users/${profile.id}?tab=following`
+      : "#";
+  const postsHref = profile?.isSelf
+    ? "/mypage?tab=posts"
+    : profile
+      ? `/users/${profile.id}?tab=posts`
+      : "#";
 
   return (
     <section className="-mx-6 px-6 space-y-3">
@@ -149,9 +168,21 @@ export default function UserProfiles() {
               >
                 {profile.name ?? "이름 없는 사용자"}
               </Link>
-              <p className="mt-1 text-xs text-muted-foreground">
-                구독자 {profile.followerCount}명 · 글 {profile.postCount}개
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+                <Link
+                  href={followersHref}
+                  className="transition hover:text-foreground"
+                >
+                  팔로워 {profile.followerCount}명
+                </Link>
+                <span>·</span>
+                <Link
+                  href={postsHref}
+                  className="transition hover:text-foreground"
+                >
+                  글 {postCount}개
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -162,7 +193,7 @@ export default function UserProfiles() {
               </Button>
             ) : status !== "authenticated" ? (
               <Button size="sm" variant="outline" className="w-full" disabled>
-                로그인 후 구독하기
+                로그인 후 팔로잉하기
               </Button>
             ) : (
               <Button
@@ -190,9 +221,9 @@ export default function UserProfiles() {
                     : "추가 중..."
                   : profile.isFriend
                     ? isSubscribedHovering
-                      ? "구독 취소"
-                      : "구독중"
-                    : "구독하기"}
+                      ? "팔로잉 취소"
+                      : "팔로잉"
+                    : "팔로잉"}
               </Button>
             )}
           </div>

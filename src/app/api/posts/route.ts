@@ -13,8 +13,16 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const page = Number(url.searchParams.get("page") ?? "1");
   const sort = parseSortType(url.searchParams.get("sort"));
-  const limit = 12;
-  const offset = Math.max(page - 1, 0) * limit;
+  const requestedLimit = Number(url.searchParams.get("limit") ?? "12");
+  const requestedOffset = Number(url.searchParams.get("offset") ?? "");
+  const limit =
+    Number.isFinite(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, 15)
+      : 12;
+  const offset =
+    Number.isFinite(requestedOffset) && requestedOffset >= 0
+      ? requestedOffset
+      : Math.max(page - 1, 0) * limit;
   const session = await auth();
   const viewerUserId =
     typeof session?.user?.id === "string" ? Number(session.user.id) : null;

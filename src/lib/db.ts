@@ -1,10 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { ALL_NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
-import {
-  comparePostMetrics,
-  DEFAULT_SORT,
-  type SortType,
-} from "@/lib/post-sort";
+import { DEFAULT_SORT, type SortType } from "@/lib/post-sort";
 import { prisma } from "@/lib/prisma";
 
 export type DbUser = {
@@ -137,6 +133,46 @@ function mapPost(
     can_view_secret: canViewSecret,
     user_id: ownerUserId,
   };
+}
+
+function getFeedPostWhere(): Prisma.PostWhereInput {
+  return {
+    isDeleted: false,
+    isHidden: false,
+    category: {
+      is: {
+        name: {
+          notIn: [...ALL_NOTICE_TAG_OPTIONS],
+        },
+      },
+    },
+  };
+}
+
+function getFeedPostOrderBy(
+  sort: SortType,
+): Prisma.PostOrderByWithRelationInput[] {
+  const fallbackOrder: Prisma.PostOrderByWithRelationInput[] = [
+    { createdAt: "desc" },
+    { id: "desc" },
+  ];
+
+  switch (sort) {
+    case "oldest":
+      return [{ createdAt: "asc" }, { id: "asc" }];
+    case "likes":
+      return [{ likes: { _count: "desc" } }, ...fallbackOrder];
+    case "comments":
+      return [{ comments: { _count: "desc" } }, ...fallbackOrder];
+    case "views":
+      return [{ views: { viewCount: "desc" } }, ...fallbackOrder];
+    case "category":
+      return [{ category: { name: "asc" } }, ...fallbackOrder];
+    case "categoryDesc":
+      return [{ category: { name: "desc" } }, ...fallbackOrder];
+    default:
+      return fallbackOrder;
+  }
 }
 
 export async function findUserByEmail(email: string) {
@@ -289,17 +325,7 @@ export async function findPostsPaged(
     omit: {
       isResolved: true,
     },
-    where: {
-      isDeleted: false,
-      isHidden: false,
-      category: {
-        is: {
-          name: {
-            notIn: [...ALL_NOTICE_TAG_OPTIONS],
-          },
-        },
-      },
-    },
+    where: getFeedPostWhere(),
     include: {
       user: { select: { name: true, image: true } },
       category: { select: { name: true } },
@@ -313,32 +339,18 @@ export async function findPostsPaged(
         },
       },
     },
+    orderBy: getFeedPostOrderBy(sort),
+    skip: offset,
+    take: limit,
   });
 
-  return posts
-    .sort((a, b) => {
-      return comparePostMetrics(
-        sort,
-        {
-          id: a.id,
-          createdAt: a.createdAt,
-          likeCount: a._count.likes,
-          commentsCount: a._count.comments,
-          viewCount: Number(a.views?.viewCount ?? 0),
-          categoryName: a.category?.name,
-        },
-        {
-          id: b.id,
-          createdAt: b.createdAt,
-          likeCount: b._count.likes,
-          commentsCount: b._count.comments,
-          viewCount: Number(b.views?.viewCount ?? 0),
-          categoryName: b.category?.name,
-        },
-      );
-    })
-    .slice(offset, offset + limit)
-    .map((post) => mapPost(post, options));
+  return posts.map((post) => mapPost(post, options));
+}
+
+export async function countFeedPosts() {
+  return prisma.post.count({
+    where: getFeedPostWhere(),
+  });
 }
 
 export async function findPostById(

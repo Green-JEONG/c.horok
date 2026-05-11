@@ -12,6 +12,7 @@ import SearchTargetDropdown from "./SearchTargetDropdown";
 
 const SORT_LABEL: Record<SortType, string> = {
   latest: "최신순",
+  oldest: "오래된순",
   views: "조회순",
   likes: "좋아요순",
   comments: "댓글순",
@@ -21,6 +22,7 @@ const SORT_LABEL: Record<SortType, string> = {
 
 const DEFAULT_SORT_OPTIONS: SortType[] = [
   "latest",
+  "oldest",
   "views",
   "likes",
   "comments",
@@ -47,9 +49,10 @@ function getSortMenuWidth(trigger: HTMLButtonElement, sortOptions: SortType[]) {
 }
 
 type Props = {
-  title?: string;
+  title?: ReactNode;
   showWriteButton?: boolean;
   titleAction?: ReactNode;
+  headerActions?: ReactNode;
   sortOptions?: SortType[];
   writeButtonHref?: string;
   writeButtonLabel?: string;
@@ -63,6 +66,7 @@ export default function PostListHeader({
   title: customTitle,
   showWriteButton,
   titleAction,
+  headerActions,
   sortOptions = DEFAULT_SORT_OPTIONS,
   writeButtonHref,
   writeButtonLabel,
@@ -148,7 +152,7 @@ export default function PostListHeader({
           ? rect.bottom + padding
           : Math.max(padding, rect.top - estimatedHeight - padding),
         left: Math.min(
-          Math.max(padding, rect.left),
+          Math.max(padding, rect.right - menuWidth),
           window.innerWidth - menuWidth - padding,
         ),
         width: menuWidth,
@@ -272,15 +276,16 @@ export default function PostListHeader({
   ]);
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <h2 className="text-lg font-bold tracking-tight text-foreground">
+    <div className="flex min-w-0 items-center justify-between gap-3">
+      <div className="flex shrink-0 items-center gap-2">
+        <h2 className="min-w-0 whitespace-nowrap text-lg font-bold tracking-tight text-foreground">
           {title}
         </h2>
         {titleAction}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+        {headerActions}
         {canShowWriteButton ? (
           <HomeWriteButton href={writeButtonHref} label={writeButtonLabel} />
         ) : null}
@@ -297,7 +302,7 @@ export default function PostListHeader({
               searchHighlighted
                 ? "border-primary bg-primary/5"
                 : "border-border bg-background"
-            } ${showSearchTarget ? "w-80" : "w-64"}`}
+            } ${showSearchTarget ? "min-w-0 flex-1 sm:max-w-80" : "min-w-0 flex-1 sm:max-w-64"}`}
           >
             {showSearchTarget && searchTargetParam ? (
               <SearchTargetDropdown
@@ -340,12 +345,14 @@ export default function PostListHeader({
             ref={buttonRef}
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
+            className="flex items-center gap-1 whitespace-nowrap rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
             aria-haspopup="menu"
             aria-expanded={open}
           >
-            {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
-            <ChevronDown className="h-4 w-4" />
+            <span className="whitespace-nowrap">
+              {SORT_LABEL[sortOptions.includes(sort) ? sort : sortOptions[0]]}
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0" />
           </button>
         ) : null}
       </div>

@@ -3,7 +3,7 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { coteAuth } from "@/app/api/cote-auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
 import { prisma } from "@/lib/prisma";
-import { countUserPosts } from "@/lib/queries";
+import { countMyQnaPosts, countUserPosts } from "@/lib/queries";
 
 export async function GET(req: Request) {
   try {
@@ -12,12 +12,32 @@ export async function GET(req: Request) {
     const session = await (platform === "cote" ? coteAuth() : auth());
 
     if (!session?.user?.email) {
-      return NextResponse.json({ first: 0, second: 0, third: 0 });
+      return NextResponse.json({
+        first: 0,
+        second: 0,
+        third: 0,
+        posts: 0,
+        qna: 0,
+        comments: 0,
+        followers: 0,
+        following: 0,
+        friends: 0,
+      });
     }
 
     const userId = await getUserIdByEmail(session.user.email);
     if (!userId) {
-      return NextResponse.json({ first: 0, second: 0, third: 0 });
+      return NextResponse.json({
+        first: 0,
+        second: 0,
+        third: 0,
+        posts: 0,
+        qna: 0,
+        comments: 0,
+        followers: 0,
+        following: 0,
+        friends: 0,
+      });
     }
 
     if (platform === "cote") {
@@ -43,12 +63,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ first, second, third });
     }
 
-    const [first, second, third] = await Promise.all([
+    const [first, qna, second, followers, following] = await Promise.all([
       countUserPosts(userId, { viewerUserId: userId }),
+      countMyQnaPosts(userId),
       prisma.comment.count({
         where: {
           userId: BigInt(userId),
           isDeleted: false,
+        },
+      }),
+      prisma.friend.count({
+        where: {
+          friendUserId: BigInt(userId),
         },
       }),
       prisma.friend.count({
@@ -58,8 +84,50 @@ export async function GET(req: Request) {
         },
       }),
     ]);
+    const [adminNotices, adminFaqs, adminAnswers] =
+      session.user.role === "ADMIN"
+        ? await Promise.all([
+            prisma.post.count({
+              where: {
+                userId: BigInt(userId),
+                isDeleted: false,
+                category: { is: { name: "공지" } },
+              },
+            }),
+            prisma.post.count({
+              where: {
+                userId: BigInt(userId),
+                isDeleted: false,
+                category: { is: { name: "FAQ" } },
+              },
+            }),
+            prisma.comment.count({
+              where: {
+                userId: BigInt(userId),
+                isDeleted: false,
+                post: {
+                  isDeleted: false,
+                  category: { is: { name: "QnA" } },
+                },
+              },
+            }),
+          ])
+        : [0, 0, 0];
 
-    return NextResponse.json({ first, second, third });
+    return NextResponse.json({
+      first,
+      second,
+      third: followers,
+      posts: first,
+      qna,
+      comments: second,
+      followers,
+      following,
+      friends: followers + following,
+      adminNotices,
+      adminFaqs,
+      adminAnswers,
+    });
   } catch (e) {
     console.error("MYPAGE STATS API ERROR:", e);
     return NextResponse.json({ first: 0, second: 0, third: 0 });

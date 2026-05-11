@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ALL_NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
         category: {
           is: {
             name: {
-              notIn: ["FAQ", "QnA"],
+              notIn: [...ALL_NOTICE_TAG_OPTIONS],
             },
           },
         },

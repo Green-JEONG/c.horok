@@ -15,6 +15,7 @@ type PostItem = {
   author_name: string;
   author_image?: string | null;
   category_name: string;
+  view_count?: number;
   likes_count: number;
   comments_count: number;
   is_hidden?: boolean;
@@ -43,6 +44,7 @@ export default function PostGridPagination({ posts }: { posts: PostItem[] }) {
             authorImage={post.author_image}
             likes={post.likes_count}
             comments={post.comments_count}
+            views={post.view_count}
             createdAt={new Date(post.created_at)}
             isHidden={post.is_hidden}
             isSecret={post.is_secret}

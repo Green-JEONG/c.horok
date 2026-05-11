@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +20,6 @@ import {
 } from "@/lib/post-thumbnails";
 import { getTechFeedNewPostPath } from "@/lib/routes";
 import { supabase } from "@/lib/supabase";
-
-const DEFAULT_THUMBNAIL_URL = "/thumbnails.png";
 
 const markdownTools = [
   { label: "H1", action: "heading1" },
@@ -95,6 +93,8 @@ export default function PostEditor({
   onSuccess,
 }: PostEditorProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const draftIdFromParams = searchParams.get("draftId");
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const contentImageInputRef = useRef<HTMLInputElement>(null);
   const contentVideoInputRef = useRef<HTMLInputElement>(null);
@@ -120,12 +120,15 @@ export default function PostEditor({
   const [activeTab, setActiveTab] = useState<EditorTab>("write");
   const [error, setError] = useState<string | null>(null);
   const hasCheckedDraftRef = useRef(false);
+  const currentDraftIdRef = useRef<string | null>(draftIdFromParams);
   const shouldShowCategoryBadge = !(
     categoryLocked && fixedTagOptions.length > 0
   );
   const currentCategoryName =
     categoryLocked && fixedTagOptions.length > 0 ? selectedFixedTag : tags[0];
   const isNoticeCategory = isNoticeCategoryName(currentCategoryName);
+  const shouldShowCategoryField =
+    showCategoryField && !(categoryLocked && isNoticeCategory);
   const canShowBannerOption =
     showBannerOption &&
     isNoticeCategory &&
@@ -143,27 +146,29 @@ export default function PostEditor({
 
     hasCheckedDraftRef.current = true;
 
-    const draft = loadPostDraft(draftStorageKey);
+    const draft = loadPostDraft(draftStorageKey, draftIdFromParams);
     if (!draft) {
       return;
     }
 
-    const shouldRestore = window.confirm(
-      "임시저장된 글이 있습니다. 이어서 작성하시겠습니까?",
-    );
+    const shouldRestore = draftIdFromParams
+      ? true
+      : window.confirm(
+          "임시저장된 글이 있습니다. 최근 임시저장 글을 이어서 작성하시겠습니까?",
+        );
 
     if (!shouldRestore) {
-      clearPostDraft(draftStorageKey);
       return;
     }
 
+    currentDraftIdRef.current = draft.id ?? null;
     setTitle(draft.title ?? "");
     setContent(draft.content ?? "");
     setTags(Array.isArray(draft.tags) ? draft.tags : []);
     setSelectedFixedTag(draft.selectedFixedTag ?? fixedTagOptions[0] ?? "");
     setIsBanner(Boolean(draft.isBanner));
     setIsSecret(Boolean(draft.isSecret));
-  }, [draftStorageKey, fixedTagOptions, mode]);
+  }, [draftIdFromParams, draftStorageKey, fixedTagOptions, mode]);
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -540,8 +545,7 @@ export default function PostEditor({
     setError(null);
 
     try {
-      const nextThumbnailUrl =
-        getFirstContentImageUrl(trimmedContent) ?? DEFAULT_THUMBNAIL_URL;
+      const nextThumbnailUrl = getFirstContentImageUrl(trimmedContent);
       const endpoint = mode === "edit" ? `/api/posts/${postId}` : "/api/posts";
       const method = mode === "edit" ? "PUT" : "POST";
       const response = await fetch(endpoint, {
@@ -581,7 +585,8 @@ export default function PostEditor({
       }
 
       if (mode === "create") {
-        clearPostDraft(draftStorageKey);
+        clearPostDraft(draftStorageKey, currentDraftIdRef.current);
+        currentDraftIdRef.current = null;
       }
 
       onSuccess?.(payload);
@@ -616,6 +621,7 @@ export default function PostEditor({
 
     try {
       const payload: PostDraftPayload = {
+        id: currentDraftIdRef.current ?? undefined,
         title,
         content,
         tags,
@@ -625,7 +631,8 @@ export default function PostEditor({
         savedAt: new Date().toISOString(),
       };
 
-      savePostDraft(draftStorageKey, payload);
+      const savedDraft = savePostDraft(draftStorageKey, payload);
+      currentDraftIdRef.current = savedDraft?.id ?? currentDraftIdRef.current;
     } catch {
       setError("임시저장 중 오류가 발생했습니다.");
     } finally {
@@ -647,7 +654,7 @@ export default function PostEditor({
         />
       </div>
 
-      {showCategoryField ? (
+      {shouldShowCategoryField ? (
         <div className="space-y-2">
           <div className="flex min-h-12 w-full flex-wrap items-center gap-2 rounded-md border border-border/80 bg-muted/20 px-3 py-2 transition focus-within:border-primary/60 focus-within:bg-background focus-within:ring-4 focus-within:ring-primary/10">
             {shouldShowCategoryBadge

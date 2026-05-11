@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
+import { parsePostSearchTarget } from "@/lib/post-search-target";
 import { parseSortType } from "@/lib/post-sort";
 import { getUserPosts } from "@/lib/queries";
 import MyPostPreviewGrid from "./MyPostPreviewGrid";
@@ -10,6 +11,7 @@ import PostListInfinite from "./PostListInfinite";
 type Props = {
   sort?: string;
   query?: string;
+  searchTarget?: string;
   categorySlug?: string;
   userId?: number;
   limit?: number;
@@ -23,6 +25,7 @@ type Props = {
 export default async function MyPostList({
   sort,
   query,
+  searchTarget,
   categorySlug,
   userId: initialUserId,
   limit,
@@ -66,6 +69,7 @@ export default async function MyPostList({
         : null,
     isAdmin: session?.user?.role === "ADMIN",
     query,
+    searchTarget: parsePostSearchTarget(searchTarget),
     categorySlug,
   });
   const limitedPosts =
@@ -91,7 +95,6 @@ export default async function MyPostList({
         initialSort={parseSortType(sort)}
         syncSortWithSearchParams
         gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-        endMessage="마지막 게시물입니다."
       />
     );
   }

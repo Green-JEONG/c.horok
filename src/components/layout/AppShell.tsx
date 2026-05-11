@@ -98,17 +98,21 @@ export default function AppShell({
     );
   }
 
-  const mainLayoutClassName = isWideSidebarLayoutPage
-    ? "mr-auto flex w-full max-w-[1400px] flex-1 md:min-h-0 md:overflow-hidden"
-    : "mx-auto flex w-full max-w-6xl flex-1 md:min-h-0 md:overflow-hidden";
+  const mainLayoutClassName = isMyPage
+    ? "mr-auto flex h-[calc(100dvh-190px)] w-full max-w-[1400px] flex-1 overflow-hidden md:h-[calc(100dvh-134px)]"
+    : isWideSidebarLayoutPage
+      ? "mr-auto flex w-full max-w-[1400px] flex-1 md:min-h-0 md:overflow-hidden"
+      : "mx-auto flex w-full max-w-6xl flex-1 md:min-h-0 md:overflow-hidden";
 
   const asideClassName = isWideSidebarLayoutPage
     ? "sticky top-0 hidden h-full w-[250px] shrink-0 md:block lg:w-[270px] xl:w-[290px]"
     : "sticky top-0 hidden h-full w-1/4 md:block";
 
-  const sectionClassName = isWideSidebarLayoutPage
-    ? "scrollbar-hide w-full p-6 md:min-h-0 md:flex-1 md:overflow-y-auto"
-    : "scrollbar-hide w-full px-4 py-6 md:min-h-0 md:w-2/3 md:overflow-y-auto md:px-6";
+  const sectionClassName = isMyPage
+    ? "w-full min-h-0 overflow-hidden p-6 md:flex-1"
+    : isWideSidebarLayoutPage
+      ? "scrollbar-hide w-full p-6 md:min-h-0 md:flex-1 md:overflow-y-auto"
+      : "scrollbar-hide w-full px-4 py-6 md:min-h-0 md:w-2/3 md:overflow-y-auto md:px-6";
 
   return (
     <>

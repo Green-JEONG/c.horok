@@ -40,7 +40,7 @@ export async function getCategoryBySlug(
 
   const noticeCategory = normalizeNoticeCategory(category?.name);
 
-  if (noticeCategory === "FAQ" || noticeCategory === "QnA") {
+  if (noticeCategory !== null) {
     return null;
   }
 
