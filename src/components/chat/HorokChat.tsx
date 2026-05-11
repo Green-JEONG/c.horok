@@ -101,6 +101,7 @@ const FLOATING_DEFAULT_SIZE: FloatingSize = {
   width: 310,
   height: 740,
 };
+const FLOATING_MOBILE_DEFAULT_HEIGHT = 370;
 const FLOATING_MIN_SIZE: FloatingSize = {
   width: 250,
   height: 280,
@@ -303,9 +304,13 @@ function getFloatingDefaultSize(_pathname: string | null): FloatingSize {
     return FLOATING_DEFAULT_SIZE;
   }
 
+  const isMobileViewport = window.innerWidth < 640;
+
   return clampFloatingSize({
     width: FLOATING_DEFAULT_SIZE.width,
-    height: FLOATING_DEFAULT_SIZE.height,
+    height: isMobileViewport
+      ? FLOATING_MOBILE_DEFAULT_HEIGHT
+      : FLOATING_DEFAULT_SIZE.height,
   });
 }
 

@@ -7,7 +7,10 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { countPostDrafts, getTechPostDraftStorageKey } from "@/lib/post-drafts";
+import {
+  countSyncedPostDrafts,
+  getTechPostDraftStorageKey,
+} from "@/lib/post-drafts";
 
 type ProfileCard = {
   id: number;
@@ -81,7 +84,9 @@ export default function UserProfiles() {
   }, [pathname, session]);
 
   useEffect(() => {
-    setDraftPostCount(countPostDrafts(getTechPostDraftStorageKey()));
+    void countSyncedPostDrafts(getTechPostDraftStorageKey()).then(
+      setDraftPostCount,
+    );
   }, []);
 
   const handleToggleFriend = async (

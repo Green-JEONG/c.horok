@@ -66,6 +66,50 @@ export default function CommentItem({
     (!comment.is_secret || comment.can_view_secret);
   const targetCommentId = Number(searchParams.get("commentId") ?? "");
 
+  const replyActionButton = canReply ? (
+    <button
+      type="button"
+      onClick={() => {
+        setIsReplying((prev) => !prev);
+        setError(null);
+      }}
+      className="rounded-md border px-3 py-1.5 hover:bg-muted"
+    >
+      {isReplying ? replyCloseLabel : replyButtonLabel}
+    </button>
+  ) : null;
+
+  const manageActionButtons = canManage ? (
+    <>
+      <button
+        type="button"
+        disabled={isDeleting}
+        onClick={() => {
+          setIsEditing((prev) => !prev);
+          setError(null);
+        }}
+        className="rounded-md border px-3 py-1.5 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isEditing ? "닫기" : "수정"}
+      </button>
+      <button
+        type="button"
+        disabled={isDeleting}
+        onClick={handleDelete}
+        className="rounded-md border px-3 py-1.5 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isDeleting ? "삭제 중..." : "삭제"}
+      </button>
+    </>
+  ) : null;
+  const commentActionButtons =
+    replyActionButton || manageActionButtons ? (
+      <div className="inline-flex shrink-0 flex-wrap justify-end gap-2 text-xs text-muted-foreground">
+        {replyActionButton}
+        {manageActionButtons}
+      </div>
+    ) : null;
+
   useEffect(() => {
     if (!Number.isFinite(targetCommentId) || targetCommentId !== comment.id) {
       return;
@@ -226,6 +270,17 @@ export default function CommentItem({
             </button>
           </div>
         </div>
+      ) : commentActionButtons ? (
+        <div className="mt-2 flex items-end gap-3">
+          <p
+            className={`min-w-0 flex-1 whitespace-pre-wrap text-sm ${
+              comment.is_deleted ? "text-muted-foreground" : ""
+            }`}
+          >
+            {comment.is_deleted ? "삭제된 댓글입니다." : comment.content}
+          </p>
+          {commentActionButtons}
+        </div>
       ) : (
         <p
           className={`mt-2 whitespace-pre-wrap text-sm ${
@@ -235,45 +290,6 @@ export default function CommentItem({
           {comment.is_deleted ? "삭제된 댓글입니다." : comment.content}
         </p>
       )}
-
-      <div className="mt-3 flex flex-wrap justify-end gap-2 text-xs text-muted-foreground">
-        {canReply ? (
-          <button
-            type="button"
-            onClick={() => {
-              setIsReplying((prev) => !prev);
-              setError(null);
-            }}
-            className="rounded-md border px-3 py-1.5 hover:bg-muted"
-          >
-            {isReplying ? replyCloseLabel : replyButtonLabel}
-          </button>
-        ) : null}
-
-        {canManage ? (
-          <>
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={() => {
-                setIsEditing((prev) => !prev);
-                setError(null);
-              }}
-              className="rounded-md border px-3 py-1.5 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isEditing ? "닫기" : "수정"}
-            </button>
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={handleDelete}
-              className="rounded-md border px-3 py-1.5 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isDeleting ? "삭제 중..." : "삭제"}
-            </button>
-          </>
-        ) : null}
-      </div>
 
       {isReplying ? (
         <div className="ml-4 mt-4">

@@ -6,6 +6,10 @@ import {
   normalizeNoticeCategory,
 } from "@/lib/notice-categories";
 import {
+  getAdminReactedPostIdSet,
+  getPostReactionCountsByPostId,
+} from "@/lib/post-reactions";
+import {
   type PostSearchTarget,
   parsePostSearchTarget,
 } from "@/lib/post-search-target";
@@ -32,8 +36,10 @@ export type DbPost = {
   category_name: string;
   view_count: number;
   likes_count: number;
+  reactions_count: number;
   comments_count: number;
   is_resolved: boolean;
+  has_admin_answer?: boolean;
   is_hidden: boolean;
   is_secret: boolean;
   can_view_secret: boolean;
@@ -118,12 +124,31 @@ function mapPost(
     category_name: post.category?.name ?? "",
     view_count: Number(post.views?.viewCount ?? 0),
     likes_count: post._count.likes,
+    reactions_count: 0,
     comments_count: post._count.comments,
     is_resolved: post.isResolved ?? false,
     is_hidden: post.isHidden,
     is_secret: post.isSecret,
     can_view_secret: canViewSecret,
   };
+}
+
+async function mapPostsWithReactionCounts(
+  posts: Array<Parameters<typeof mapPost>[0]>,
+  options?: Parameters<typeof mapPost>[1],
+) {
+  const reactionCounts = await getPostReactionCountsByPostId(
+    posts.map((post) => post.id),
+  );
+
+  return posts.map((post) => {
+    const mappedPost = mapPost(post, options);
+
+    return {
+      ...mappedPost,
+      reactions_count: reactionCounts.get(mappedPost.id) ?? 0,
+    };
+  });
 }
 
 function buildSearchWhere(
@@ -235,21 +260,24 @@ function buildSearchPostGroupWhere(
   return {};
 }
 
-async function getResolvedQnaPostIdSet(
+async function getAdminAnsweredQnaPostIdSet(
   posts: Array<{
     id: bigint;
     category: { name: string } | null;
   }>,
 ) {
   const qnaPostIds = posts
-    .filter((post) => normalizeNoticeCategory(post.category?.name) === "QnA")
+    .filter((post) => {
+      const normalizedCategory = normalizeNoticeCategory(post.category?.name);
+      return normalizedCategory === "QnA" || normalizedCategory === "버그 제보";
+    })
     .map((post) => post.id);
 
   if (qnaPostIds.length === 0) {
     return new Set<number>();
   }
 
-  const resolvedRows = await prisma.comment.findMany({
+  const answeredRows = await prisma.comment.findMany({
     where: {
       postId: {
         in: qnaPostIds,
@@ -267,7 +295,12 @@ async function getResolvedQnaPostIdSet(
     distinct: ["postId"],
   });
 
-  return new Set(resolvedRows.map((row) => Number(row.postId)));
+  const adminReactedPostIdSet = await getAdminReactedPostIdSet(qnaPostIds);
+
+  return new Set([
+    ...answeredRows.map((row) => Number(row.postId)),
+    ...adminReactedPostIdSet,
+  ]);
 }
 
 function scoreSearchMatch(
@@ -388,7 +421,11 @@ export async function searchPosts(
       );
     })
     .slice(offset, offset + limit);
-  const resolvedQnaPostIdSet = await getResolvedQnaPostIdSet(sortedPosts);
+  const adminAnsweredQnaPostIdSet =
+    await getAdminAnsweredQnaPostIdSet(sortedPosts);
+  const reactionCounts = await getPostReactionCountsByPostId(
+    sortedPosts.map((post) => post.id),
+  );
 
   return sortedPosts
     .map((post) => {
@@ -396,10 +433,12 @@ export async function searchPosts(
 
       return {
         ...mappedPost,
-        is_resolved:
-          normalizeNoticeCategory(post.category?.name) === "QnA"
-            ? resolvedQnaPostIdSet.has(Number(post.id))
-            : mappedPost.is_resolved,
+        reactions_count: reactionCounts.get(mappedPost.id) ?? 0,
+        has_admin_answer:
+          normalizeNoticeCategory(post.category?.name) === "QnA" ||
+          normalizeNoticeCategory(post.category?.name) === "버그 제보"
+            ? adminAnsweredQnaPostIdSet.has(Number(post.id))
+            : false,
       };
     })
     .filter(
@@ -657,32 +696,33 @@ export async function getPostsByCategorySlug(
     },
   });
 
+  const pagedPosts = posts
+    .sort((a, b) => {
+      return comparePostMetrics(
+        sort,
+        {
+          id: a.id,
+          createdAt: a.createdAt,
+          likeCount: a._count.likes,
+          commentsCount: a._count.comments,
+          viewCount: Number(a.views?.viewCount ?? 0),
+          categoryName: a.category?.name,
+        },
+        {
+          id: b.id,
+          createdAt: b.createdAt,
+          likeCount: b._count.likes,
+          commentsCount: b._count.comments,
+          viewCount: Number(b.views?.viewCount ?? 0),
+          categoryName: b.category?.name,
+        },
+      );
+    })
+    .slice(offset, offset + limit);
+
   return {
     categoryName: category.name,
-    posts: posts
-      .sort((a, b) => {
-        return comparePostMetrics(
-          sort,
-          {
-            id: a.id,
-            createdAt: a.createdAt,
-            likeCount: a._count.likes,
-            commentsCount: a._count.comments,
-            viewCount: Number(a.views?.viewCount ?? 0),
-            categoryName: a.category?.name,
-          },
-          {
-            id: b.id,
-            createdAt: b.createdAt,
-            likeCount: b._count.likes,
-            commentsCount: b._count.comments,
-            viewCount: Number(b.views?.viewCount ?? 0),
-            categoryName: b.category?.name,
-          },
-        );
-      })
-      .slice(offset, offset + limit)
-      .map((post) => mapPost(post, options)),
+    posts: await mapPostsWithReactionCounts(pagedPosts, options),
   };
 }
 
@@ -808,12 +848,10 @@ export async function getUserPosts(
     },
   });
 
-  return posts.map((post) =>
-    mapPost(post, {
-      viewerUserId: options?.viewerUserId ?? null,
-      isAdmin: options?.isAdmin,
-    }),
-  );
+  return mapPostsWithReactionCounts(posts, {
+    viewerUserId: options?.viewerUserId ?? null,
+    isAdmin: options?.isAdmin,
+  });
 }
 
 export async function countUserPosts(
@@ -980,7 +1018,7 @@ export async function getMyQnaPosts(
     },
   });
 
-  return posts
+  const pagedPosts = posts
     .sort((a, b) => {
       return comparePostMetrics(
         sort,
@@ -1002,8 +1040,17 @@ export async function getMyQnaPosts(
         },
       );
     })
-    .slice(offset, limit ? offset + limit : undefined)
-    .map((post) => mapPost(post, { viewerUserId: userId }));
+    .slice(offset, limit ? offset + limit : undefined);
+  const adminAnsweredQnaPostIdSet =
+    await getAdminAnsweredQnaPostIdSet(pagedPosts);
+  const mappedPosts = await mapPostsWithReactionCounts(pagedPosts, {
+    viewerUserId: userId,
+  });
+
+  return mappedPosts.map((post) => ({
+    ...post,
+    has_admin_answer: adminAnsweredQnaPostIdSet.has(post.id),
+  }));
 }
 
 export async function countMyQnaPosts(
@@ -1128,7 +1175,7 @@ export async function getLikedPosts(
       ...(normalizedQuery ? { AND: [searchWhere] } : {}),
     },
     include: {
-      user: { select: { name: true } },
+      user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       views: { select: { viewCount: true } },
       _count: {
@@ -1142,7 +1189,7 @@ export async function getLikedPosts(
     },
   });
 
-  return posts
+  const pagedPosts = posts
     .sort((a, b) => {
       return comparePostMetrics(
         sort,
@@ -1164,10 +1211,12 @@ export async function getLikedPosts(
         },
       );
     })
-    .slice(offset, limit ? offset + limit : undefined)
-    .map((post) =>
-      mapPost(post, { viewerUserId: userId, isAdmin: options?.isAdmin }),
-    );
+    .slice(offset, limit ? offset + limit : undefined);
+
+  return mapPostsWithReactionCounts(pagedPosts, {
+    viewerUserId: userId,
+    isAdmin: options?.isAdmin,
+  });
 }
 
 export async function countLikedPosts(
@@ -1260,8 +1309,7 @@ export async function getRandomPosts(
     },
   });
 
-  return posts
-    .sort(() => Math.random() - 0.5)
-    .slice(0, limit)
-    .map((post) => mapPost(post, options));
+  const randomPosts = posts.sort(() => Math.random() - 0.5).slice(0, limit);
+
+  return mapPostsWithReactionCounts(randomPosts, options);
 }

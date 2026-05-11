@@ -27,7 +27,7 @@ const TAB_LABEL: Record<SearchTabKey, string> = {
   posts: "게시물",
   notice: "공지",
   faq: "FAQ",
-  qna: "QnA",
+  qna: "문의",
 };
 
 const POST_TAB_KEYS: Exclude<SearchTabKey, "users">[] = [
@@ -181,7 +181,7 @@ export default function SearchResultsTabs({
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setActiveTab(tab)}
-                className={`flex h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
+                className={`flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
                   selected
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -237,7 +237,7 @@ export default function SearchResultsTabs({
                   : activePostGroup === "faq"
                     ? "FAQ"
                     : activePostGroup === "qna"
-                      ? "QnA"
+                      ? "문의"
                       : undefined
               }
               gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"

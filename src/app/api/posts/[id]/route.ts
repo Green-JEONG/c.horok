@@ -82,15 +82,8 @@ export async function PUT(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const {
-    title,
-    content,
-    categoryName,
-    thumbnailUrl,
-    isBanner,
-    isResolved,
-    isSecret,
-  } = await req.json();
+  const { title, content, categoryName, thumbnailUrl, isBanner, isSecret } =
+    await req.json();
 
   if (!title || !content) {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
@@ -112,10 +105,6 @@ export async function PUT(
     isBanner:
       typeof isBanner === "boolean" && isNoticeCategoryName(categoryName)
         ? isBanner
-        : false,
-    isResolved:
-      categoryName === "QnA" && typeof isResolved === "boolean"
-        ? isResolved
         : false,
     isSecret: typeof isSecret === "boolean" ? isSecret : undefined,
     thumbnailUrl:
@@ -164,7 +153,7 @@ export async function PATCH(
   const isQnaNotice = categoryName === "QnA";
   const canManage = isNotice
     ? isQnaNotice
-      ? post.user_id === dbUserId
+      ? post.user_id === dbUserId || session?.user?.role === "ADMIN"
       : session?.user?.role === "ADMIN" ||
         (isPublicNoticeCategory(categoryName) && post.user_id === dbUserId)
     : post.user_id === dbUserId;
@@ -173,7 +162,30 @@ export async function PATCH(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const { isHidden } = await req.json();
+  const body = await req.json();
+  const { inquiryStatus, isHidden } = body;
+
+  if (inquiryStatus === "checking" || inquiryStatus === "resolved") {
+    const normalizedCategory =
+      categoryName === "QnA" || categoryName === "버그 제보"
+        ? categoryName
+        : null;
+
+    if (!normalizedCategory || session?.user?.role !== "ADMIN") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const updated = await prisma.post.update({
+      where: { id: BigInt(postId) },
+      data: { isResolved: inquiryStatus === "resolved" },
+      select: { isResolved: true },
+    });
+
+    return NextResponse.json({
+      inquiryStatus: updated.isResolved ? "resolved" : "checking",
+    });
+  }
+
   if (typeof isHidden !== "boolean") {
     return NextResponse.json({ message: "Invalid input" }, { status: 400 });
   }

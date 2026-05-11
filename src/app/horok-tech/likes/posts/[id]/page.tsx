@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import ErrorState from "@/components/common/ErrorState";
-import CommentForm from "@/components/posts/CommentForm";
 import CommentList from "@/components/posts/CommentList";
+import InquiryAnswerComposer from "@/components/posts/InquiryAnswerComposer";
 import PostActions from "@/components/posts/PostActions";
 import PostContent from "@/components/posts/PostContent";
 import PostFooter from "@/components/posts/PostFooter";
@@ -63,14 +63,20 @@ export default async function HorokTechLikedPostPage({ params }: Props) {
 
       {post.can_view_secret ? <CommentList postId={postId} /> : null}
       {session?.user?.email && post.can_view_secret ? (
-        <CommentForm postId={postId} />
+        <InquiryAnswerComposer
+          postId={postId}
+          buttonLabel="댓글 작성하기"
+          placeholder="댓글을 작성하세요"
+          submitLabel="댓글 등록"
+          showSecretOption
+        />
       ) : !post.can_view_secret ? (
         <p className="mt-4 text-sm text-muted-foreground">
           비밀글은 작성자와 관리자만 댓글을 확인할 수 있습니다.
         </p>
       ) : (
         <p className="mt-4 text-sm text-muted-foreground">
-          좋아요와 댓글 작성은 로그인 후 이용할 수 있습니다.
+          북마크와 댓글 작성은 로그인 후 이용할 수 있습니다.
         </p>
       )}
     </article>

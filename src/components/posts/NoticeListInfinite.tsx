@@ -1,10 +1,16 @@
 "use client";
 
-import { ChevronDown, EyeOff, Lock } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronsUpDown,
+  ChevronUp,
+  EyeOff,
+  Lock,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import SectionPagination from "@/components/mypage/sections/SectionPagination";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import PostEditor from "@/components/posts/PostEditor";
@@ -29,6 +35,7 @@ type NoticeListItem = {
   isOwner: boolean;
   canManageBanner: boolean;
   isResolved: boolean;
+  hasAdminAnswer: boolean;
   likesCount: number;
   commentsCount: number;
   viewCount: number;
@@ -42,7 +49,72 @@ type Props = {
   totalCount: number;
   isQnaCategory?: boolean;
   isFaqCategory?: boolean;
+  noticeNumberById?: Record<number, number>;
 };
+
+type NoticeTableSortKey =
+  | "number"
+  | "title"
+  | "author"
+  | "date"
+  | "views"
+  | "status";
+type NoticeTableSortOrder = "asc" | "desc";
+
+function compareNoticeListItems(
+  sortKey: NoticeTableSortKey,
+  a: NoticeListItem,
+  b: NoticeListItem,
+  noticeNumberById: Record<number, number>,
+) {
+  switch (sortKey) {
+    case "number":
+      return (noticeNumberById[a.id] ?? 0) - (noticeNumberById[b.id] ?? 0);
+    case "title":
+      return a.title.localeCompare(b.title, "ko");
+    case "author":
+      return a.authorName.localeCompare(b.authorName, "ko");
+    case "views":
+      return a.viewCount - b.viewCount;
+    case "status":
+      return getInquiryStatusRank(a) - getInquiryStatusRank(b);
+    default:
+      return a.publishedAt.localeCompare(b.publishedAt);
+  }
+}
+
+function getInquiryStatusRank(notice: {
+  isResolved: boolean;
+  hasAdminAnswer: boolean;
+}) {
+  if (notice.isResolved) {
+    return 2;
+  }
+
+  return notice.hasAdminAnswer ? 1 : 0;
+}
+
+function getInquiryStatusLabel(notice: {
+  isResolved: boolean;
+  hasAdminAnswer: boolean;
+}) {
+  if (notice.isResolved) {
+    return "해결 완료";
+  }
+
+  return notice.hasAdminAnswer ? "확인 중" : "답변 대기";
+}
+
+function getInquiryStatusClassName(notice: {
+  isResolved: boolean;
+  hasAdminAnswer: boolean;
+}) {
+  if (notice.isResolved) {
+    return "text-green-500";
+  }
+
+  return notice.hasAdminAnswer ? "text-blue-500" : "text-red-500";
+}
 
 export default function NoticeListInfinite({
   notices,
@@ -52,6 +124,7 @@ export default function NoticeListInfinite({
   totalCount,
   isQnaCategory = false,
   isFaqCategory = false,
+  noticeNumberById = {},
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -64,8 +137,35 @@ export default function NoticeListInfinite({
   const [highlightedNoticeId, setHighlightedNoticeId] = useState<number | null>(
     Number.isFinite(targetNoticeId) ? targetNoticeId : null,
   );
+  const [sortKey, setSortKey] = useState<NoticeTableSortKey | null>(null);
+  const [sortOrder, setSortOrder] = useState<NoticeTableSortOrder>("asc");
+  const [sortedPage, setSortedPage] = useState(1);
   const [viewCounts, setViewCounts] = useState<Record<number, number>>(() =>
     Object.fromEntries(notices.map((notice) => [notice.id, notice.viewCount])),
+  );
+  const isSorted = sortKey !== null;
+  const pageSize = 10;
+  const sortedNotices = useMemo(() => {
+    if (!sortKey) {
+      return notices;
+    }
+
+    return [...notices].sort((a, b) => {
+      const result =
+        compareNoticeListItems(sortKey, a, b, noticeNumberById) ||
+        (noticeNumberById[a.id] ?? 0) - (noticeNumberById[b.id] ?? 0);
+
+      return sortOrder === "asc" ? result : -result;
+    });
+  }, [noticeNumberById, notices, sortKey, sortOrder]);
+  const activePage = isSorted ? sortedPage : currentPage;
+  const activeTotalPages = Math.max(
+    1,
+    Math.ceil(sortedNotices.length / pageSize),
+  );
+  const visibleNotices = sortedNotices.slice(
+    (Math.min(activePage, activeTotalPages) - 1) * pageSize,
+    Math.min(activePage, activeTotalPages) * pageSize,
   );
 
   useEffect(() => {
@@ -171,15 +271,66 @@ export default function NoticeListInfinite({
     return query ? `${pathname}?${query}` : pathname;
   }
 
-  function getQnaStatusClassName(isResolved: boolean) {
-    return isResolved ? "text-blue-500" : "text-red-500";
+  function buildCurrentListHref() {
+    const params = new URLSearchParams(searchParams.toString());
+    const page = Math.min(activePage, activeTotalPages);
+
+    if (page <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(page));
+    }
+
+    const query = params.toString();
+    return query ? `${pathname}?${query}` : pathname;
   }
 
-  function getQnaStatusLabel(isResolved: boolean) {
-    return isResolved ? "답변완료" : "미답변";
+  function buildDetailHref(noticeId: number) {
+    const params = new URLSearchParams({
+      from: buildCurrentListHref(),
+    });
+
+    return `${getTechNoticePath(noticeId)}?${params.toString()}`;
   }
 
-  function getQnaStatusSizeClassName(_isResolved: boolean, isMobile: boolean) {
+  function updateSort(nextSortKey: NoticeTableSortKey) {
+    setSortOrder((currentOrder) =>
+      sortKey === nextSortKey && currentOrder === "asc" ? "desc" : "asc",
+    );
+    setSortKey(nextSortKey);
+    setSortedPage(1);
+  }
+
+  function renderSortableHeader(
+    label: string,
+    nextSortKey: NoticeTableSortKey,
+  ) {
+    const isActive = sortKey === nextSortKey;
+    const activeSortOrder = isActive ? sortOrder : null;
+    const nextSortOrder = activeSortOrder === "asc" ? "desc" : "asc";
+    const SortIcon = isActive
+      ? sortOrder === "asc"
+        ? ChevronUp
+        : ChevronDown
+      : ChevronsUpDown;
+
+    return (
+      <button
+        type="button"
+        onClick={() => updateSort(nextSortKey)}
+        className="inline-flex min-w-0 items-center justify-center gap-1 rounded-sm px-1 py-0.5 transition-colors hover:text-foreground"
+        aria-label={`${label} ${nextSortOrder === "asc" ? "오름차순" : "내림차순"} 정렬`}
+      >
+        <span className="truncate">{label}</span>
+        <SortIcon
+          aria-hidden="true"
+          className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground/70"}`}
+        />
+      </button>
+    );
+  }
+
+  function getQnaStatusSizeClassName(isMobile: boolean) {
     return isMobile ? "text-xs" : "text-sm";
   }
 
@@ -201,27 +352,31 @@ export default function NoticeListInfinite({
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
 
+  const showStatusColumn = isQnaCategory;
+
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto border-y bg-background">
         <div
           className={`grid min-w-[560px] items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground ${
-            isQnaCategory
-              ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
+            showStatusColumn
+              ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_76px]"
               : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
           }`}
         >
-          <span>번호</span>
-          <span>제목</span>
-          <span>작성자</span>
-          <span>작성일</span>
-          <span>조회</span>
-          {isQnaCategory ? <span>상태</span> : null}
+          {renderSortableHeader("번호", "number")}
+          {renderSortableHeader("제목", "title")}
+          {renderSortableHeader("작성자", "author")}
+          {renderSortableHeader("작성일", "date")}
+          {renderSortableHeader("조회", "views")}
+          {showStatusColumn ? renderSortableHeader("상태", "status") : null}
         </div>
 
-        {notices.map((notice, index) => {
+        {visibleNotices.map((notice, index) => {
           const isFaqOpen = openFaqIds.includes(notice.id);
-          const noticeNumber = totalCount - (currentPage - 1) * 10 - index;
+          const noticeNumber =
+            noticeNumberById[notice.id] ??
+            totalCount - (activePage - 1) * pageSize - index;
           const titleNode = isFaqCategory ? (
             <button
               type="button"
@@ -270,8 +425,8 @@ export default function NoticeListInfinite({
           const rowContent = (
             <div
               className={`grid min-w-[560px] items-center gap-3 px-5 py-4 ${
-                isQnaCategory
-                  ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_56px]"
+                showStatusColumn
+                  ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_76px]"
                   : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
               }`}
             >
@@ -293,12 +448,12 @@ export default function NoticeListInfinite({
                   </span>
                   <span>{notice.publishedAt}</span>
                   <span>조회 {viewCounts[notice.id] ?? notice.viewCount}</span>
-                  {isQnaCategory ? (
+                  {showStatusColumn ? (
                     <span
-                      className={`${getQnaStatusSizeClassName(notice.isResolved, true)} font-semibold ${getQnaStatusClassName(notice.isResolved)}`}
-                      title={getQnaStatusLabel(notice.isResolved)}
+                      className={`${getQnaStatusSizeClassName(true)} font-semibold ${getInquiryStatusClassName(notice)}`}
+                      title={getInquiryStatusLabel(notice)}
                     >
-                      {getQnaStatusLabel(notice.isResolved)}
+                      {getInquiryStatusLabel(notice)}
                     </span>
                   ) : null}
                 </div>
@@ -322,12 +477,12 @@ export default function NoticeListInfinite({
               <div className="text-center text-sm text-muted-foreground">
                 {viewCounts[notice.id] ?? notice.viewCount}
               </div>
-              {isQnaCategory ? (
+              {showStatusColumn ? (
                 <div
-                  className={`text-center font-semibold ${getQnaStatusSizeClassName(notice.isResolved, false)} ${getQnaStatusClassName(notice.isResolved)}`}
-                  title={getQnaStatusLabel(notice.isResolved)}
+                  className={`text-center font-semibold ${getQnaStatusSizeClassName(false)} ${getInquiryStatusClassName(notice)}`}
+                  title={getInquiryStatusLabel(notice)}
                 >
-                  {getQnaStatusLabel(notice.isResolved)}
+                  {getInquiryStatusLabel(notice)}
                 </div>
               ) : null}
             </div>
@@ -337,7 +492,7 @@ export default function NoticeListInfinite({
             return (
               <Link
                 key={notice.id}
-                href={getTechNoticePath(notice.id)}
+                href={buildDetailHref(notice.id)}
                 id={`notice-${notice.id}`}
                 className={`block transition-colors hover:bg-muted/30 ${
                   highlightedNoticeId === notice.id
@@ -368,9 +523,14 @@ export default function NoticeListInfinite({
       </div>
 
       <SectionPagination
-        currentPage={currentPage}
-        totalPages={totalPages}
+        currentPage={Math.min(activePage, activeTotalPages)}
+        totalPages={isSorted ? activeTotalPages : totalPages}
         onPageChange={(page) => {
+          if (isSorted) {
+            setSortedPage(page);
+            return;
+          }
+
           router.push(buildPageHref(page));
         }}
       />
@@ -485,7 +645,6 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
             initialThumbnail={notice.thumbnail}
             initialIsBanner={notice.isBanner}
             initialIsSecret={notice.isSecret}
-            initialIsResolved={notice.isResolved}
             categoryLocked
             fixedTagOptions={["FAQ"]}
             showBannerOption={notice.canManageBanner}

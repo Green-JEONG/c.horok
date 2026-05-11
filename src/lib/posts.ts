@@ -154,7 +154,6 @@ export async function createPost(params: {
   content: string;
   thumbnailUrl?: string | null;
   isBanner?: boolean;
-  isResolved?: boolean;
   isSecret?: boolean;
 }) {
   const {
@@ -212,7 +211,6 @@ export async function updatePost(params: {
   content: string;
   thumbnailUrl?: string | null;
   isBanner?: boolean;
-  isResolved?: boolean;
   isSecret?: boolean;
 }) {
   const {

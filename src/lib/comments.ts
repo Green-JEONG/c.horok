@@ -113,7 +113,7 @@ export async function getCommentsByPost(
   }));
 }
 
-export async function getAdminAnswerByPost(
+export async function getAdminAnswersByPost(
   postId: number,
   options?: {
     viewerUserId?: number | null;
@@ -121,7 +121,7 @@ export async function getAdminAnswerByPost(
     isAdmin?: boolean;
   },
 ) {
-  const comment = await prisma.comment.findFirst({
+  const comments = await prisma.comment.findMany({
     where: {
       postId: BigInt(postId),
       isDeleted: false,
@@ -139,22 +139,20 @@ export async function getAdminAnswerByPost(
     },
   });
 
-  if (!comment) {
-    return null;
-  }
+  return comments.map((comment) => {
+    const mappedComment = mapComment(comment, options);
 
-  const mappedComment = mapComment(comment, options);
-
-  return {
-    id: mappedComment.id,
-    user_id: Number(comment.userId),
-    content: mappedComment.content,
-    author: comment.user.name ?? comment.user.email,
-    author_image: comment.user.image ?? null,
-    created_at: mappedComment.created_at,
-    updated_at: mappedComment.updated_at,
-    is_edited: mappedComment.is_edited,
-  } satisfies AdminAnswer;
+    return {
+      id: mappedComment.id,
+      user_id: Number(comment.userId),
+      content: mappedComment.content,
+      author: comment.user.name ?? comment.user.email,
+      author_image: comment.user.image ?? null,
+      created_at: mappedComment.created_at,
+      updated_at: mappedComment.updated_at,
+      is_edited: mappedComment.is_edited,
+    } satisfies AdminAnswer;
+  });
 }
 
 export async function getCommentById(id: number) {

@@ -4,6 +4,7 @@ export type PostDraftPayload = {
   content: string;
   tags: string[];
   selectedFixedTag: string;
+  selectedInquiryTag?: string;
   thumbnailUrl?: string | null;
   isBanner: boolean;
   isSecret: boolean;
@@ -148,4 +149,113 @@ export function clearPostDraft(storageKey: string, draftId?: string | null) {
     getPostDraftListStorageKey(storageKey),
     JSON.stringify(nextDrafts),
   );
+}
+
+function getPostDraftApiUrl(storageKey: string, draftId?: string | null) {
+  const params = new URLSearchParams({ storageKey });
+
+  if (draftId) {
+    params.set("draftId", draftId);
+  }
+
+  return `/api/post-drafts?${params.toString()}`;
+}
+
+async function loadRemotePostDrafts(storageKey: string) {
+  const response = await fetch(getPostDraftApiUrl(storageKey), {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  return Array.isArray(payload?.drafts)
+    ? (payload.drafts as PostDraftPayload[]).map(normalizeDraft)
+    : [];
+}
+
+function mergeDrafts(
+  remoteDrafts: PostDraftPayload[],
+  localDrafts: PostDraftPayload[],
+) {
+  return [
+    ...remoteDrafts,
+    ...localDrafts.filter(
+      (localDraft) =>
+        !remoteDrafts.some((remoteDraft) => remoteDraft.id === localDraft.id),
+    ),
+  ].sort((a, b) => Date.parse(b.savedAt) - Date.parse(a.savedAt));
+}
+
+export async function loadSyncedPostDrafts(storageKey: string) {
+  const localDrafts = loadPostDrafts(storageKey);
+  const remoteDrafts = await loadRemotePostDrafts(storageKey).catch(() => null);
+
+  if (remoteDrafts === null) {
+    return localDrafts;
+  }
+
+  if (localDrafts.length > 0) {
+    await Promise.allSettled(
+      localDrafts.map((draft) => saveRemotePostDraft(storageKey, draft)),
+    );
+  }
+
+  return mergeDrafts(remoteDrafts, localDrafts);
+}
+
+async function saveRemotePostDraft(
+  storageKey: string,
+  draft: PostDraftPayload,
+) {
+  const response = await fetch(getPostDraftApiUrl(storageKey), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ draft }),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  return payload?.draft ? normalizeDraft(payload.draft) : null;
+}
+
+export async function saveSyncedPostDraft(
+  storageKey: string,
+  payload: PostDraftPayload,
+) {
+  const localDraft = savePostDraft(storageKey, payload);
+
+  if (!localDraft) {
+    return null;
+  }
+
+  const remoteDraft = await saveRemotePostDraft(storageKey, localDraft).catch(
+    () => null,
+  );
+
+  return remoteDraft ?? localDraft;
+}
+
+export async function clearSyncedPostDraft(
+  storageKey: string,
+  draftId?: string | null,
+) {
+  clearPostDraft(storageKey, draftId);
+
+  await fetch(getPostDraftApiUrl(storageKey, draftId), {
+    method: "DELETE",
+  }).catch(() => null);
+}
+
+export async function countSyncedPostDrafts(storageKey: string) {
+  return (await loadSyncedPostDrafts(storageKey)).length;
 }

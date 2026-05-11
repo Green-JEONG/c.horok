@@ -2,7 +2,10 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { getPostDraftStorageKey, loadPostDrafts } from "@/lib/post-drafts";
+import {
+  getPostDraftStorageKey,
+  loadSyncedPostDrafts,
+} from "@/lib/post-drafts";
 import { getTechFeedNewPostPath } from "@/lib/routes";
 import PostCard from "./PostCard";
 
@@ -17,6 +20,7 @@ type PreviewPost = {
   category_name: string;
   view_count?: number;
   likes_count: number;
+  reactions_count?: number;
   comments_count: number;
   is_hidden: boolean;
   is_secret?: boolean;
@@ -64,30 +68,47 @@ export default function MyPostPreviewGrid({
       fixedTagOptions: [],
       categoryLocked: false,
     });
-    const draftPosts = loadPostDrafts(draftStorageKey).map((draft, index) => ({
-      id: -1 - index,
-      title: draft.title.trim() || "임시저장된 글",
-      content: draft.content.trim() || "임시 저장된 글입니다.",
-      thumbnail: draft.thumbnailUrl ?? null,
-      created_at: draft.savedAt,
-      author_name: "나",
-      author_image: session?.user?.image ?? null,
-      category_name: "임시저장",
-      view_count: 0,
-      likes_count: 0,
-      comments_count: 0,
-      is_hidden: false,
-      is_draft: true,
-      href_override: `${getTechFeedNewPostPath()}?draftId=${encodeURIComponent(
-        draft.id ?? "",
-      )}`,
-    })) satisfies DraftPreviewPost[];
+    let cancelled = false;
 
-    setMergedPosts(
-      draftPosts.length > 0
-        ? [...draftPosts, ...posts].slice(0, limit)
-        : posts.slice(0, limit),
-    );
+    const loadDrafts = async () => {
+      const draftPosts = (await loadSyncedPostDrafts(draftStorageKey)).map(
+        (draft, index) => ({
+          id: -1 - index,
+          title: draft.title.trim() || "임시저장된 글",
+          content: draft.content.trim() || "임시 저장된 글입니다.",
+          thumbnail: draft.thumbnailUrl ?? null,
+          created_at: draft.savedAt,
+          author_name: "나",
+          author_image: session?.user?.image ?? null,
+          category_name: "임시저장",
+          view_count: 0,
+          likes_count: 0,
+          reactions_count: 0,
+          comments_count: 0,
+          is_hidden: false,
+          is_draft: true,
+          href_override: `${getTechFeedNewPostPath()}?draftId=${encodeURIComponent(
+            draft.id ?? "",
+          )}`,
+        }),
+      ) satisfies DraftPreviewPost[];
+
+      if (cancelled) {
+        return;
+      }
+
+      setMergedPosts(
+        draftPosts.length > 0
+          ? [...draftPosts, ...posts].slice(0, limit)
+          : posts.slice(0, limit),
+      );
+    };
+
+    void loadDrafts();
+
+    return () => {
+      cancelled = true;
+    };
   }, [limit, posts, session?.user?.image]);
 
   return (
@@ -103,6 +124,7 @@ export default function MyPostPreviewGrid({
             author="나"
             authorImage={post.author_image}
             likes={post.likes_count}
+            reactions={post.reactions_count ?? 0}
             comments={post.comments_count}
             views={post.view_count}
             createdAt={new Date(post.created_at)}

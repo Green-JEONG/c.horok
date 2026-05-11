@@ -1,71 +1,40 @@
 import { type ClassValue, clsx } from "clsx";
+import dayjs from "dayjs";
+import "dayjs/locale/ko";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const SEOUL_TIME_ZONE = "Asia/Seoul";
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.locale("ko");
 
-const seoulDateFormatter = new Intl.DateTimeFormat("en-US-u-nu-latn", {
-  timeZone: SEOUL_TIME_ZONE,
-  year: "numeric",
-  month: "numeric",
-  day: "numeric",
-});
+function toDbDate(value: Date | string | number) {
+  const date = dayjs.utc(value);
 
-const seoulDateTimeFormatter = new Intl.DateTimeFormat("en-US-u-nu-latn", {
-  timeZone: SEOUL_TIME_ZONE,
-  year: "numeric",
-  month: "numeric",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
-
-function getFormatterParts(
-  formatter: Intl.DateTimeFormat,
-  value: Date | string | number,
-) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return formatter
-    .formatToParts(date)
-    .reduce<Record<string, string>>((acc, part) => {
-      if (part.type !== "literal") {
-        acc[part.type] = part.value;
-      }
-
-      return acc;
-    }, {});
+  return date.isValid() ? date : null;
 }
 
 export function formatSeoulDate(value: Date | string | number) {
-  const parts = getFormatterParts(seoulDateFormatter, value);
+  const date = toDbDate(value);
 
-  if (!parts) {
+  if (!date) {
     return "";
   }
 
-  return `${parts.year}. ${parts.month}. ${parts.day}.`;
+  return date.format("YYYY. M. D. (dd)");
 }
 
 export function formatSeoulDateTime(value: Date | string | number) {
-  const parts = getFormatterParts(seoulDateTimeFormatter, value);
+  const date = toDbDate(value)?.tz("Asia/Seoul");
 
-  if (!parts) {
+  if (!date) {
     return "";
   }
 
-  const hour24 = Number(parts.hour);
-  const period = hour24 < 12 ? "오전" : "오후";
-  const hour12 = hour24 % 12 || 12;
-
-  return `${parts.year}. ${parts.month}. ${parts.day}. ${period} ${hour12}:${parts.minute}:${parts.second}`;
+  return date.format("YYYY. M. D. (dd) HH:mm:ss");
 }

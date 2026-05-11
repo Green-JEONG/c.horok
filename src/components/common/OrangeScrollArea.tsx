@@ -214,8 +214,14 @@ export default function OrangeScrollArea({ children, className = "" }: Props) {
       >
         <div className="min-w-0">{children}</div>
       </div>
-      {thumb.visible && isScrolling ? (
-        <div className="pointer-events-auto absolute inset-y-0 right-0 z-30 w-3">
+      {thumb.visible ? (
+        <div
+          className={`absolute inset-y-0 right-0 z-30 w-3 transition-opacity duration-300 ease-out ${
+            isScrolling
+              ? "pointer-events-auto opacity-100"
+              : "pointer-events-none opacity-0"
+          }`}
+        >
           <div
             className="absolute right-0 w-2 cursor-grab touch-none rounded-full bg-primary active:cursor-grabbing"
             onPointerDown={handleThumbPointerDown}

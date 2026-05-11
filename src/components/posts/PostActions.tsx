@@ -21,12 +21,13 @@ type Props = {
   initialIsHidden: boolean;
   initialIsSecret?: boolean;
   initialIsBanner?: boolean;
-  initialIsResolved?: boolean;
   isOwner: boolean;
   headerPost?: DbPost;
+  headerTitleAddon?: ReactNode;
   redirectPath?: string;
   categoryLocked?: boolean;
   fixedTagOptions?: string[];
+  inquiryTagOptions?: string[];
   showBannerOption?: boolean;
   allowNoticeBannerForAllCategories?: boolean;
   children?: ReactNode;
@@ -41,12 +42,13 @@ export default function PostActions({
   initialIsHidden,
   initialIsSecret = false,
   initialIsBanner = false,
-  initialIsResolved = false,
   isOwner,
   headerPost,
+  headerTitleAddon,
   redirectPath = "/horok-tech/feeds",
   categoryLocked = false,
   fixedTagOptions,
+  inquiryTagOptions,
   showBannerOption = true,
   allowNoticeBannerForAllCategories = false,
   children,
@@ -177,6 +179,7 @@ export default function PostActions({
         <PostHeader
           post={headerPost}
           actionSlot={actionSlot}
+          titleAddon={headerTitleAddon}
           isOwner={isOwner}
         />
       ) : null}
@@ -191,10 +194,10 @@ export default function PostActions({
             initialCategoryName={initialCategoryName}
             initialThumbnail={initialThumbnail}
             initialIsBanner={initialIsBanner}
-            initialIsResolved={initialIsResolved}
             initialIsSecret={initialIsSecret}
             categoryLocked={categoryLocked}
             fixedTagOptions={fixedTagOptions}
+            inquiryTagOptions={inquiryTagOptions}
             showBannerOption={showBannerOption}
             allowNoticeBannerForAllCategories={
               allowNoticeBannerForAllCategories

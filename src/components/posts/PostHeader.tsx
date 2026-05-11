@@ -9,10 +9,12 @@ import { formatSeoulDateTime } from "@/lib/utils";
 export default function PostHeader({
   post,
   actionSlot,
+  titleAddon,
   isOwner = false,
 }: {
   post: DbPost;
   actionSlot?: ReactNode;
+  titleAddon?: ReactNode;
   isOwner?: boolean;
 }) {
   const showSecretLock = post.is_secret;
@@ -37,12 +39,19 @@ export default function PostHeader({
   return (
     <header className="mb-3">
       <h1 className="flex items-center gap-2 text-3xl font-bold leading-tight">
-        <span>{post.title}</span>
-        {showHiddenIcon ? (
-          <EyeOff className="h-6 w-6 shrink-0 text-muted-foreground" />
-        ) : null}
-        {showSecretLock ? (
-          <Lock className="h-6 w-6 shrink-0 text-muted-foreground" />
+        <span className="min-w-0">{post.title}</span>
+        <span className="inline-flex shrink-0 items-center gap-2">
+          {showHiddenIcon ? (
+            <EyeOff className="h-6 w-6 shrink-0 text-muted-foreground" />
+          ) : null}
+          {showSecretLock ? (
+            <Lock className="h-6 w-6 shrink-0 text-muted-foreground" />
+          ) : null}
+        </span>
+        {titleAddon ? (
+          <span className="ml-auto inline-flex shrink-0 items-center">
+            {titleAddon}
+          </span>
         ) : null}
       </h1>
 

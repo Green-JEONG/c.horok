@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import OrangeScrollArea from "@/components/common/OrangeScrollArea";
 import PostList from "@/components/posts/PostList";
 import PostListHeader from "@/components/posts/PostListHeader";
 import { countFeedPosts } from "@/lib/db";
@@ -23,19 +24,23 @@ export default async function HorokTechFeedsPage({
   const postCount = await countFeedPosts();
 
   return (
-    <div className="space-y-6">
-      <Suspense
-        fallback={<div className="h-6 w-32 rounded bg-muted animate-pulse" />}
-      >
-        <PostListHeader
-          titleAction={
-            <span className="text-sm font-medium text-muted-foreground">
-              {postCount}
-            </span>
-          }
-        />
-      </Suspense>
-      <PostList sort={sort} />
+    <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
+      <div className="shrink-0">
+        <Suspense
+          fallback={<div className="h-6 w-32 rounded bg-muted animate-pulse" />}
+        >
+          <PostListHeader
+            titleAction={
+              <span className="text-sm font-medium text-muted-foreground">
+                {postCount}
+              </span>
+            }
+          />
+        </Suspense>
+      </div>
+      <OrangeScrollArea className="min-h-0 flex-1 pr-3">
+        <PostList sort={sort} />
+      </OrangeScrollArea>
     </div>
   );
 }

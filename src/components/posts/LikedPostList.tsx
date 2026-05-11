@@ -19,7 +19,7 @@ export default async function LikedPostList({
   if (!session?.user?.email) {
     return (
       <div className="text-sm text-muted-foreground">
-        로그인 후 좋아요한 게시글을 볼 수 있습니다.
+        로그인 후 북마크한 게시글을 볼 수 있습니다.
       </div>
     );
   }
@@ -44,7 +44,7 @@ export default async function LikedPostList({
   if (posts.length === 0) {
     return (
       <div className="text-sm text-muted-foreground">
-        아직 좋아요한 게시글이 없습니다.
+        아직 북마크한 게시글이 없습니다.
       </div>
     );
   }
@@ -56,8 +56,9 @@ export default async function LikedPostList({
       initialSort={parsedSort}
       syncSortWithSearchParams
       gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-      emptyMessage="아직 좋아요한 게시글이 없습니다."
+      emptyMessage="아직 북마크한 게시글이 없습니다."
       postRouteSection="likes"
+      responsiveRowLoading
     />
   );
 }

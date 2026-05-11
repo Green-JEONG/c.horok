@@ -61,7 +61,7 @@ export default function LoginWelcomeToast() {
         closing ? "-translate-y-4 opacity-0" : "translate-y-0 opacity-100"
       }`}
     >
-      <div className="relative flex items-center gap-3 rounded-md bg-white px-5 py-4 text-zinc-500 shadow-[0_12px_28px_rgba(0,0,0,0.16)]">
+      <div className="relative flex items-center gap-3 rounded-md border border-transparent bg-white px-5 py-4 text-zinc-500 shadow-[0_12px_28px_rgba(0,0,0,0.16)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:shadow-[0_16px_32px_rgba(0,0,0,0.42)]">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#13c51b] text-white">
           <Check className="h-5.5 w-5.5 stroke-[3]" />
         </span>
@@ -71,7 +71,7 @@ export default function LoginWelcomeToast() {
         <button
           type="button"
           onClick={closeToast}
-          className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center text-zinc-400 transition hover:text-zinc-700"
+          className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center text-zinc-400 transition hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200"
           aria-label="토스트 닫기"
         >
           <X className="h-4 w-4" />

@@ -59,6 +59,7 @@ export default async function HorokTechPage({
               author={post.author_name}
               authorImage={post.author_image}
               likes={post.likes_count}
+              reactions={post.reactions_count}
               comments={post.comments_count}
               views={post.view_count}
               createdAt={post.created_at}

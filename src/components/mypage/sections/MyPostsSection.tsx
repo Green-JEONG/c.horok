@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -7,7 +8,11 @@ import MyPageHeaderControls from "@/components/mypage/MyPageHeaderControls";
 import MyPageHeadingActionsPortal from "@/components/mypage/MyPageHeadingActionsPortal";
 import MyPageHeadingPortal from "@/components/mypage/MyPageHeadingPortal";
 import PostCard from "@/components/posts/PostCard";
-import { getTechPostDraftStorageKey, loadPostDrafts } from "@/lib/post-drafts";
+import {
+  clearSyncedPostDraft,
+  getTechPostDraftStorageKey,
+  loadSyncedPostDrafts,
+} from "@/lib/post-drafts";
 import { comparePostMetrics, parseSortType } from "@/lib/post-sort";
 import { getTechFeedNewPostPath } from "@/lib/routes";
 
@@ -33,6 +38,7 @@ type MyPost = {
   category_name: string;
   view_count?: number;
   likes_count: number;
+  reactions_count?: number;
   comments_count: number;
   is_hidden: boolean;
   is_secret: boolean;
@@ -40,6 +46,7 @@ type MyPost = {
 
 type DraftPost = MyPost & {
   is_draft?: boolean;
+  draft_id?: string;
   href_override?: string;
 };
 
@@ -106,6 +113,7 @@ export default function MyPostsSection() {
     searchTarget ?? ""
   }`;
   const previousListKeyRef = useRef(listKey);
+  const draftStorageKey = getTechPostDraftStorageKey();
 
   useEffect(() => {
     const probe = gridProbeRef.current;
@@ -205,14 +213,13 @@ export default function MyPostsSection() {
         const nextPosts = Array.isArray(data.posts) ? data.posts : [];
         const nextTotalCount =
           typeof data.totalCount === "number" ? data.totalCount : 0;
-        const draftStorageKey = getTechPostDraftStorageKey();
         const drafts =
           status === "authenticated" &&
           options.replace &&
           requestedOffset === 0 &&
           !categorySlug &&
           !targetPostId
-            ? loadPostDrafts(draftStorageKey)
+            ? await loadSyncedPostDrafts(draftStorageKey)
             : [];
         const draftPosts =
           options.replace && drafts.length > 0
@@ -227,10 +234,12 @@ export default function MyPostsSection() {
                 category_name: "임시저장",
                 view_count: 0,
                 likes_count: 0,
+                reactions_count: 0,
                 comments_count: 0,
                 is_hidden: false,
                 is_secret: false,
                 is_draft: true,
+                draft_id: draft.id,
                 href_override: `${getTechFeedNewPostPath()}?draftId=${encodeURIComponent(
                   draft.id ?? "",
                 )}`,
@@ -279,6 +288,7 @@ export default function MyPostsSection() {
     },
     [
       categorySlug,
+      draftStorageKey,
       pageSize,
       query,
       searchTarget,
@@ -416,6 +426,23 @@ export default function MyPostsSection() {
   const canShowMorePosts =
     hasMore || (visiblePostLimit !== null && posts.length > visiblePostLimit);
 
+  async function handleDeleteDraft(post: DraftPost) {
+    if (!post.is_draft || !post.draft_id) {
+      return;
+    }
+
+    const confirmed = window.confirm("이 임시저장 글을 삭제할까요?");
+    if (!confirmed) {
+      return;
+    }
+
+    await clearSyncedPostDraft(draftStorageKey, post.draft_id);
+    setPosts((current) =>
+      current.filter((item) => item.draft_id !== post.draft_id),
+    );
+    setDraftPostCount((current) => Math.max(0, current - 1));
+  }
+
   return (
     <section className="relative space-y-4" id="mypage-posts">
       <div
@@ -454,7 +481,7 @@ export default function MyPostsSection() {
               <div
                 key={post.id}
                 id={post.id > 0 ? `mypage-post-${post.id}` : undefined}
-                className="rounded-xl transition-colors"
+                className="relative rounded-xl transition-colors"
               >
                 <PostCard
                   id={post.id}
@@ -465,6 +492,7 @@ export default function MyPostsSection() {
                   author="나"
                   authorImage={post.author_image}
                   likes={post.likes_count}
+                  reactions={post.reactions_count ?? 0}
                   comments={post.comments_count}
                   views={post.view_count}
                   createdAt={new Date(post.created_at)}
@@ -479,6 +507,24 @@ export default function MyPostsSection() {
                       : ""
                   }
                 />
+                {post.is_draft ? (
+                  <button
+                    type="button"
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void handleDeleteDraft(post);
+                    }}
+                    className="absolute top-2 right-2 z-30 inline-flex h-8 w-8 items-center justify-center text-red-500 transition hover:text-red-600"
+                    aria-label="임시저장 글 삭제"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
             ))}
           </div>

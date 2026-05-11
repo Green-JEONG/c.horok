@@ -2,15 +2,17 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import ErrorState from "@/components/common/ErrorState";
-import CommentForm from "@/components/posts/CommentForm";
 import CommentItem from "@/components/posts/CommentItem";
 import CommentList from "@/components/posts/CommentList";
+import InquiryAnswerComposer from "@/components/posts/InquiryAnswerComposer";
+import InquiryStatusButton from "@/components/posts/InquiryStatusButton";
 import PostActions from "@/components/posts/PostActions";
 import PostContent from "@/components/posts/PostContent";
 import PostFooter from "@/components/posts/PostFooter";
 import PostViewTracker from "@/components/posts/PostViewTracker";
-import { getAdminAnswerByPost } from "@/lib/comments";
+import { getAdminAnswersByPost } from "@/lib/comments";
 import {
+  INQUIRY_TAG_OPTIONS,
   isPublicNoticeCategory,
   NOTICE_TAG_OPTIONS,
 } from "@/lib/notice-categories";
@@ -18,6 +20,7 @@ import { findNoticeAccessMetaById, findNoticeById } from "@/lib/notices";
 
 type Props = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ from?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -53,8 +56,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function HorokTechNoticeDetailPage({ params }: Props) {
+function getSafeNoticeBackHref(from?: string) {
+  if (!from) {
+    return "/horok-tech/notices";
+  }
+
+  return from === "/horok-tech/notices" ||
+    from.startsWith("/horok-tech/notices?")
+    ? from
+    : "/horok-tech/notices";
+}
+
+export default async function HorokTechNoticeDetailPage({
+  params,
+  searchParams,
+}: Props) {
   const { slug } = await params;
+  const { from } = searchParams ? await searchParams : {};
   const noticeId = Number(slug);
 
   if (Number.isNaN(noticeId)) {
@@ -81,7 +99,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
           code={403}
           message={
             accessMeta.categoryName === "QnA"
-              ? "이 QnA 게시물은 작성자와 관리자만 볼 수 있습니다."
+              ? "이 문의 게시물은 작성자와 관리자만 볼 수 있습니다."
               : "이 게시물은 작성자만 볼 수 있습니다."
           }
         />
@@ -94,23 +112,25 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
   const isQnaNotice = notice.categoryName === "QnA";
   const isBugNotice = notice.categoryName === "버그 제보";
   const isFaqNotice = notice.categoryName === "FAQ";
+  const isInquiryNotice = isQnaNotice || isBugNotice;
 
   if (isFaqNotice) {
     redirect(`/horok-tech/notices?category=FAQ&open=${notice.id}`);
   }
 
-  const isOwner = isQnaNotice
+  const isOwner = isInquiryNotice
     ? typeof sessionUserId === "number" && notice.userId === sessionUserId
     : isAdmin ||
       (isPublicNoticeCategory(notice.categoryName) &&
         typeof sessionUserId === "number" &&
         notice.userId === sessionUserId);
   const fixedTagOptions = isAdmin
-    ? [...NOTICE_TAG_OPTIONS]
-    : ["QnA", "버그 제보"];
-  const isUserNoticeMode = isQnaNotice || isBugNotice;
-  const adminAnswer = isQnaNotice
-    ? await getAdminAnswerByPost(notice.id, {
+    ? NOTICE_TAG_OPTIONS.filter((option) => option !== "버그 제보")
+    : ["QnA"];
+  const isUserNoticeMode = isInquiryNotice;
+  const backHref = getSafeNoticeBackHref(from);
+  const adminAnswers = isInquiryNotice
+    ? await getAdminAnswersByPost(notice.id, {
         viewerUserId:
           typeof sessionUserId === "number" && !Number.isNaN(sessionUserId)
             ? sessionUserId
@@ -118,7 +138,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
         postOwnerUserId: notice.userId,
         isAdmin,
       })
-    : null;
+    : [];
   const noticePost = {
     id: notice.id,
     title: notice.title,
@@ -131,6 +151,7 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
     category_name: notice.categoryName,
     view_count: notice.viewCount,
     likes_count: notice.likesCount,
+    reactions_count: 0,
     comments_count: notice.commentsCount,
     is_banner: notice.isBanner,
     is_resolved: notice.isResolved,
@@ -139,6 +160,11 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
     can_view_secret: notice.canViewSecret,
     user_id: notice.userId,
   };
+  const inquiryStatus = notice.isResolved
+    ? "resolved"
+    : notice.hasAdminAnswer
+      ? "checking"
+      : "waiting";
 
   return (
     <article className="w-full">
@@ -147,85 +173,113 @@ export default async function HorokTechNoticeDetailPage({ params }: Props) {
         postId={notice.id}
         initialTitle={notice.title}
         initialContent={notice.content}
-        initialCategoryName={notice.categoryName}
+        initialCategoryName={isBugNotice ? "QnA" : notice.categoryName}
         initialThumbnail={notice.thumbnail}
         initialIsHidden={notice.isHidden}
         initialIsSecret={notice.isSecret}
         initialIsBanner={notice.isBanner}
-        initialIsResolved={notice.isResolved}
         isOwner={isOwner}
         redirectPath="/horok-tech/notices"
         categoryLocked
         fixedTagOptions={fixedTagOptions}
+        inquiryTagOptions={isUserNoticeMode ? INQUIRY_TAG_OPTIONS : undefined}
         showBannerOption={!isUserNoticeMode}
         allowNoticeBannerForAllCategories={isAdmin}
         headerPost={noticePost}
+        headerTitleAddon={
+          isInquiryNotice ? (
+            <InquiryStatusButton
+              postId={notice.id}
+              status="resolved"
+              initialActive={inquiryStatus === "resolved"}
+              canManage={isAdmin}
+            />
+          ) : null
+        }
       >
         <PostContent post={noticePost} />
       </PostActions>
       <PostFooter
         postId={notice.id}
-        backHref="/horok-tech/notices"
-        showLikeButton={!isQnaNotice}
+        backHref={backHref}
+        showLikeButton
+        markCheckingOnAdminReaction={isInquiryNotice && isAdmin}
       />
-      {isQnaNotice ? (
+      {isInquiryNotice ? (
         <section className="mt-10">
           <h3 className="text-lg font-semibold">답변</h3>
           {!notice.canViewSecret ? (
             <p className="mt-4 text-sm text-muted-foreground">
               비밀글은 작성자와 관리자만 답변을 확인할 수 있습니다.
             </p>
-          ) : adminAnswer ? (
-            <div className="mt-4">
-              <CommentItem
-                comment={{
-                  id: adminAnswer.id,
-                  user_id: adminAnswer.user_id,
-                  parent_id: null,
-                  content: adminAnswer.content,
-                  is_deleted: false,
-                  is_secret: false,
-                  can_view_secret: true,
-                  is_edited: adminAnswer.is_edited,
-                  created_at: adminAnswer.created_at,
-                  author: adminAnswer.author,
-                  author_image: adminAnswer.author_image,
-                  replies: [],
-                }}
-                postId={notice.id}
-                currentUserId={
-                  typeof sessionUserId === "number" ? sessionUserId : null
-                }
-                isLoggedIn={Boolean(session?.user?.email)}
-                showReplyButton={false}
-              />
-            </div>
-          ) : isAdmin ? (
-            <CommentForm
-              postId={notice.id}
-              placeholder="답변을 작성하세요"
-              submitLabel="답변 등록"
-              variant="answer"
-              showSecretOption={false}
-            />
           ) : (
-            <p className="mt-4 text-sm text-muted-foreground">
-              아직 등록된 답변이 없습니다.
-            </p>
+            <>
+              {adminAnswers.length > 0 ? (
+                <ul className="mt-4 space-y-4">
+                  {adminAnswers.map((adminAnswer) => (
+                    <li key={adminAnswer.id}>
+                      <CommentItem
+                        comment={{
+                          id: adminAnswer.id,
+                          user_id: adminAnswer.user_id,
+                          parent_id: null,
+                          content: adminAnswer.content,
+                          is_deleted: false,
+                          is_secret: false,
+                          can_view_secret: true,
+                          is_edited: adminAnswer.is_edited,
+                          created_at: adminAnswer.created_at,
+                          author: adminAnswer.author,
+                          author_image: adminAnswer.author_image,
+                          replies: [],
+                        }}
+                        postId={notice.id}
+                        currentUserId={
+                          typeof sessionUserId === "number"
+                            ? sessionUserId
+                            : null
+                        }
+                        isLoggedIn={Boolean(session?.user?.email)}
+                        showReplyButton={false}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  아직 등록된 답변이 없습니다.
+                </p>
+              )}
+
+              {isAdmin ? (
+                <InquiryAnswerComposer
+                  postId={notice.id}
+                  buttonLabel={
+                    adminAnswers.length > 0 ? "추가 답변하기" : "답변하기"
+                  }
+                />
+              ) : null}
+            </>
           )}
         </section>
       ) : !isQnaNotice ? (
         <>
           {notice.canViewSecret ? <CommentList postId={notice.id} /> : null}
           {session?.user?.email && notice.canViewSecret ? (
-            <CommentForm postId={notice.id} />
+            <InquiryAnswerComposer
+              postId={notice.id}
+              buttonLabel="댓글 작성하기"
+              placeholder="댓글을 작성하세요"
+              submitLabel="댓글 등록"
+              showSecretOption
+            />
           ) : !notice.canViewSecret ? (
             <p className="mt-4 text-sm text-muted-foreground">
               비밀글은 작성자와 관리자만 댓글을 확인할 수 있습니다.
             </p>
           ) : (
             <p className="mt-4 text-sm text-muted-foreground">
-              좋아요와 댓글 작성은 로그인 후 이용할 수 있습니다.
+              북마크와 댓글 작성은 로그인 후 이용할 수 있습니다.
             </p>
           )}
         </>

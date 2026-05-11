@@ -6,7 +6,6 @@ import HomeWriteButton from "@/components/home/HomeWriteButton";
 import NoticeCategorySearch from "@/components/posts/NoticeCategorySearch";
 import NoticeListInfinite from "@/components/posts/NoticeListInfinite";
 import PostListHeader from "@/components/posts/PostListHeader";
-import PostSortButton from "@/components/posts/PostSortButton";
 import {
   NOTICE_SEARCH_PARAM_BY_CATEGORY,
   NOTICE_TAG_OPTIONS,
@@ -15,7 +14,6 @@ import {
   parseNoticeSearchTarget,
 } from "@/lib/notice-categories";
 import { countNoticesByCategory, findNotices } from "@/lib/notices";
-import { parseSortType } from "@/lib/post-sort";
 
 export const metadata: Metadata = {
   title: "공지사항 | c.horok",
@@ -25,11 +23,14 @@ export const metadata: Metadata = {
   },
 };
 
+function getNoticeCategoryLabel(category: NoticeTag) {
+  return category === "QnA" ? "문의" : category;
+}
+
 export default async function HorokTechNoticesPage({
   searchParams,
 }: {
   searchParams: Promise<{
-    sort?: string;
     category?: string;
     page?: string;
     target?: string;
@@ -41,7 +42,6 @@ export default async function HorokTechNoticesPage({
   }>;
 }) {
   const {
-    sort,
     category,
     page,
     target,
@@ -51,7 +51,6 @@ export default async function HorokTechNoticesPage({
     bugQ,
     noticeSearchTarget,
   } = await searchParams;
-  const parsedSort = parseSortType(sort);
   const parsedCategory = parseNoticeCategory(category) ?? NOTICE_TAG_OPTIONS[0];
   const searchTarget = parseNoticeSearchTarget(noticeSearchTarget);
   const searchQueryByCategory: Partial<Record<NoticeTag, string | undefined>> =
@@ -74,12 +73,19 @@ export default async function HorokTechNoticesPage({
       : null;
   const isQnaCategory = parsedCategory === "QnA";
   const isBugCategory = parsedCategory === "버그 제보";
-  const notices = await findNotices(parsedSort, parsedCategory, {
+  const dateOrderedNotices = await findNotices("latest", parsedCategory, {
     viewerUserId: validSessionUserId,
     isAdmin: session?.user?.role === "ADMIN",
     query: searchQueryByCategory[parsedCategory],
     searchTarget,
   });
+  const noticeNumberById = Object.fromEntries(
+    dateOrderedNotices.map((notice, index) => [
+      notice.id,
+      dateOrderedNotices.length - index,
+    ]),
+  );
+  const notices = dateOrderedNotices;
   const noticeCounts = await countNoticesByCategory(
     searchQueryByCategory,
     searchTarget,
@@ -101,10 +107,6 @@ export default async function HorokTechNoticesPage({
         })()
       : currentPage;
   const safePage = Math.min(resolvedPage, totalPages);
-  const pagedNotices = notices.slice(
-    (safePage - 1) * pageSize,
-    safePage * pageSize,
-  );
   const isFaqCategory = parsedCategory === "FAQ";
   const isAdmin = session?.user?.role === "ADMIN";
   const canWriteNotice =
@@ -117,14 +119,16 @@ export default async function HorokTechNoticesPage({
         ? "/horok-tech/notices/new?category=FAQ"
         : "/horok-tech/notices/new";
   const writeButtonLabel = isQnaCategory
-    ? "질문하기"
+    ? "문의하기"
     : isBugCategory
       ? "버그 제보"
       : isFaqCategory
         ? "FAQ 작성"
         : "공지 작성";
-  const categoryTabs = NOTICE_TAG_OPTIONS.map((value) => ({
-    label: value,
+  const categoryTabs = NOTICE_TAG_OPTIONS.filter(
+    (value) => value !== "버그 제보",
+  ).map((value) => ({
+    label: getNoticeCategoryLabel(value),
     value,
   }));
 
@@ -135,7 +139,7 @@ export default async function HorokTechNoticesPage({
           <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap">
             <span className="shrink-0">공지사항</span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span>{parsedCategory}</span>
+            <span>{getNoticeCategoryLabel(parsedCategory)}</span>
             <span className="shrink-0 text-sm font-medium text-muted-foreground">
               {noticeCounts[parsedCategory]}
             </span>
@@ -145,19 +149,14 @@ export default async function HorokTechNoticesPage({
         headerActions={
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
             <NoticeCategorySearch category={parsedCategory} />
-            <PostSortButton />
           </div>
         }
       />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
           {categoryTabs.map((tab) => {
             const params = new URLSearchParams();
-
-            if (sort) {
-              params.set("sort", sort);
-            }
 
             if (noticeSearchTarget) {
               params.set("noticeSearchTarget", searchTarget);
@@ -187,18 +186,16 @@ export default async function HorokTechNoticesPage({
               <Link
                 key={tab.label}
                 href={href}
-                className={`flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors ${
+                className={`flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors ${
                   isActive
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-primary bg-primary text-white"
                     : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 <span>{tab.label}</span>
                 <span
                   className={
-                    isActive
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground"
+                    isActive ? "text-white/80" : "text-muted-foreground"
                   }
                 >
                   ({noticeCounts[tab.value]})
@@ -211,17 +208,19 @@ export default async function HorokTechNoticesPage({
           <HomeWriteButton
             href={writeButtonHref}
             label={writeButtonLabel}
-            className="shrink-0"
+            className="ml-auto shrink-0"
           />
         ) : null}
       </div>
       <NoticeListInfinite
-        notices={pagedNotices}
+        key={`${parsedCategory}:${searchTarget}:${searchQueryByCategory[parsedCategory] ?? ""}`}
+        notices={notices}
         currentPage={safePage}
         totalPages={totalPages}
         totalCount={notices.length}
         isQnaCategory={isQnaCategory}
         isFaqCategory={isFaqCategory}
+        noticeNumberById={noticeNumberById}
         emptyMessage={
           isFaqCategory
             ? "아직 등록된 FAQ 게시물이 없습니다."

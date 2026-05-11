@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireDbUserId } from "@/lib/auth-db";
 import { createComment, getCommentById } from "@/lib/comments";
+import { normalizeNoticeCategory } from "@/lib/notice-categories";
 import { getPostById } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
 
@@ -72,15 +73,36 @@ export async function POST(req: Request) {
           });
         }
       } else {
+        const postMeta = await prisma.post.findUnique({
+          where: { id: BigInt(Number(postId)) },
+          select: {
+            userId: true,
+            category: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+        const normalizedCategory = normalizeNoticeCategory(
+          postMeta?.category?.name,
+        );
+        const isInquiryPost =
+          normalizedCategory === "QnA" || normalizedCategory === "버그 제보";
+        const postOwnerUserId = postMeta
+          ? Number(postMeta.userId)
+          : post.user_id;
+
         // 새 댓글 → 게시글 작성자에게
-        // post.user_id도 number여야 함
-        if (post && post.user_id !== userId) {
+        if (postOwnerUserId !== userId) {
           await prisma.notification.create({
             data: {
-              userId: BigInt(post.user_id),
+              userId: BigInt(postOwnerUserId),
               actorId: BigInt(userId),
               type: "NEW_COMMENT",
-              content: "내 게시물에 새로운 댓글이 달렸어요",
+              content: isInquiryPost
+                ? "문의에 답변이 등록되었어요"
+                : "내 게시물에 새로운 댓글이 달렸어요",
               postId: BigInt(Number(postId)),
               commentId: BigInt(commentId),
             },
