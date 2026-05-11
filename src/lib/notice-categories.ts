@@ -1,5 +1,13 @@
 export const NOTICE_TAG_OPTIONS = ["공지", "FAQ", "QnA", "버그 제보"] as const;
 
+export const INQUIRY_TAG_OPTIONS = [
+  "계정/로그인",
+  "버그/오타 제보",
+  "기능/콘텐츠 제안",
+  "게시물/댓글 신고",
+  "기타",
+];
+
 const LEGACY_NOTICE_TAG_ALIASES = {
   중요: "FAQ",
   긴급: "공지",
@@ -75,6 +83,13 @@ export function parseNoticeSearchTarget(
 export function getNoticeCategoryQueryNames(category?: NoticeTag) {
   if (!category) {
     return [...ALL_NOTICE_TAG_OPTIONS];
+  }
+
+  if (category === "QnA") {
+    return ALL_NOTICE_TAG_OPTIONS.filter((value) => {
+      const normalizedCategory = normalizeNoticeCategory(value);
+      return normalizedCategory === "QnA" || normalizedCategory === "버그 제보";
+    });
   }
 
   return ALL_NOTICE_TAG_OPTIONS.filter(

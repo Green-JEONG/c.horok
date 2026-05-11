@@ -7,11 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isNoticeCategoryName } from "@/lib/notice-categories";
 import {
-  clearPostDraft,
+  clearSyncedPostDraft,
   getPostDraftStorageKey,
-  loadPostDraft,
+  loadSyncedPostDrafts,
   type PostDraftPayload,
-  savePostDraft,
+  saveSyncedPostDraft,
 } from "@/lib/post-drafts";
 import {
   createPostContentImagePath,
@@ -47,6 +47,29 @@ const markdownTools = [
 type MarkdownToolAction = (typeof markdownTools)[number]["action"];
 type EditorTab = "write" | "preview";
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseInquiryTitlePrefix(title: string, inquiryTagOptions: string[]) {
+  if (inquiryTagOptions.length === 0) {
+    return {
+      title,
+      selectedInquiryTag: inquiryTagOptions[0] ?? "",
+    };
+  }
+
+  const inquiryTagPrefixRegex = new RegExp(
+    `^\\[(${inquiryTagOptions.map(escapeRegExp).join("|")})\\]\\s*`,
+  );
+  const match = title.match(inquiryTagPrefixRegex);
+
+  return {
+    title: title.replace(inquiryTagPrefixRegex, ""),
+    selectedInquiryTag: match?.[1] ?? inquiryTagOptions[0] ?? "",
+  };
+}
+
 type PostEditorProps = {
   mode?: "create" | "edit";
   postId?: number;
@@ -55,7 +78,6 @@ type PostEditorProps = {
   initialCategoryName?: string;
   initialThumbnail?: string | null;
   initialIsBanner?: boolean;
-  initialIsResolved?: boolean;
   initialIsSecret?: boolean;
   cancelLabel?: string;
   submitLabel?: string;
@@ -63,6 +85,7 @@ type PostEditorProps = {
   categoryLocked?: boolean;
   successPathPrefix?: string;
   fixedTagOptions?: string[];
+  inquiryTagOptions?: string[];
   showCategoryField?: boolean;
   showBannerOption?: boolean;
   allowNoticeBannerForAllCategories?: boolean;
@@ -78,7 +101,6 @@ export default function PostEditor({
   initialCategoryName = "",
   initialThumbnail = null,
   initialIsBanner = false,
-  initialIsResolved = false,
   initialIsSecret = false,
   cancelLabel = "취소",
   submitLabel = mode === "edit" ? "수정 저장" : "게시하기",
@@ -86,6 +108,7 @@ export default function PostEditor({
   categoryLocked = false,
   successPathPrefix = "/horok-tech/feeds/posts",
   fixedTagOptions = [],
+  inquiryTagOptions = [],
   showCategoryField = true,
   showBannerOption = true,
   allowNoticeBannerForAllCategories = false,
@@ -99,8 +122,12 @@ export default function PostEditor({
   const contentImageInputRef = useRef<HTMLInputElement>(null);
   const contentVideoInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
+  const initialInquiryTitle = parseInquiryTitlePrefix(
+    initialTitle,
+    inquiryTagOptions,
+  );
 
-  const [title, setTitle] = useState(initialTitle);
+  const [title, setTitle] = useState(initialInquiryTitle.title);
   const [content, setContent] = useState(initialContent);
   const [tags, setTags] = useState(
     initialCategoryName ? [initialCategoryName] : [],
@@ -111,8 +138,10 @@ export default function PostEditor({
       ? initialCategoryName
       : (fixedTagOptions[0] ?? ""),
   );
+  const [selectedInquiryTag, setSelectedInquiryTag] = useState(
+    initialInquiryTitle.selectedInquiryTag,
+  );
   const [isBanner, setIsBanner] = useState(initialIsBanner);
-  const [isResolved] = useState(initialIsResolved);
   const [isSecret, setIsSecret] = useState(initialIsSecret);
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,6 +162,8 @@ export default function PostEditor({
     showBannerOption &&
     isNoticeCategory &&
     (currentCategoryName === "공지" || allowNoticeBannerForAllCategories);
+  const shouldShowInquiryTagField =
+    currentCategoryName === "QnA" && inquiryTagOptions.length > 0;
   const draftStorageKey = getPostDraftStorageKey({
     successPathPrefix,
     fixedTagOptions,
@@ -146,29 +177,52 @@ export default function PostEditor({
 
     hasCheckedDraftRef.current = true;
 
-    const draft = loadPostDraft(draftStorageKey, draftIdFromParams);
-    if (!draft) {
-      return;
-    }
+    let cancelled = false;
 
-    const shouldRestore = draftIdFromParams
-      ? true
-      : window.confirm(
-          "임시저장된 글이 있습니다. 최근 임시저장 글을 이어서 작성하시겠습니까?",
-        );
+    const restoreDraft = async () => {
+      const drafts = await loadSyncedPostDrafts(draftStorageKey);
+      const draft = draftIdFromParams
+        ? drafts.find((item) => item.id === draftIdFromParams)
+        : (drafts[0] ?? null);
 
-    if (!shouldRestore) {
-      return;
-    }
+      if (!draft || cancelled) {
+        return;
+      }
 
-    currentDraftIdRef.current = draft.id ?? null;
-    setTitle(draft.title ?? "");
-    setContent(draft.content ?? "");
-    setTags(Array.isArray(draft.tags) ? draft.tags : []);
-    setSelectedFixedTag(draft.selectedFixedTag ?? fixedTagOptions[0] ?? "");
-    setIsBanner(Boolean(draft.isBanner));
-    setIsSecret(Boolean(draft.isSecret));
-  }, [draftIdFromParams, draftStorageKey, fixedTagOptions, mode]);
+      const shouldRestore = draftIdFromParams
+        ? true
+        : window.confirm(
+            "임시저장된 글이 있습니다. 최근 임시저장 글을 이어서 작성하시겠습니까?",
+          );
+
+      if (!shouldRestore || cancelled) {
+        return;
+      }
+
+      currentDraftIdRef.current = draft.id ?? null;
+      setTitle(draft.title ?? "");
+      setContent(draft.content ?? "");
+      setTags(Array.isArray(draft.tags) ? draft.tags : []);
+      setSelectedFixedTag(draft.selectedFixedTag ?? fixedTagOptions[0] ?? "");
+      setSelectedInquiryTag(
+        draft.selectedInquiryTag ?? inquiryTagOptions[0] ?? "",
+      );
+      setIsBanner(Boolean(draft.isBanner));
+      setIsSecret(Boolean(draft.isSecret));
+    };
+
+    void restoreDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    draftIdFromParams,
+    draftStorageKey,
+    fixedTagOptions,
+    inquiryTagOptions,
+    mode,
+  ]);
 
   async function removeThumbnailFromStorage(path?: string | null) {
     if (!path) return;
@@ -197,6 +251,22 @@ export default function PostEditor({
     requestAnimationFrame(() => {
       tagInputRef.current?.focus();
     });
+  }
+
+  function buildInquiryTitle(rawTitle: string) {
+    if (!shouldShowInquiryTagField || !selectedInquiryTag) {
+      return rawTitle;
+    }
+
+    const inquiryTagPrefixRegex = new RegExp(
+      `^\\[(${inquiryTagOptions.map(escapeRegExp).join("|")})\\]\\s*`,
+    );
+    const titleWithoutInquiryPrefix = rawTitle.replace(
+      inquiryTagPrefixRegex,
+      "",
+    );
+
+    return `[${selectedInquiryTag}] ${titleWithoutInquiryPrefix}`;
   }
 
   function getFirstContentImageUrl(markdown: string) {
@@ -545,6 +615,7 @@ export default function PostEditor({
     setError(null);
 
     try {
+      const submitTitle = buildInquiryTitle(trimmedTitle);
       const nextThumbnailUrl = getFirstContentImageUrl(trimmedContent);
       const endpoint = mode === "edit" ? `/api/posts/${postId}` : "/api/posts";
       const method = mode === "edit" ? "PUT" : "POST";
@@ -554,11 +625,10 @@ export default function PostEditor({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title: trimmedTitle,
+          title: submitTitle,
           content: trimmedContent,
           categoryName: resolvedCategoryName,
           isBanner,
-          isResolved,
           isSecret,
           thumbnailUrl: nextThumbnailUrl,
         }),
@@ -585,7 +655,7 @@ export default function PostEditor({
       }
 
       if (mode === "create") {
-        clearPostDraft(draftStorageKey, currentDraftIdRef.current);
+        await clearSyncedPostDraft(draftStorageKey, currentDraftIdRef.current);
         currentDraftIdRef.current = null;
       }
 
@@ -611,7 +681,7 @@ export default function PostEditor({
     }
   }
 
-  function handleSaveDraft() {
+  async function handleSaveDraft() {
     if (typeof window === "undefined") {
       return;
     }
@@ -626,12 +696,13 @@ export default function PostEditor({
         content,
         tags,
         selectedFixedTag,
+        selectedInquiryTag,
         isBanner,
         isSecret,
         savedAt: new Date().toISOString(),
       };
 
-      const savedDraft = savePostDraft(draftStorageKey, payload);
+      const savedDraft = await saveSyncedPostDraft(draftStorageKey, payload);
       currentDraftIdRef.current = savedDraft?.id ?? currentDraftIdRef.current;
     } catch {
       setError("임시저장 중 오류가 발생했습니다.");
@@ -653,6 +724,31 @@ export default function PostEditor({
           className="w-full border-0 bg-transparent px-0 py-0 text-3xl font-semibold tracking-tight text-foreground outline-none placeholder:text-zinc-400 sm:text-4xl"
         />
       </div>
+
+      {shouldShowInquiryTagField ? (
+        <div className="space-y-2">
+          <div className="flex min-h-12 w-full flex-wrap items-center gap-2 rounded-md border border-border/80 bg-muted/20 px-3 py-2">
+            {inquiryTagOptions.map((option) => {
+              const isActive = selectedInquiryTag === option;
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setSelectedInquiryTag(option)}
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    isActive
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  }`}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {shouldShowCategoryField ? (
         <div className="space-y-2">
@@ -680,6 +776,7 @@ export default function PostEditor({
               : null}
             {fixedTagOptions.map((option) => {
               const isActive = selectedFixedTag === option;
+              const optionLabel = option === "QnA" ? "문의" : option;
 
               return (
                 <button
@@ -692,7 +789,7 @@ export default function PostEditor({
                       : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
                   }`}
                 >
-                  {option}
+                  {optionLabel}
                 </button>
               );
             })}

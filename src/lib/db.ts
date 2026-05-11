@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { ALL_NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
+import { getPostReactionCountsByPostId } from "@/lib/post-reactions";
 import { DEFAULT_SORT, type SortType } from "@/lib/post-sort";
 import { prisma } from "@/lib/prisma";
 
@@ -27,6 +28,7 @@ export type DbPost = {
   category_name: string;
   view_count: number;
   likes_count: number;
+  reactions_count: number;
   comments_count: number;
   is_banner: boolean;
   is_resolved: boolean;
@@ -125,6 +127,7 @@ function mapPost(
     category_name: post.category?.name ?? "",
     view_count: Number(post.views?.viewCount ?? 0),
     likes_count: post._count?.likes ?? 0,
+    reactions_count: 0,
     comments_count: post._count?.comments ?? 0,
     is_banner: post.isBanner,
     is_resolved: post.isResolved ?? false,
@@ -133,6 +136,24 @@ function mapPost(
     can_view_secret: canViewSecret,
     user_id: ownerUserId,
   };
+}
+
+async function mapPostsWithReactionCounts(
+  posts: Array<Parameters<typeof mapPost>[0]>,
+  options?: Parameters<typeof mapPost>[1],
+) {
+  const reactionCounts = await getPostReactionCountsByPostId(
+    posts.map((post) => post.id),
+  );
+
+  return posts.map((post) => {
+    const mappedPost = mapPost(post, options);
+
+    return {
+      ...mappedPost,
+      reactions_count: reactionCounts.get(mappedPost.id) ?? 0,
+    };
+  });
 }
 
 function getFeedPostWhere(): Prisma.PostWhereInput {
@@ -344,7 +365,7 @@ export async function findPostsPaged(
     take: limit,
   });
 
-  return posts.map((post) => mapPost(post, options));
+  return mapPostsWithReactionCounts(posts, options);
 }
 
 export async function countFeedPosts() {
@@ -441,7 +462,7 @@ async function searchPostsInternal(
     },
   });
 
-  return posts.map((post) => mapPost(post));
+  return mapPostsWithReactionCounts(posts);
 }
 
 export async function findPostsByKeywordPaged(

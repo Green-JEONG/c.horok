@@ -63,7 +63,7 @@ const SEARCH_PREVIEW_GROUPS = [
     matches: (post: SearchSuggestion) => post.category_name === "FAQ",
   },
   {
-    label: "QnA",
+    label: "문의",
     countKey: "qna",
     matches: (post: SearchSuggestion) => post.category_name === "QnA",
   },

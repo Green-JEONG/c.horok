@@ -1,10 +1,11 @@
 import {
+  Bookmark,
   Eye,
   EyeOff,
-  Heart,
   Lock,
   MessageCircle,
   PenSquare,
+  SmilePlus,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -24,6 +25,7 @@ type Props = {
   author: string;
   authorImage?: string | null;
   likes: number;
+  reactions?: number;
   comments: number;
   views?: number;
   createdAt: Date;
@@ -53,6 +55,7 @@ export default function PostCard({
   author,
   authorImage = null,
   likes,
+  reactions = 0,
   comments,
   views = 0,
   createdAt,
@@ -82,7 +85,7 @@ export default function PostCard({
   const defaultBadge = isUncategorized
     ? null
     : {
-        text: `#${category}`,
+        text: `#${category === "QnA" ? "문의" : category}`,
         className: "border-border bg-background text-foreground",
       };
   const primaryBadge = statusBadges[0]
@@ -110,13 +113,17 @@ export default function PostCard({
           alt={title}
           fill
           unoptimized={!isDefaultThumbnail}
-          className={isDefaultThumbnail ? "object-contain p-8" : "object-fill"}
+          className={isDefaultThumbnail ? "object-contain p-8" : "object-cover"}
         />
         <div className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 pb-2 pt-10">
-          <div className="flex min-w-0 items-center gap-3 text-xs font-medium text-white drop-shadow">
+          <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-white drop-shadow">
             <span className="inline-flex items-center gap-1">
-              <Heart className="h-3.5 w-3.5 fill-current text-rose-400" />
+              <Bookmark className="h-3.5 w-3.5" />
               {likes}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <SmilePlus className="h-3.5 w-3.5" />
+              {reactions}
             </span>
             <span className="inline-flex items-center gap-1">
               <MessageCircle className="h-3.5 w-3.5" />

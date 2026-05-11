@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import OrangeScrollArea from "@/components/common/OrangeScrollArea";
 import LikedPostList from "@/components/posts/LikedPostList";
 import PostListHeader from "@/components/posts/PostListHeader";
 import { getUserIdByEmail } from "@/lib/db";
@@ -8,8 +9,8 @@ import { parsePostSearchTarget } from "@/lib/post-search-target";
 import { countLikedPosts } from "@/lib/queries";
 
 export const metadata: Metadata = {
-  title: "Like | c.horok",
-  description: "좋아요 페이지",
+  title: "Bookmark | c.horok",
+  description: "북마크 페이지",
   robots: {
     index: false,
     follow: false,
@@ -35,22 +36,30 @@ export default async function HorokTechLikesPage({
     : 0;
 
   return (
-    <div className="space-y-4">
-      <Suspense
-        fallback={<div className="h-6 w-32 rounded bg-muted animate-pulse" />}
-      >
-        <PostListHeader
-          titleAction={
-            <span className="text-sm font-medium text-muted-foreground">
-              {likedCount}
-            </span>
-          }
-          searchPlaceholder="좋아요한 글 검색"
-          searchTargetParam="searchTarget"
-        />
-      </Suspense>
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+      <div className="shrink-0">
+        <Suspense
+          fallback={<div className="h-6 w-32 rounded bg-muted animate-pulse" />}
+        >
+          <PostListHeader
+            titleAction={
+              <span className="text-sm font-medium text-muted-foreground">
+                {likedCount}
+              </span>
+            }
+            searchPlaceholder="북마크한 글 검색"
+            searchTargetParam="searchTarget"
+          />
+        </Suspense>
+      </div>
 
-      <LikedPostList query={q} searchTarget={parsedSearchTarget} sort={sort} />
+      <OrangeScrollArea className="min-h-0 flex-1 pr-3">
+        <LikedPostList
+          query={q}
+          searchTarget={parsedSearchTarget}
+          sort={sort}
+        />
+      </OrangeScrollArea>
     </div>
   );
 }

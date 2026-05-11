@@ -14,7 +14,7 @@ const navItems = [
   },
   {
     href: "/horok-tech/likes",
-    label: "좋아요",
+    label: "북마크",
     match: (p: string) => p.startsWith("/horok-tech/likes"),
   },
   {

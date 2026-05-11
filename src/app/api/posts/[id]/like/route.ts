@@ -44,13 +44,13 @@ export async function POST(
             userId: BigInt(post.user_id),
             actorId: BigInt(userId),
             type: "POST_LIKE",
-            content: "내 게시물에 좋아요가 눌렸어요",
+            content: "내 게시물이 북마크되었어요",
             postId: BigInt(postId),
           },
         });
       }
     } catch (error) {
-      console.error("🔔 좋아요 알림 생성 실패", error);
+      console.error("🔔 북마크 알림 생성 실패", error);
     }
   }
 

@@ -28,7 +28,7 @@ const POST_SORT_OPTIONS: MyPageControlOption[] = [
   { value: "latest", label: "최신순" },
   { value: "oldest", label: "오래된순" },
   { value: "views", label: "조회순" },
-  { value: "likes", label: "좋아요순" },
+  { value: "likes", label: "북마크순" },
   { value: "comments", label: "댓글순" },
   { value: "category", label: "카테고리순 (오름차)" },
   { value: "categoryDesc", label: "카테고리순 (내림차)" },
@@ -156,7 +156,7 @@ export default async function UserPage({ params, searchParams }: Props) {
                   role="tab"
                   aria-selected={selected}
                   href={item.href}
-                  className={`flex h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
+                  className={`flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
                     selected
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"

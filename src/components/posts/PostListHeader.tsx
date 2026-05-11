@@ -14,7 +14,7 @@ const SORT_LABEL: Record<SortType, string> = {
   latest: "최신순",
   oldest: "오래된순",
   views: "조회순",
-  likes: "좋아요순",
+  likes: "북마크순",
   comments: "댓글순",
   category: "카테고리순 (오름차)",
   categoryDesc: "카테고리순 (내림차)",
@@ -111,7 +111,7 @@ export default function PostListHeader({
     (category
       ? `#${category}`
       : isLikesPage
-        ? "좋아요"
+        ? "북마크"
         : isFeedPage
           ? "소식"
           : "내 글");

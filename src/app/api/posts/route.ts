@@ -51,15 +51,8 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const {
-    categoryName,
-    title,
-    content,
-    thumbnailUrl,
-    isBanner,
-    isResolved,
-    isSecret,
-  } = body;
+  const { categoryName, title, content, thumbnailUrl, isBanner, isSecret } =
+    body;
   const normalizedCategoryName =
     typeof categoryName === "string" ? categoryName.trim() : "";
 
@@ -82,10 +75,6 @@ export async function POST(req: Request) {
     title,
     content,
     isBanner: Boolean(isBanner) && isNoticeCategoryName(normalizedCategoryName),
-    isResolved:
-      normalizedCategoryName === "QnA" && typeof isResolved === "boolean"
-        ? isResolved
-        : false,
     isSecret: Boolean(isSecret),
     thumbnailUrl:
       typeof thumbnailUrl === "string" && thumbnailUrl.trim()
@@ -111,12 +100,12 @@ export async function POST(req: Request) {
             actorId: BigInt(userId),
             postId: BigInt(post.id),
             type: "NEW_COMMENT",
-            content: "QnA에 새로운 질문이 등록되었어요",
+            content: "문의에 새로운 질문이 등록되었어요",
           })),
         });
       }
     } catch (error) {
-      console.error("🔔 QnA 질문 알림 생성 실패", error);
+      console.error("🔔 문의 질문 알림 생성 실패", error);
     }
   }
 
@@ -149,7 +138,7 @@ export async function POST(req: Request) {
     }
   }
 
-  if (normalizedCategoryName !== "FAQ") {
+  if (normalizedCategoryName !== "FAQ" && normalizedCategoryName !== "QnA") {
     try {
       const followers = await prisma.friend.findMany({
         where: {

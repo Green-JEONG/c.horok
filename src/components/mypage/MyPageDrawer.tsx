@@ -11,7 +11,10 @@ import {
   getPlatformFromPathname,
   usePlatformProfile,
 } from "@/components/mypage/usePlatformProfile";
-import { countPostDrafts, getTechPostDraftStorageKey } from "@/lib/post-drafts";
+import {
+  countSyncedPostDrafts,
+  getTechPostDraftStorageKey,
+} from "@/lib/post-drafts";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -43,7 +46,7 @@ const DRAWER_TRANSITION_MS = 300;
 
 function renderNotificationMessage(n: Notification) {
   if (n.is_post_deleted) return "삭제된 게시물입니다";
-  if (n.message) return n.message;
+  if (n.message) return n.message.replaceAll("QnA", "문의");
 
   switch (n.type) {
     case "FRIEND_REQUEST":
@@ -53,7 +56,7 @@ function renderNotificationMessage(n: Notification) {
     case "COMMENT_REPLY":
       return `${n.actor_name ?? "누군가"}님이 내 댓글에 답글을 남겼습니다`;
     case "POST_LIKE":
-      return `${n.actor_name ?? "누군가"}님이 내 게시물을 좋아합니다`;
+      return `${n.actor_name ?? "누군가"}님이 내 게시물을 북마크했습니다`;
     case "NEW_FOLLOWER":
       return `${n.actor_name ?? "누군가"}님이 나를 구독했습니다`;
     default:
@@ -182,9 +185,13 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
 
-    setDraftPostCount(
-      !isCote ? countPostDrafts(getTechPostDraftStorageKey()) : 0,
-    );
+    if (isCote) {
+      setDraftPostCount(0);
+    } else {
+      void countSyncedPostDrafts(getTechPostDraftStorageKey()).then(
+        setDraftPostCount,
+      );
+    }
 
     const loadStats = async () => {
       try {
@@ -410,7 +417,10 @@ export default function MyPageDrawer({ open, onClose }: Props) {
 
                           const shouldOpenQnaList =
                             shouldOpenNoticeDetail &&
-                            n.message === "QnA에 새로운 질문이 등록되었어요" &&
+                            (n.message ===
+                              "문의에 새로운 질문이 등록되었어요" ||
+                              n.message ===
+                                "QnA에 새로운 질문이 등록되었어요") &&
                             typeof n.post_id === "number";
 
                           if (shouldOpenQnaList) {

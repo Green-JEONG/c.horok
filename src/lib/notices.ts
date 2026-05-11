@@ -8,6 +8,7 @@ import {
   normalizeNoticeCategory,
   parseNoticeSearchTarget,
 } from "@/lib/notice-categories";
+import { getAdminReactedPostIdSet } from "@/lib/post-reactions";
 import {
   comparePostMetrics,
   DEFAULT_SORT,
@@ -26,7 +27,7 @@ export const LEGACY_NOTICE_SEED = [
     content: [
       "안녕하세요. c.horok를 찾아주셔서 감사합니다.",
       "c.horok는 개발 기록을 남기고, 배운 내용을 공유하고, 서로의 성장을 응원하는 공간으로 준비했습니다.",
-      "현재는 피드, 좋아요, 마이페이지, 공지사항 기능을 중심으로 운영하고 있으며 앞으로 커뮤니티 경험을 더 풍성하게 다듬어갈 예정입니다.",
+      "현재는 피드, 북마크, 마이페이지, 공지사항 기능을 중심으로 운영하고 있으며 앞으로 커뮤니티 경험을 더 풍성하게 다듬어갈 예정입니다.",
       "서비스 이용 중 불편한 점이나 제안하고 싶은 기능이 있다면 언제든지 의견을 남겨 주세요. 작은 피드백도 꼼꼼히 반영하겠습니다.",
       "앞으로의 업데이트와 운영 소식은 공지사항 탭을 통해 가장 먼저 전달드리겠습니다. 감사합니다.",
     ],
@@ -103,6 +104,7 @@ export type NoticeListItem = {
   isOwner: boolean;
   canManageBanner: boolean;
   isResolved: boolean;
+  hasAdminAnswer: boolean;
   likesCount: number;
   commentsCount: number;
   viewCount: number;
@@ -129,6 +131,7 @@ export type NoticeDetail = {
   isSecret: boolean;
   canViewSecret: boolean;
   isResolved: boolean;
+  hasAdminAnswer: boolean;
 };
 
 export type NoticeBannerItem = {
@@ -277,9 +280,6 @@ export async function findNotices(
     searchTarget: options?.searchTarget,
   });
   const notices = await prisma.post.findMany({
-    omit: {
-      isResolved: true,
-    },
     where,
     include: {
       user: {
@@ -302,11 +302,12 @@ export async function findNotices(
     },
   });
   const qnaPostIds = notices
-    .filter(
-      (notice) => normalizeNoticeCategory(notice.category?.name) === "QnA",
-    )
+    .filter((notice) => {
+      const normalizedCategory = normalizeNoticeCategory(notice.category?.name);
+      return normalizedCategory === "QnA" || normalizedCategory === "버그 제보";
+    })
     .map((notice) => notice.id);
-  const resolvedQnaRows =
+  const adminAnswerRows =
     qnaPostIds.length > 0
       ? await prisma.comment.findMany({
           where: {
@@ -326,9 +327,10 @@ export async function findNotices(
           distinct: ["postId"],
         })
       : [];
-  const resolvedQnaPostIdSet = new Set(
-    resolvedQnaRows.map((comment) => Number(comment.postId)),
+  const adminAnsweredQnaPostIdSet = new Set(
+    adminAnswerRows.map((comment) => Number(comment.postId)),
   );
+  const adminReactedQnaPostIdSet = await getAdminReactedPostIdSet(qnaPostIds);
 
   return notices
     .sort((a, b) =>
@@ -385,7 +387,12 @@ export async function findNotices(
           Boolean(options?.isAdmin) &&
           typeof options?.viewerUserId === "number" &&
           Number(notice.userId) === options.viewerUserId,
-        isResolved: resolvedQnaPostIdSet.has(Number(notice.id)),
+        isResolved: notice.isResolved,
+        hasAdminAnswer:
+          normalizedCategory === "QnA" || normalizedCategory === "버그 제보"
+            ? adminAnsweredQnaPostIdSet.has(Number(notice.id)) ||
+              adminReactedQnaPostIdSet.has(Number(notice.id))
+            : false,
         likesCount: notice._count.likes,
         commentsCount: notice._count.comments,
         viewCount: Number(notice.views?.viewCount ?? 0),
@@ -489,11 +496,8 @@ export async function findNoticeById(
     isAdmin?: boolean;
   },
 ) {
-  const [notice, resolvedCommentCount] = await Promise.all([
+  const [notice, adminAnswerCount, adminReactedPostIdSet] = await Promise.all([
     prisma.post.findFirst({
-      omit: {
-        isResolved: true,
-      },
       where: {
         id: BigInt(id),
         isDeleted: false,
@@ -542,6 +546,7 @@ export async function findNoticeById(
         },
       },
     }),
+    getAdminReactedPostIdSet([BigInt(id)]),
   ]);
 
   if (!notice) {
@@ -584,7 +589,11 @@ export async function findNoticeById(
     ),
     isSecret: notice.isSecret,
     canViewSecret,
-    isResolved: resolvedCommentCount > 0,
+    isResolved: notice.isResolved,
+    hasAdminAnswer:
+      normalizedCategory === "QnA" || normalizedCategory === "버그 제보"
+        ? adminAnswerCount > 0 || adminReactedPostIdSet.has(id)
+        : false,
   } satisfies NoticeDetail;
 }
 

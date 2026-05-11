@@ -3,16 +3,23 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import PostEditor from "@/components/posts/PostEditor";
-import { NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
+import {
+  INQUIRY_TAG_OPTIONS,
+  NOTICE_TAG_OPTIONS,
+} from "@/lib/notice-categories";
 
 export const metadata: Metadata = {
   title: "공지사항 작성 | c.horok",
-  description: "공지사항 및 QnA 작성 페이지",
+  description: "공지사항 및 문의 작성 페이지",
   robots: {
     index: false,
     follow: false,
   },
 };
+
+function getNoticeCategoryLabel(category: string) {
+  return category === "QnA" ? "문의" : category;
+}
 
 export default async function HorokTechNewNoticePage({
   searchParams,
@@ -28,8 +35,8 @@ export default async function HorokTechNewNoticePage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const isAdmin = session.user.role === "ADMIN";
   const fixedTagOptions = isAdmin
-    ? [...NOTICE_TAG_OPTIONS]
-    : ["QnA", "버그 제보"];
+    ? NOTICE_TAG_OPTIONS.filter((option) => option !== "버그 제보")
+    : ["QnA"];
   const requestedCategory =
     typeof resolvedSearchParams?.category === "string"
       ? resolvedSearchParams.category
@@ -46,7 +53,7 @@ export default async function HorokTechNewNoticePage({
       <div className="mb-6 flex items-center gap-2">
         <PenSquare className="h-[18px] w-[18px]" />
         <h1 className="text-lg font-bold tracking-tight">
-          {initialCategoryName} 작성
+          {getNoticeCategoryLabel(initialCategoryName)} 작성
         </h1>
       </div>
       <PostEditor
@@ -54,6 +61,7 @@ export default async function HorokTechNewNoticePage({
         categoryLocked
         successPathPrefix="/horok-tech/notices"
         fixedTagOptions={fixedTagOptions}
+        inquiryTagOptions={INQUIRY_TAG_OPTIONS}
         showCategoryField={false}
         showBannerOption
         allowNoticeBannerForAllCategories={isAdmin}

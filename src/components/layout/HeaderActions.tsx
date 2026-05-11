@@ -85,7 +85,7 @@ export default function HeaderActions() {
           size="sm"
           onClick={() => setOpen(true)}
           className={
-            isCote ? "bg-[#06923E] text-white hover:bg-[#047a33]" : undefined
+            isCote ? "bg-[#06923E] text-white hover:bg-[#047a33]" : "text-white"
           }
         >
           로그인

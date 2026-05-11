@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
+import { getPostReactionCountsByPostId } from "@/lib/post-reactions";
 import { parsePostSearchTarget } from "@/lib/post-search-target";
 import { parseSortType } from "@/lib/post-sort";
 import { prisma } from "@/lib/prisma";
@@ -123,7 +124,11 @@ export async function GET(request: Request) {
     }
 
     const offset = Math.max(resolvedPage - 1, 0) * limit;
-    const posts = sortedRows.slice(offset, offset + limit).map((post) => ({
+    const pagedRows = sortedRows.slice(offset, offset + limit);
+    const reactionCounts = await getPostReactionCountsByPostId(
+      pagedRows.map((post) => post.id),
+    );
+    const posts = pagedRows.map((post) => ({
       id: Number(post.id),
       title: post.title,
       content: post.content,
@@ -134,6 +139,7 @@ export async function GET(request: Request) {
       category_name: post.category?.name ?? "",
       view_count: Number(post.views?.viewCount ?? 0),
       likes_count: post._count.likes,
+      reactions_count: reactionCounts.get(Number(post.id)) ?? 0,
       comments_count: post._count.comments,
       is_hidden: post.isHidden,
       is_secret: post.isSecret,

@@ -45,6 +45,7 @@ type MyQnaPost = {
   likes_count: number;
   comments_count: number;
   is_resolved?: boolean;
+  has_admin_answer?: boolean;
   is_hidden: boolean;
   is_secret: boolean;
 };
@@ -202,6 +203,20 @@ export default function MyQnaSection() {
       </span>
     </span>
   );
+  const getStatusLabel = (post: MyQnaPost) => {
+    if (post.is_resolved) {
+      return "해결 완료";
+    }
+
+    return post.has_admin_answer ? "확인 중" : "답변 대기";
+  };
+  const getStatusClassName = (post: MyQnaPost) => {
+    if (post.is_resolved) {
+      return "text-green-500";
+    }
+
+    return post.has_admin_answer ? "text-blue-500" : "text-red-500";
+  };
 
   return (
     <section className="space-y-4" id="mypage-qna">
@@ -210,7 +225,7 @@ export default function MyQnaSection() {
       {loading ? (
         <p className="text-sm text-muted-foreground">불러오는 중…</p>
       ) : posts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">작성한 QnA가 없습니다.</p>
+        <p className="text-sm text-muted-foreground">작성한 문의가 없습니다.</p>
       ) : (
         <>
           <div className="overflow-hidden border-y bg-background">
@@ -224,7 +239,8 @@ export default function MyQnaSection() {
             </div>
             {posts.map((post, index) => {
               const postNumber = totalCount - (page - 1) * pageSize - index;
-              const statusLabel = post.is_resolved ? "답변완료" : "미답변";
+              const statusLabel = getStatusLabel(post);
+              const statusClassName = getStatusClassName(post);
 
               return (
                 <Link
@@ -268,11 +284,7 @@ export default function MyQnaSection() {
                       </span>
                       <span>{formatSeoulDate(post.created_at)}</span>
                       <span>조회 {post.view_count ?? 0}</span>
-                      <span
-                        className={`font-semibold ${
-                          post.is_resolved ? "text-blue-500" : "text-red-500"
-                        }`}
-                      >
+                      <span className={`font-semibold ${statusClassName}`}>
                         {statusLabel}
                       </span>
                     </div>
@@ -296,9 +308,7 @@ export default function MyQnaSection() {
                     {post.view_count ?? 0}
                   </span>
                   <span
-                    className={`hidden text-center text-sm font-semibold md:block ${
-                      post.is_resolved ? "text-blue-500" : "text-red-500"
-                    }`}
+                    className={`hidden text-center text-sm font-semibold md:block ${statusClassName}`}
                   >
                     {statusLabel}
                   </span>

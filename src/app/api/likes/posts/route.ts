@@ -24,8 +24,16 @@ export async function GET(request: Request) {
   const searchTarget = parsePostSearchTarget(
     url.searchParams.get("searchTarget"),
   );
-  const limit = 12;
-  const offset = Math.max(page - 1, 0) * limit;
+  const requestedLimit = Number(url.searchParams.get("limit") ?? "12");
+  const requestedOffset = Number(url.searchParams.get("offset") ?? "");
+  const limit =
+    Number.isFinite(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, 15)
+      : 12;
+  const offset =
+    Number.isFinite(requestedOffset) && requestedOffset >= 0
+      ? requestedOffset
+      : Math.max(page - 1, 0) * limit;
 
   const posts = await getLikedPosts(userId, sort, limit, offset, {
     isAdmin: session.user.role === "ADMIN",

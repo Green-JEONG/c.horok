@@ -361,7 +361,7 @@ export default function LoginModal({ open, onClose }: Props) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                  className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {loading ? "로그인 중..." : "로그인"}
                 </button>
@@ -427,7 +427,7 @@ export default function LoginModal({ open, onClose }: Props) {
                   setError(null);
                   setNotice(null);
                 }}
-                className="mt-6 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-primary-foreground"
+                className="mt-6 w-full rounded-md bg-green-500 py-2 text-sm font-semibold text-white"
               >
                 회원가입
               </button>
@@ -581,7 +581,7 @@ export default function LoginModal({ open, onClose }: Props) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                className="w-full rounded-md bg-primary py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {loading ? "전송 중..." : "로그인 링크 보내기"}
               </button>

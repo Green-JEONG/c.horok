@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { isNoticeCategoryName } from "@/lib/notice-categories";
 import { parseSortType, type SortType } from "@/lib/post-sort";
 import { getTechFaqPath, getTechNoticePath } from "@/lib/routes";
+import { formatSeoulDate } from "@/lib/utils";
 import PostCard from "./PostCard";
 
 const PAGE_SIZE = 12;
@@ -32,12 +33,30 @@ type PostListItem = {
   category_name: string;
   view_count?: number;
   likes_count: number;
+  reactions_count?: number;
   comments_count: number;
   is_resolved?: boolean;
+  has_admin_answer?: boolean;
   is_hidden?: boolean;
   is_secret?: boolean;
   can_view_secret?: boolean;
 };
+
+function getInquiryStatusLabel(post: PostListItem) {
+  if (post.is_resolved) {
+    return "해결 완료";
+  }
+
+  return post.has_admin_answer ? "확인 중" : "답변 대기";
+}
+
+function getInquiryStatusClassName(post: PostListItem) {
+  if (post.is_resolved) {
+    return "text-green-500";
+  }
+
+  return post.has_admin_answer ? "text-blue-500" : "text-red-500";
+}
 
 type Props = {
   initialPosts: PostListItem[];
@@ -56,6 +75,7 @@ type Props = {
   noticeTableLabel?: (typeof SEARCH_RESULT_GROUPS)[number]["label"];
   disableInfinite?: boolean;
   responsiveRowLoading?: boolean;
+  initialVisibleRowCount?: number;
 };
 
 const SEARCH_RESULT_GROUPS = [
@@ -72,13 +92,13 @@ const SEARCH_RESULT_GROUPS = [
     matches: (post: PostListItem) => post.category_name === "FAQ",
   },
   {
-    label: "QnA",
+    label: "문의",
     matches: (post: PostListItem) => post.category_name === "QnA",
   },
 ] as const;
 
-const SEARCH_SORTABLE_GROUPS = new Set(["게시물", "공지", "QnA"]);
-const SEARCH_NOTICE_GROUPS = new Set(["공지", "FAQ", "QnA"]);
+const SEARCH_SORTABLE_GROUPS = new Set(["게시물", "공지", "문의"]);
+const SEARCH_NOTICE_GROUPS = new Set(["공지", "FAQ", "문의"]);
 
 function readPostsFromPayload(
   payload: unknown,
@@ -118,6 +138,7 @@ export default function PostListInfinite({
   noticeTableLabel,
   disableInfinite = false,
   responsiveRowLoading = false,
+  initialVisibleRowCount = INITIAL_VISIBLE_ROW_COUNT,
 }: Props) {
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
@@ -207,7 +228,7 @@ export default function PostListInfinite({
       const requestLimit = responsiveRowLoading
         ? hasLoadedOnce || posts.length > 0
           ? responsivePageSize
-          : responsivePageSize * INITIAL_VISIBLE_ROW_COUNT
+          : responsivePageSize * initialVisibleRowCount
         : PAGE_SIZE;
 
       if (syncSortWithSearchParams) {
@@ -258,6 +279,7 @@ export default function PostListInfinite({
     endpoint,
     hasLoadedOnce,
     hasMore,
+    initialVisibleRowCount,
     loading,
     page,
     posts.length,
@@ -302,6 +324,22 @@ export default function PostListInfinite({
     responsivePageSize,
   ]);
 
+  useEffect(() => {
+    if (disableInfinite) {
+      return;
+    }
+
+    const handleNearEnd = () => {
+      void loadMore();
+    };
+
+    window.addEventListener("orange-scroll-area-near-end", handleNearEnd);
+
+    return () => {
+      window.removeEventListener("orange-scroll-area-near-end", handleNearEnd);
+    };
+  }, [disableInfinite, loadMore]);
+
   if (!loading && posts.length === 0 && !hasMore && hasLoadedOnce) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
@@ -324,6 +362,7 @@ export default function PostListInfinite({
       author={post.author_name}
       authorImage={post.author_image}
       likes={post.likes_count}
+      reactions={post.reactions_count ?? 0}
       comments={post.comments_count}
       views={post.view_count}
       createdAt={new Date(post.created_at)}
@@ -338,7 +377,7 @@ export default function PostListInfinite({
     label: (typeof SEARCH_RESULT_GROUPS)[number]["label"],
     groupPosts: PostListItem[],
   ) => {
-    const isQnaGroup = label === "QnA";
+    const isQnaGroup = label === "문의";
 
     return (
       <div className="overflow-x-auto border-y bg-background">
@@ -363,7 +402,7 @@ export default function PostListInfinite({
               ? getTechFaqPath(post.id)
               : getTechNoticePath(post.id);
           const number = groupPosts.length - index;
-          const statusLabel = post.is_resolved ? "답변완료" : "미답변";
+          const statusLabel = getInquiryStatusLabel(post);
 
           return (
             <Link
@@ -409,13 +448,11 @@ export default function PostListInfinite({
                     />
                     <span className="truncate">{post.author_name}</span>
                   </span>
-                  <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                  <span>{formatSeoulDate(post.created_at)}</span>
                   <span>조회 {post.view_count ?? 0}</span>
                   {isQnaGroup ? (
                     <span
-                      className={`font-semibold ${
-                        post.is_resolved ? "text-blue-500" : "text-red-500"
-                      }`}
+                      className={`font-semibold ${getInquiryStatusClassName(post)}`}
                     >
                       {statusLabel}
                     </span>
@@ -436,16 +473,14 @@ export default function PostListInfinite({
                 </span>
               </div>
               <span className="text-center text-sm text-muted-foreground">
-                {new Date(post.created_at).toLocaleDateString()}
+                {formatSeoulDate(post.created_at)}
               </span>
               <span className="text-center text-sm text-muted-foreground">
                 {post.view_count ?? 0}
               </span>
               {isQnaGroup ? (
                 <span
-                  className={`text-center text-sm font-semibold ${
-                    post.is_resolved ? "text-blue-500" : "text-red-500"
-                  }`}
+                  className={`text-center text-sm font-semibold ${getInquiryStatusClassName(post)}`}
                 >
                   {statusLabel}
                 </span>
