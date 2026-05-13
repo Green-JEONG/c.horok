@@ -104,7 +104,7 @@ export default function PostReactionButton({
           type="button"
           disabled={disabled || isLoading}
           onClick={() => toggleReaction(reaction.emoji)}
-          className={`inline-flex h-8 items-center gap-1 rounded-full border px-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
             reaction.reacted
               ? "border-primary bg-primary/10 text-foreground"
               : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
@@ -112,8 +112,8 @@ export default function PostReactionButton({
           aria-pressed={reaction.reacted}
           aria-label={`${reaction.emoji} 반응 ${reaction.count}`}
         >
-          <span>{reaction.emoji}</span>
-          <span className="text-xs font-semibold">{reaction.count}</span>
+          <span className="text-sm leading-none">{reaction.emoji}</span>
+          <span className="font-semibold">{reaction.count}</span>
         </button>
       ))}
 
@@ -122,11 +122,11 @@ export default function PostReactionButton({
           type="button"
           disabled={disabled || isLoading}
           onClick={() => setIsOpen((current) => !current)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="이모티콘 반응 선택"
           aria-expanded={isOpen}
         >
-          <SmilePlus className="h-4.5 w-4.5" />
+          <SmilePlus className="h-4 w-4" />
         </button>
 
         {isOpen ? (

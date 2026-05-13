@@ -51,14 +51,16 @@ export default function LikeButton({
       disabled={loading}
       aria-disabled={disabled}
       aria-label={liked ? `북마크 취소 ${count}` : `북마크 ${count}`}
-      className={`inline-flex items-center gap-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         liked
-          ? "text-orange-500 hover:text-orange-600"
-          : "text-muted-foreground hover:text-foreground"
+          ? "border-primary bg-primary/10 text-foreground"
+          : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
       }`}
     >
-      <Bookmark className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
-      <span>{count}</span>
+      <Bookmark
+        className={`h-3.5 w-3.5 ${liked ? "fill-current text-orange-500" : ""}`}
+      />
+      <span className="font-semibold">{count}</span>
     </button>
   );
 }

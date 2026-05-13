@@ -9,6 +9,7 @@ export type CommentRow = {
   parent_id: number | null;
   content: string;
   is_deleted: boolean;
+  is_hidden: boolean;
   is_secret: boolean;
   can_view_secret: boolean;
   is_edited: boolean;
@@ -39,6 +40,7 @@ function mapComment(
     parentId: bigint | null;
     content: string;
     isDeleted: boolean;
+    isHidden: boolean;
     isSecret: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -53,7 +55,8 @@ function mapComment(
   const canViewSecret =
     !comment.isSecret ||
     commentUserId === options?.viewerUserId ||
-    options?.postOwnerUserId === options?.viewerUserId;
+    options?.postOwnerUserId === options?.viewerUserId ||
+    Boolean(options?.isAdmin);
 
   return {
     id: Number(comment.id),
@@ -62,6 +65,7 @@ function mapComment(
     parent_id: comment.parentId ? Number(comment.parentId) : null,
     content: canViewSecret ? comment.content : "비밀댓글입니다.",
     is_deleted: comment.isDeleted,
+    is_hidden: comment.isHidden,
     is_secret: comment.isSecret,
     can_view_secret: canViewSecret,
     is_edited: comment.updatedAt.getTime() > comment.createdAt.getTime(),
@@ -79,10 +83,18 @@ export async function getCommentsByPost(
   },
 ) {
   const comments = await prisma.comment.findMany({
-    where: {
-      postId: BigInt(postId),
-    },
-    orderBy: { createdAt: "asc" },
+    where: options?.isAdmin
+      ? { postId: BigInt(postId) }
+      : {
+          postId: BigInt(postId),
+          OR: [
+            { isHidden: false },
+            ...(options?.viewerUserId
+              ? [{ userId: BigInt(options.viewerUserId) }]
+              : []),
+          ],
+        },
+    orderBy: { createdAt: "desc" },
     include: {
       user: {
         select: { email: true, name: true, image: true, role: true },
@@ -102,7 +114,8 @@ export async function getCommentsByPost(
     const canViewAuthor =
       !comment.isSecret ||
       Number(comment.userId) === options?.viewerUserId ||
-      Number(comment.post.userId) === options?.viewerUserId;
+      Number(comment.post.userId) === options?.viewerUserId ||
+      options?.isAdmin;
 
     return {
       ...mapComment(comment, {
@@ -182,8 +195,16 @@ export async function createComment(params: {
   content: string;
   parentId?: number | null;
   isSecret?: boolean;
+  isHidden?: boolean;
 }) {
-  const { postId, userId, content, parentId = null, isSecret = false } = params;
+  const {
+    postId,
+    userId,
+    content,
+    parentId = null,
+    isSecret = false,
+    isHidden = false,
+  } = params;
 
   const comment = await prisma.comment.create({
     data: {
@@ -192,6 +213,7 @@ export async function createComment(params: {
       content,
       parentId: parentId ? BigInt(parentId) : null,
       isSecret,
+      ...(isHidden ? { isHidden, hiddenAt: new Date() } : {}),
     },
   });
 
@@ -210,6 +232,23 @@ export async function updateComment(params: {
     data: {
       content,
       ...(isSecret !== undefined ? { isSecret } : {}),
+    },
+  });
+
+  return mapComment(comment);
+}
+
+export async function updateCommentHidden(params: {
+  commentId: number;
+  isHidden: boolean;
+}) {
+  const { commentId, isHidden } = params;
+
+  const comment = await prisma.comment.update({
+    where: { id: BigInt(commentId) },
+    data: {
+      isHidden,
+      hiddenAt: isHidden ? new Date() : null,
     },
   });
 

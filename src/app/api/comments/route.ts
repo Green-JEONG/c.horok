@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const userId = await requireDbUserId();
 
     const body = await req.json();
-    const { postId, content, parentId, isSecret } = body;
+    const { postId, content, parentId, isSecret, isHidden } = body;
 
     if (!postId || !content) {
       return NextResponse.json({ message: "Invalid input" }, { status: 400 });
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
       content,
       parentId: parentId ? Number(parentId) : null,
       isSecret: Boolean(isSecret),
+      isHidden: Boolean(isHidden),
     });
 
     // 2) 알림 생성 (실패해도 댓글은 성공)

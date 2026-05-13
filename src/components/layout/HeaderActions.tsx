@@ -1,5 +1,6 @@
 "use client";
 
+import { Crown } from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -29,7 +30,7 @@ export default function HeaderActions() {
   const isLoggedIn = status === "authenticated";
   const isCote = platform === "cote";
   const { profile: platformProfile } = usePlatformProfile(isLoggedIn);
-  // const isAdmin = session?.user?.role === "ADMIN";
+  const isAdmin = session?.user?.role === "ADMIN";
 
   useEffect(() => {
     if (!isLoggedIn || isCote) {
@@ -122,6 +123,13 @@ export default function HeaderActions() {
           height={30}
           className="h-full w-full rounded-full border border-border object-contain transition group-hover:border-primary/30"
         />
+        {isAdmin ? (
+          <Crown
+            className="pointer-events-none absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 fill-amber-300 text-amber-500 drop-shadow-sm"
+            strokeWidth={2.5}
+            aria-hidden="true"
+          />
+        ) : null}
         {!isCote && hasUnreadNotifications ? (
           <span className="absolute -right-0.5 top-0 h-2.5 w-2.5 rounded-full bg-red-500 ring-background" />
         ) : null}

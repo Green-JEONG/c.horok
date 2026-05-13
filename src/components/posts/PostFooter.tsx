@@ -53,7 +53,7 @@ export default async function PostFooter({
 
   return (
     <footer
-      className={`flex items-center border-t pt-4 ${
+      className={`flex items-center border-t pt-2 ${
         showLikeButton ? "justify-between" : "justify-end"
       }`}
     >
@@ -78,9 +78,9 @@ export default async function PostFooter({
       <Link
         href={backHref}
         aria-label="목록으로"
-        className="text-muted-foreground transition-colors hover:text-foreground"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
       >
-        <List className="h-5 w-5" />
+        <List className="h-4 w-4" />
       </Link>
     </footer>
   );

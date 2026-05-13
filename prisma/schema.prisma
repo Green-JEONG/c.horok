@@ -141,7 +141,9 @@ model Comment {
   parentId      BigInt?         @map("parent_id")
   content       String          @db.Text
   isDeleted     Boolean         @default(false) @map("is_deleted")
+  isHidden      Boolean         @default(false) @map("is_hidden")
   isSecret      Boolean         @default(false) @map("is_secret")
+  hiddenAt      DateTime?       @map("hidden_at")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @default(now()) @updatedAt @map("updated_at")
 

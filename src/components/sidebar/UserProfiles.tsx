@@ -1,11 +1,12 @@
 "use client";
 
-import { UserRound } from "lucide-react";
+import { UserRound, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import LoginModal from "@/components/auth/LoginModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +32,13 @@ export default function UserProfiles() {
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [isSubscribedHovering, setIsSubscribedHovering] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [draftPostCount, setDraftPostCount] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -166,87 +173,134 @@ export default function UserProfiles() {
           <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
         </>
       ) : (
-        <div className="rounded-xl border bg-background p-4">
-          <div className="flex items-center gap-3">
-            <Image
-              src={profile.image ?? "/logo.png"}
-              alt={`${profile.name ?? "사용자"} 프로필`}
-              width={52}
-              height={52}
-              className="h-12 w-12 rounded-full border object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <Link
-                href={profile.isSelf ? "/horok-tech" : `/users/${profile.id}`}
-                className="block truncate text-base font-semibold transition hover:text-foreground/80"
+        <>
+          <div className="rounded-xl border bg-background p-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setImagePreviewOpen(true)}
+                className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={`${profile.name ?? "사용자"} 프로필 이미지 확대`}
               >
-                {profile.name ?? "이름 없는 사용자"}
-              </Link>
-              <div className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+                <Image
+                  src={profile.image ?? "/logo.png"}
+                  alt={`${profile.name ?? "사용자"} 프로필`}
+                  width={52}
+                  height={52}
+                  className="h-12 w-12 rounded-full border object-cover"
+                />
+              </button>
+              <div className="min-w-0 flex-1">
                 <Link
-                  href={followersHref}
-                  className="transition hover:text-foreground"
+                  href={profile.isSelf ? "/horok-tech" : `/users/${profile.id}`}
+                  className="block truncate text-base font-semibold transition hover:text-foreground/80"
                 >
-                  팔로워 {profile.followerCount}명
+                  {profile.name ?? "이름 없는 사용자"}
                 </Link>
-                <span>·</span>
-                <Link
-                  href={postsHref}
-                  className="transition hover:text-foreground"
-                >
-                  글 {postCount}개
-                </Link>
+                <div className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+                  <Link
+                    href={followersHref}
+                    className="transition hover:text-foreground"
+                  >
+                    팔로워 {profile.followerCount}명
+                  </Link>
+                  <span>·</span>
+                  <Link
+                    href={postsHref}
+                    className="transition hover:text-foreground"
+                  >
+                    글 {postCount}개
+                  </Link>
+                </div>
               </div>
+            </div>
+
+            <div className="mt-3">
+              {profile.isSelf ? (
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="w-full border-border bg-background text-muted-foreground transition hover:!border-primary/30 hover:!bg-primary/10 hover:!text-foreground"
+                >
+                  <Link href="/mypage">마이페이지</Link>
+                </Button>
+              ) : status !== "authenticated" ? (
+                <Button size="sm" variant="outline" className="w-full" disabled>
+                  로그인 후 팔로잉하기
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant={
+                    profile.isFriend && isSubscribedHovering
+                      ? "destructive"
+                      : profile.isFriend
+                        ? "secondary"
+                        : "default"
+                  }
+                  className="w-full"
+                  disabled={pendingId === profile.id}
+                  onClick={() =>
+                    handleToggleFriend(profile.id, profile.isFriend)
+                  }
+                  onMouseEnter={() => {
+                    if (profile.isFriend) {
+                      setIsSubscribedHovering(true);
+                    }
+                  }}
+                  onMouseLeave={() => setIsSubscribedHovering(false)}
+                >
+                  {pendingId === profile.id
+                    ? profile.isFriend
+                      ? "취소 중..."
+                      : "추가 중..."
+                    : profile.isFriend
+                      ? isSubscribedHovering
+                        ? "팔로잉 취소"
+                        : "팔로잉"
+                      : "팔로잉"}
+                </Button>
+              )}
             </div>
           </div>
 
-          <div className="mt-3">
-            {profile.isSelf ? (
-              <Button
-                asChild
-                size="sm"
-                variant="outline"
-                className="w-full border-border bg-background text-muted-foreground transition hover:!border-primary/30 hover:!bg-primary/10 hover:!text-foreground"
-              >
-                <Link href="/mypage">마이페이지</Link>
-              </Button>
-            ) : status !== "authenticated" ? (
-              <Button size="sm" variant="outline" className="w-full" disabled>
-                로그인 후 팔로잉하기
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant={
-                  profile.isFriend && isSubscribedHovering
-                    ? "destructive"
-                    : profile.isFriend
-                      ? "secondary"
-                      : "default"
-                }
-                className="w-full"
-                disabled={pendingId === profile.id}
-                onClick={() => handleToggleFriend(profile.id, profile.isFriend)}
-                onMouseEnter={() => {
-                  if (profile.isFriend) {
-                    setIsSubscribedHovering(true);
-                  }
-                }}
-                onMouseLeave={() => setIsSubscribedHovering(false)}
-              >
-                {pendingId === profile.id
-                  ? profile.isFriend
-                    ? "취소 중..."
-                    : "추가 중..."
-                  : profile.isFriend
-                    ? isSubscribedHovering
-                      ? "팔로잉 취소"
-                      : "팔로잉"
-                    : "팔로잉"}
-              </Button>
-            )}
-          </div>
-        </div>
+          {imagePreviewOpen && mounted
+            ? createPortal(
+                <div
+                  className="fixed inset-0 z-[9999] flex items-center justify-center px-6"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`${profile.name ?? "사용자"} 프로필 이미지`}
+                >
+                  <button
+                    type="button"
+                    className="absolute inset-0 z-0 bg-black/60"
+                    onClick={() => setImagePreviewOpen(false)}
+                    aria-label="프로필 이미지 닫기"
+                  />
+                  <div className="relative z-10 rounded-2xl bg-background p-4 shadow-xl">
+                    <button
+                      type="button"
+                      onClick={() => setImagePreviewOpen(false)}
+                      className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center text-muted-foreground transition hover:text-foreground"
+                      aria-label="프로필 이미지 닫기"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <Image
+                      src={profile.image ?? "/logo.png"}
+                      alt={`${profile.name ?? "사용자"} 프로필 확대`}
+                      width={360}
+                      height={360}
+                      className="max-h-[80vh] max-w-[80vw] object-contain"
+                    />
+                  </div>
+                </div>,
+                document.body,
+              )
+            : null}
+        </>
       )}
     </section>
   );

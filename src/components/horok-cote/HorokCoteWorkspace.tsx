@@ -12,7 +12,14 @@ import type {
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import HorokChat from "@/components/chat/HorokChat";
 import HorokCoteIDE from "@/components/horok-cote/HorokCoteIDE";
 import type { HorokCoteProblem } from "@/lib/horok-cote-shared";
@@ -62,9 +69,9 @@ const DEFAULT_PANEL_SIZES = [1 / 3, 1 / 3, 1 / 3];
 const DESKTOP_DEFAULT_SIZES = DEFAULT_PANEL_SIZES;
 const MOBILE_DEFAULT_SIZES = DEFAULT_PANEL_SIZES;
 const DESKTOP_PANEL_MIN_SIZE = 320;
-const DESKTOP_RESIZE_MIN_RATIO = 0.08;
 const MOBILE_PANEL_MIN_SIZE = 220;
 const COLLAPSED_PANEL_SIZE = 0;
+const DESKTOP_RESIZE_GAP = "1.5rem";
 const DEFAULT_PANEL_ORDER: PanelId[] = ["problem", "ide", "chat"];
 const MOBILE_SWIPE_THRESHOLD = 36;
 
@@ -162,10 +169,12 @@ export default function HorokCoteWorkspace({
   const pendingRestoredPanelIndexRef = useRef<number | null>(null);
   const pendingMobilePageScrollRef = useRef<number | null>(null);
   const programmaticMobilePageRef = useRef<number | null>(null);
+  const hasAppliedDefaultMobilePageRef = useRef(false);
   const togglePanelRef = useRef<(panelIndex: number) => void>(() => undefined);
   const timerStartedAtRef = useRef(Date.now());
   const [isDesktop, setIsDesktop] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [isLayoutModeReady, setIsLayoutModeReady] = useState(false);
   const [containerMainSize, setContainerMainSize] = useState(0);
   const [desktopSizes, setDesktopSizes] = useState([...DESKTOP_DEFAULT_SIZES]);
   const [mobileSizes, setMobileSizes] = useState([...MOBILE_DEFAULT_SIZES]);
@@ -189,6 +198,15 @@ export default function HorokCoteWorkspace({
     movingPanelPreviewRef.current = null;
   }, []);
 
+  useEffect(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
   const movePanelPreview = useCallback((pointerX: number, pointerY: number) => {
     const preview = movingPanelPreviewRef.current;
 
@@ -207,6 +225,7 @@ export default function HorokCoteWorkspace({
     const updateLayoutMode = () => {
       setIsDesktop(desktopMediaQuery.matches);
       setIsTablet(tabletMediaQuery.matches && !desktopMediaQuery.matches);
+      setIsLayoutModeReady(true);
     };
 
     updateLayoutMode();
@@ -275,7 +294,7 @@ export default function HorokCoteWorkspace({
       const pairTotal =
         sizes[dragState.firstPanelIndex] + sizes[dragState.secondPanelIndex];
       const minSizeRatio = dragState.isDesktop
-        ? Math.min(DESKTOP_RESIZE_MIN_RATIO, pairTotal / 2)
+        ? Math.min(DESKTOP_PANEL_MIN_SIZE / containerSize, pairTotal / 2)
         : containerSize > 0
           ? Math.min(MOBILE_PANEL_MIN_SIZE / containerSize, 0.45)
           : 0;
@@ -482,6 +501,7 @@ export default function HorokCoteWorkspace({
     pendingRestoredPanelIndexRef.current = null;
     pendingMobilePageScrollRef.current = null;
     programmaticMobilePageRef.current = null;
+    hasAppliedDefaultMobilePageRef.current = false;
     setDesktopSizes([...DESKTOP_DEFAULT_SIZES]);
     setMobileSizes([...MOBILE_DEFAULT_SIZES]);
     setTabletPageRatios([0.5, 0.5]);
@@ -702,7 +722,7 @@ export default function HorokCoteWorkspace({
     setMobileSizes(nextSizes);
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isDesktop) {
       return;
     }
@@ -750,7 +770,7 @@ export default function HorokCoteWorkspace({
           !collapsedPanels[2]);
 
       return index < 2
-        ? [panelColumn, hasResizeGap ? "1rem" : "0px"]
+        ? [panelColumn, hasResizeGap ? DESKTOP_RESIZE_GAP : "0px"]
         : [panelColumn];
     })
     .join(" ");
@@ -842,6 +862,17 @@ export default function HorokCoteWorkspace({
   const visibleMobilePanelEntries = mobilePanelEntries.filter(
     ({ panelIndex }) => !collapsedPanels[panelIndex],
   );
+  const problemVisiblePanelIndex = visibleMobilePanelEntries.findIndex(
+    ({ panel }) => panel.id === "problem",
+  );
+  const defaultProblemMobilePageIndex =
+    problemVisiblePanelIndex < 0
+      ? 0
+      : isTablet
+        ? hiddenPanelCount > 0
+          ? 0
+          : clamp(problemVisiblePanelIndex - 1, 0, mobilePageCount - 1)
+        : clamp(problemVisiblePanelIndex, 0, mobilePageCount - 1);
   const tabletPanelEntries = mobilePanelEntries;
   const tabletPages =
     hiddenPanelCount > 0
@@ -966,10 +997,93 @@ export default function HorokCoteWorkspace({
         return targetPanel?.offsetLeft ?? viewport.clientWidth / 2;
       }
 
+      const targetPage = viewport.querySelector<HTMLElement>(
+        `[data-mobile-page-index="${pageIndex}"]`,
+      );
+
+      if (targetPage) {
+        return targetPage.offsetLeft;
+      }
+
       return pageIndex * viewport.clientWidth;
     },
     [hiddenPanelCount, isTablet],
   );
+
+  useEffect(() => {
+    if (isDesktop) {
+      return;
+    }
+
+    if (!isLayoutModeReady) {
+      return;
+    }
+
+    if (hasAppliedDefaultMobilePageRef.current) {
+      return;
+    }
+
+    if (
+      pendingRestoredPanelIndexRef.current !== null ||
+      pendingMobilePageScrollRef.current !== null
+    ) {
+      return;
+    }
+
+    hasAppliedDefaultMobilePageRef.current = true;
+    activeMobilePageRef.current = defaultProblemMobilePageIndex;
+    setActiveMobilePage(defaultProblemMobilePageIndex);
+
+    const timeoutIds: number[] = [];
+    let frameId: number | null = null;
+    let frameCount = 0;
+    const scrollToDefaultPage = () => {
+      const viewport = mobileViewportRef.current;
+
+      if (!viewport || viewport.clientWidth <= 0) {
+        frameId = window.requestAnimationFrame(scrollToDefaultPage);
+        return;
+      }
+
+      const targetScrollLeft = getMobilePageScrollLeft(
+        defaultProblemMobilePageIndex,
+      );
+      const previousScrollBehavior = viewport.style.scrollBehavior;
+
+      programmaticMobilePageRef.current = defaultProblemMobilePageIndex;
+      viewport.style.scrollBehavior = "auto";
+      viewport.scrollLeft = targetScrollLeft;
+      viewport.style.scrollBehavior = previousScrollBehavior;
+      activeMobilePageRef.current = defaultProblemMobilePageIndex;
+      setActiveMobilePage(defaultProblemMobilePageIndex);
+
+      frameCount += 1;
+      if (frameCount < 12) {
+        frameId = window.requestAnimationFrame(scrollToDefaultPage);
+      }
+    };
+
+    frameId = window.requestAnimationFrame(scrollToDefaultPage);
+    timeoutIds.push(
+      window.setTimeout(scrollToDefaultPage, 50),
+      window.setTimeout(scrollToDefaultPage, 150),
+      window.setTimeout(scrollToDefaultPage, 300),
+    );
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      timeoutIds.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+    };
+  }, [
+    defaultProblemMobilePageIndex,
+    getMobilePageScrollLeft,
+    isDesktop,
+    isLayoutModeReady,
+  ]);
 
   function goToMobilePage(pageIndex: number) {
     const maxScrollIndex = getMobilePageCount(mobileSizes, isTablet) - 1;
@@ -1207,6 +1321,7 @@ export default function HorokCoteWorkspace({
                     return (
                       <div
                         key={`tablet-page-${pageIndex + 1}`}
+                        data-mobile-page-index={pageIndex}
                         className="flex min-h-0 min-w-0 flex-[0_0_100%] snap-start items-stretch overflow-visible"
                       >
                         {pagePanelEntries.map(({ panel, panelIndex }) => {
@@ -1283,6 +1398,7 @@ export default function HorokCoteWorkspace({
                   return (
                     <div
                       key={`tablet-page-${pageIndex + 1}`}
+                      data-mobile-page-index={pageIndex}
                       className="flex min-h-0 min-w-0 flex-[0_0_100%] snap-start items-stretch overflow-visible"
                     >
                       <WorkspacePanel
@@ -1362,45 +1478,48 @@ export default function HorokCoteWorkspace({
                     </div>
                   );
                 })
-              : visibleMobilePanelEntries.map(({ panel, panelIndex }) => {
-                  const isCollapsed = collapsedPanels[panelIndex];
+              : visibleMobilePanelEntries.map(
+                  ({ panel, panelIndex }, pageIndex) => {
+                    const isCollapsed = collapsedPanels[panelIndex];
 
-                  return (
-                    <div
-                      key={`mobile-page-${panel.id}`}
-                      className="flex min-h-0 min-w-0 flex-[0_0_100%] snap-start items-stretch overflow-visible"
-                    >
-                      <WorkspacePanel
-                        panelId={panel.id}
-                        dropSide={getPanelDropSide(panel.id)}
-                        style={{
-                          flex: "1 1 0%",
-                          minWidth: "0px",
-                        }}
-                        className={cn(
-                          panel.id === "problem" && !isCollapsed
-                            ? "rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-5 py-3.5 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]"
-                            : "overflow-visible",
-                          isCollapsed &&
-                            "rounded-none border-transparent bg-transparent p-0",
-                        )}
-                        isCollapsed={isCollapsed}
-                        moveHandle={
-                          !isCollapsed ? (
-                            <PanelMoveHandle
-                              isActive={movingPanelId === panel.id}
-                              label={panel.label}
-                              panelId={panel.id}
-                              onPointerDown={handlePanelMoveStart}
-                            />
-                          ) : undefined
-                        }
+                    return (
+                      <div
+                        key={`mobile-page-${panel.id}`}
+                        data-mobile-page-index={pageIndex}
+                        className="flex min-h-0 min-w-0 flex-[0_0_100%] snap-start items-stretch overflow-visible"
                       >
-                        {panel.content}
-                      </WorkspacePanel>
-                    </div>
-                  );
-                })}
+                        <WorkspacePanel
+                          panelId={panel.id}
+                          dropSide={getPanelDropSide(panel.id)}
+                          style={{
+                            flex: "1 1 0%",
+                            minWidth: "0px",
+                          }}
+                          className={cn(
+                            panel.id === "problem" && !isCollapsed
+                              ? "rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-5 py-3.5 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)]"
+                              : "overflow-visible",
+                            isCollapsed &&
+                              "rounded-none border-transparent bg-transparent p-0",
+                          )}
+                          isCollapsed={isCollapsed}
+                          moveHandle={
+                            !isCollapsed ? (
+                              <PanelMoveHandle
+                                isActive={movingPanelId === panel.id}
+                                label={panel.label}
+                                panelId={panel.id}
+                                onPointerDown={handlePanelMoveStart}
+                              />
+                            ) : undefined
+                          }
+                        >
+                          {panel.content}
+                        </WorkspacePanel>
+                      </div>
+                    );
+                  },
+                )}
         </div>
 
         {mobilePageCount > 1 ? (

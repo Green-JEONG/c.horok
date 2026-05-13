@@ -5,7 +5,7 @@ export default function HorokCoteProblemNotFound() {
   return (
     <main className="relative h-dvh overflow-hidden bg-[#06923E] px-4 py-6 text-slate-900 sm:px-6 lg:px-10">
       <HorokCoteBackgroundPattern />
-      <div className="relative mx-auto flex h-full max-w-[1680px] flex-col">
+      <div className="relative flex h-full w-full flex-col">
         <section className="flex h-full min-h-0 flex-col rounded-[32px] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] transition-colors dark:border-slate-800 dark:bg-[#020617] dark:shadow-[0_22px_60px_rgba(2,6,23,0.45)] sm:p-6">
           <ErrorState
             code={404}

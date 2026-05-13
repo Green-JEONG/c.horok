@@ -1,18 +1,18 @@
 import Image from "next/image";
 
 const rows = [
-  { top: "3%", offset: "clamp(56px, 6vw, 84px)" },
-  { top: "16%", offset: "0px" },
-  { top: "29%", offset: "clamp(56px, 6vw, 84px)" },
+  { top: "0px", offset: "clamp(90px, 6vw, 130px)" },
+  { top: "14%", offset: "0px" },
+  { top: "28%", offset: "clamp(90px, 6vw, 130px)" },
   { top: "42%", offset: "0px" },
-  { top: "55%", offset: "clamp(56px, 6vw, 84px)" },
-  { top: "68%", offset: "0px" },
-  { top: "81%", offset: "clamp(56px, 6vw, 84px)" },
-  { top: "94%", offset: "0px" },
-  { top: "107%", offset: "clamp(56px, 6vw, 84px)" },
+  { top: "56%", offset: "clamp(90px, 6vw, 130px)" },
+  { top: "70%", offset: "0px" },
+  { top: "84%", offset: "clamp(90px, 6vw, 130px)" },
+  { top: "98%", offset: "0px" },
+  { top: "112%", offset: "clamp(90px, 6vw, 130px)" },
 ] as const;
 
-const columns = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
+const columns = Array.from({ length: 24 }, (_, index) => index - 2);
 
 export default function HorokCoteBackgroundPattern() {
   return (
@@ -23,13 +23,12 @@ export default function HorokCoteBackgroundPattern() {
             key={`${row.top}-${column}`}
             src="/logo.png"
             alt=""
-            width={700}
-            height={700}
-            className="absolute h-[42px] w-[42px] -translate-x-1/2 -translate-y-1/2 opacity-20 sm:h-[56px] sm:w-[56px]"
+            width={120}
+            height={120}
+            className="absolute h-[56px] w-[56px] -translate-x-1/2 -translate-y-1/2 opacity-20 sm:h-[70px] sm:w-[70px]"
             style={{
               top: row.top,
-              left: `calc(${row.offset} + ${column} * clamp(112px, 12vw, 176px))`,
-              transform: "translate(-50%, -50%)",
+              left: `calc(${row.offset} + ${column} * clamp(190px, 11.5vw, 240px))`,
             }}
           />
         )),
