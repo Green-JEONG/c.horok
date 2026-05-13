@@ -101,11 +101,12 @@ const FLOATING_DEFAULT_SIZE: FloatingSize = {
   width: 310,
   height: 740,
 };
-const FLOATING_MOBILE_DEFAULT_HEIGHT = 370;
+const FLOATING_MOBILE_DEFAULT_HEIGHT = 500;
 const FLOATING_MIN_SIZE: FloatingSize = {
   width: 250,
   height: 280,
 };
+const CHAT_BOTTOM_STICK_THRESHOLD = 80;
 
 const INITIAL_MESSAGES: ChatUIMessage[] = [
   {
@@ -148,8 +149,95 @@ function getMessageText(
     .join("");
 }
 
-function escapeBackticksForChatDisplay(text: string) {
-  return text.replace(/`/g, "\\`");
+const CHAT_REVEAL_MIN_DURATION_MS = 260;
+const CHAT_REVEAL_MAX_DURATION_MS = 1800;
+const CHAT_REVEAL_MS_PER_CHARACTER = 18;
+const CHAT_MARKDOWN_CLASS_NAME =
+  "text-inherit !leading-5 [&_a]:text-inherit [&_a]:underline [&_blockquote]:!my-1 [&_blockquote]:border-current/20 [&_blockquote]:py-0.5 [&_blockquote]:text-inherit/80 [&_code]:rounded-none [&_code]:bg-transparent [&_code]:px-0 [&_code]:py-0 [&_code]:text-inherit [&_h1]:!mt-1.5 [&_h1]:!mb-1 [&_h1]:text-base [&_h2]:!mt-1.5 [&_h2]:!mb-1 [&_h2]:text-sm [&_h3]:!mt-1 [&_h3]:!mb-0.5 [&_h3]:text-sm [&_img]:!my-1 [&_img]:rounded-2xl [&_ol]:!my-1 [&_ol]:pl-5 [&_p]:!my-0 [&_p]:!leading-5 [&_p+p]:!mt-0.5 [&_pre]:!my-1 [&_table]:!my-1 [&_td]:border-current/15 [&_th]:border-current/15 [&_th]:bg-black/5 [&_ul]:!my-1 [&_ul]:pl-5";
+
+function getChatRevealDuration(characterCount: number) {
+  return Math.min(
+    CHAT_REVEAL_MAX_DURATION_MS,
+    Math.max(
+      CHAT_REVEAL_MIN_DURATION_MS,
+      characterCount * CHAT_REVEAL_MS_PER_CHARACTER,
+    ),
+  );
+}
+
+function easeOutCubic(progress: number) {
+  return 1 - (1 - progress) ** 3;
+}
+
+function isNearScrollBottom(element: HTMLDivElement) {
+  return (
+    element.scrollHeight - element.scrollTop - element.clientHeight <=
+    CHAT_BOTTOM_STICK_THRESHOLD
+  );
+}
+
+function AnimatedChatMarkdown({
+  content,
+  className,
+  shouldAnimate,
+}: {
+  content: string;
+  className?: string;
+  shouldAnimate: boolean;
+}) {
+  const [displayedContent, setDisplayedContent] = useState(
+    shouldAnimate ? "" : content,
+  );
+  const displayedContentRef = useRef(displayedContent);
+
+  useEffect(() => {
+    if (!shouldAnimate) {
+      displayedContentRef.current = content;
+      setDisplayedContent(content);
+      return;
+    }
+
+    const targetCharacters = Array.from(content);
+    const currentContent = displayedContentRef.current;
+    const currentCharacters = content.startsWith(currentContent)
+      ? Array.from(currentContent)
+      : [];
+    const startLength = Math.min(
+      currentCharacters.length,
+      targetCharacters.length,
+    );
+    const remainingLength = targetCharacters.length - startLength;
+
+    if (remainingLength <= 0) {
+      displayedContentRef.current = content;
+      setDisplayedContent(content);
+      return;
+    }
+
+    const startedAt = performance.now();
+    const duration = getChatRevealDuration(remainingLength);
+    let animationFrameId = 0;
+
+    function animate(now: number) {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const nextLength =
+        startLength + Math.ceil(remainingLength * easeOutCubic(progress));
+      const nextContent = targetCharacters.slice(0, nextLength).join("");
+
+      displayedContentRef.current = nextContent;
+      setDisplayedContent(nextContent);
+
+      if (progress < 1) {
+        animationFrameId = window.requestAnimationFrame(animate);
+      }
+    }
+
+    animationFrameId = window.requestAnimationFrame(animate);
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [content, shouldAnimate]);
+
+  return <MarkdownRenderer content={displayedContent} className={className} />;
 }
 
 function formatThreadTime(iso: string) {
@@ -223,6 +311,30 @@ function sortThreadsByRecentActivity(threads: ChatThreadSummary[]) {
     }
 
     return Number(b.id) - Number(a.id);
+  });
+}
+
+function getThreadIdentity(thread: ChatThreadSummary) {
+  if (thread.platform === "cote" && /^\d+번\s+/.test(thread.title)) {
+    return `cote-problem:${thread.title}`;
+  }
+
+  return `thread:${thread.id}`;
+}
+
+function sortUniqueThreadsByRecentActivity(threads: ChatThreadSummary[]) {
+  const sortedThreads = sortThreadsByRecentActivity(threads);
+  const seenThreadIdentities = new Set<string>();
+
+  return sortedThreads.filter((thread) => {
+    const identity = getThreadIdentity(thread);
+
+    if (seenThreadIdentities.has(identity)) {
+      return false;
+    }
+
+    seenThreadIdentities.add(identity);
+    return true;
   });
 }
 
@@ -389,6 +501,8 @@ export default function HorokChat({
   const [threadSwipeState, setThreadSwipeState] =
     useState<ThreadSwipeState | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesViewportRef = useRef<HTMLDivElement | null>(null);
+  const shouldStickToBottomRef = useRef(true);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
@@ -409,6 +523,7 @@ export default function HorokChat({
   const floatingSizeRef = useRef(FLOATING_DEFAULT_SIZE);
   const isOpenRef = useRef(false);
   const viewportSizeRef = useRef({ width: 0, height: 0 });
+  const problemThreadRequestRef = useRef<string | null>(null);
 
   const {
     messages: rawMessages,
@@ -448,6 +563,15 @@ export default function HorokChat({
       visibleMessages.some(
         (message) => getMessageText(message.parts).trim().length > 0,
       ),
+    [visibleMessages],
+  );
+  const visibleMessageScrollKey = useMemo(
+    () =>
+      visibleMessages
+        .map(
+          (message) => `${message.id}:${getMessageText(message.parts).length}`,
+        )
+        .join("|"),
     [visibleMessages],
   );
   const isThreadMode = sessionStatus === "authenticated" && view === "threads";
@@ -526,12 +650,68 @@ export default function HorokChat({
         ? threads
         : threads.filter((thread) => thread.platform === threadCategory);
 
-    return sortThreadsByRecentActivity(nextThreads);
+    return sortUniqueThreadsByRecentActivity(nextThreads);
   }, [threadCategory, threads]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  });
+    if (!isPanelOpen || isThreadMode || isSearchOpen) {
+      return;
+    }
+
+    if (!shouldStickToBottomRef.current) {
+      return;
+    }
+
+    if (!visibleMessageScrollKey && !isLoading) {
+      return;
+    }
+
+    messagesEndRef.current?.scrollIntoView({
+      behavior: status === "streaming" ? "auto" : "smooth",
+    });
+  }, [
+    isLoading,
+    isPanelOpen,
+    isSearchOpen,
+    isThreadMode,
+    status,
+    visibleMessageScrollKey,
+  ]);
+
+  useEffect(() => {
+    if (!isEmbedded || isThreadMode || isSearchOpen) {
+      return;
+    }
+
+    const viewport = messagesViewportRef.current;
+    if (!viewport || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    let animationFrameId = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || !shouldStickToBottomRef.current) {
+        return;
+      }
+
+      const { width, height } = entry.contentRect;
+      if (width <= 0 || height <= 0) {
+        return;
+      }
+
+      window.cancelAnimationFrame(animationFrameId);
+      animationFrameId = window.requestAnimationFrame(() => {
+        viewport.scrollTop = viewport.scrollHeight;
+      });
+    });
+
+    observer.observe(viewport);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      observer.disconnect();
+    };
+  }, [isEmbedded, isSearchOpen, isThreadMode]);
 
   useEffect(() => {
     if (isEmbedded || typeof window === "undefined") {
@@ -728,6 +908,18 @@ export default function HorokChat({
   }, [isEmbedded]);
 
   useEffect(() => {
+    if (isEmbedded || !isOpen || sessionStatus !== "authenticated" || problem) {
+      return;
+    }
+
+    setView("threads");
+    setIsSearchOpen(false);
+    setSearchQuery("");
+    setActiveSearchIndex(0);
+    setThreadSwipeState(null);
+  }, [isEmbedded, isOpen, problem, sessionStatus]);
+
+  useEffect(() => {
     if (isEmbedded || !floatingPosition) {
       return;
     }
@@ -814,10 +1006,15 @@ export default function HorokChat({
 
         writeThreadPlatformMap(threadPlatformMap);
 
-        setThreads(sortThreadsByRecentActivity(nextThreads));
+        const uniqueThreads = sortUniqueThreadsByRecentActivity(nextThreads);
+
+        setThreads(uniqueThreads);
         applyActiveThread(data.activeThreadId);
         setMessages(data.activeThreadId ? data.messages : []);
-        return data;
+        return {
+          ...data,
+          threads: uniqueThreads,
+        };
       } catch (loadError) {
         console.error("Failed to load chat state", loadError);
         setThreads([]);
@@ -871,70 +1068,90 @@ export default function HorokChat({
 
     let isCancelled = false;
     const currentProblem = problem;
+    const abortController = new AbortController();
 
     async function ensureProblemThread() {
-      const threadTitle = getHorokCoteChatThreadTitle(currentProblem);
-      const threadMap = readCoteProblemThreadMap();
-      const mappedThreadId = threadMap[currentProblem.slug];
-      const currentState = await loadChatState();
-
-      if (isCancelled) {
+      if (problemThreadRequestRef.current === currentProblem.slug) {
         return;
       }
 
-      const matchedThread =
-        currentState?.threads.find((thread) => thread.id === mappedThreadId) ??
-        currentState?.threads.find((thread) => thread.title === threadTitle);
-
-      if (matchedThread) {
-        threadMap[currentProblem.slug] = matchedThread.id;
-        writeCoteProblemThreadMap(threadMap);
-
-        if (currentState?.activeThreadId !== matchedThread.id) {
-          await loadChatState(matchedThread.id);
-        }
-
-        setView("chat");
-        return;
-      }
-
-      setIsCreatingThread(true);
+      problemThreadRequestRef.current = currentProblem.slug;
 
       try {
-        const response = await fetch("/api/chat/threads", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            platform,
-            title: threadTitle,
-            initialAssistantMessage:
-              getHorokCoteChatIntroMessage(currentProblem),
-          }),
-        });
+        const threadTitle = getHorokCoteChatThreadTitle(currentProblem);
+        const threadMap = readCoteProblemThreadMap();
+        const mappedThreadId = threadMap[currentProblem.slug];
+        const currentState = await loadChatState();
 
-        if (!response.ok) {
-          throw new Error("Failed to create problem thread");
+        if (isCancelled) {
+          return;
         }
 
-        const data = (await response.json()) as {
-          threadId: string;
-        };
+        const matchedThread =
+          currentState?.threads.find(
+            (thread) => thread.id === mappedThreadId,
+          ) ??
+          currentState?.threads.find((thread) => thread.title === threadTitle);
 
-        const threadPlatformMap = readThreadPlatformMap();
-        threadPlatformMap[data.threadId] = platform;
-        writeThreadPlatformMap(threadPlatformMap);
+        if (matchedThread) {
+          threadMap[currentProblem.slug] = matchedThread.id;
+          writeCoteProblemThreadMap(threadMap);
 
-        threadMap[currentProblem.slug] = data.threadId;
-        writeCoteProblemThreadMap(threadMap);
-        await loadChatState(data.threadId);
-        setView("chat");
-      } catch (createError) {
-        console.error("Failed to create problem thread", createError);
+          if (currentState?.activeThreadId !== matchedThread.id) {
+            await loadChatState(matchedThread.id);
+          }
+
+          setView("chat");
+          return;
+        }
+
+        setIsCreatingThread(true);
+
+        try {
+          const response = await fetch("/api/chat/threads", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              platform,
+              title: threadTitle,
+              initialAssistantMessage:
+                getHorokCoteChatIntroMessage(currentProblem),
+            }),
+            signal: abortController.signal,
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to create problem thread");
+          }
+
+          const data = (await response.json()) as {
+            threadId: string;
+          };
+
+          const threadPlatformMap = readThreadPlatformMap();
+          threadPlatformMap[data.threadId] = platform;
+          writeThreadPlatformMap(threadPlatformMap);
+
+          threadMap[currentProblem.slug] = data.threadId;
+          writeCoteProblemThreadMap(threadMap);
+          await loadChatState(data.threadId);
+          setView("chat");
+        } catch (createError) {
+          if ((createError as Error).name === "AbortError") {
+            return;
+          }
+
+          console.error("Failed to create problem thread", createError);
+        } finally {
+          if (!isCancelled) {
+            setIsCreatingThread(false);
+          }
+        }
       } finally {
-        if (!isCancelled) {
-          setIsCreatingThread(false);
+        if (problemThreadRequestRef.current === currentProblem.slug) {
+          problemThreadRequestRef.current = null;
         }
       }
     }
@@ -943,6 +1160,7 @@ export default function HorokChat({
 
     return () => {
       isCancelled = true;
+      abortController.abort();
     };
   }, [isCreatingThread, loadChatState, platform, problem, sessionStatus]);
 
@@ -1029,7 +1247,7 @@ export default function HorokChat({
       threadPlatformMap[data.threadId] = platform;
       writeThreadPlatformMap(threadPlatformMap);
       setThreads((currentThreads) =>
-        sortThreadsByRecentActivity([
+        sortUniqueThreadsByRecentActivity([
           {
             id: data.threadId,
             title: "새 대화",
@@ -1058,6 +1276,7 @@ export default function HorokChat({
     }
 
     clearError();
+    shouldStickToBottomRef.current = true;
 
     if (sessionStatus === "authenticated") {
       await ensureActiveThread();
@@ -1317,6 +1536,20 @@ export default function HorokChat({
     };
   }
 
+  function handleFloatingToggle() {
+    const nextOpen = !isOpen;
+
+    if (nextOpen && sessionStatus === "authenticated" && !problem) {
+      setView("threads");
+      setIsSearchOpen(false);
+      setSearchQuery("");
+      setActiveSearchIndex(0);
+      setThreadSwipeState(null);
+    }
+
+    setIsOpen(nextOpen);
+  }
+
   async function handleCopyMessage(messageId: string, text: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -1329,6 +1562,15 @@ export default function HorokChat({
     } catch (copyError) {
       console.error("Message copy failed", copyError);
     }
+  }
+
+  function handleMessagesScroll() {
+    const viewport = messagesViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    shouldStickToBottomRef.current = isNearScrollBottom(viewport);
   }
 
   return (
@@ -1707,7 +1949,11 @@ export default function HorokChat({
               </div>
             ) : (
               <>
-                <div className="scrollbar-hide flex-1 space-y-3 overflow-y-auto px-4 py-4">
+                <div
+                  ref={messagesViewportRef}
+                  onScroll={handleMessagesScroll}
+                  className="scrollbar-hide flex-1 space-y-3 overflow-y-auto pl-4"
+                >
                   {hasMessages
                     ? visibleMessages.map((message, index) => {
                         const text = getMessageText(message.parts).trim();
@@ -1739,6 +1985,10 @@ export default function HorokChat({
                           activeSearchMatch?.messageId === message.id
                             ? activeSearchMatch.occurrenceIndexInMessage
                             : undefined;
+                        const shouldAnimateMessage =
+                          !isUser &&
+                          !isSearchMatch &&
+                          index === visibleMessages.length - 1;
 
                         return (
                           <div key={message.id} className="space-y-3">
@@ -1755,7 +2005,7 @@ export default function HorokChat({
                                 messageRefs.current[message.id] = element;
                               }}
                               className={cn(
-                                "flex items-start gap-2 transition",
+                                "flex w-full min-w-0 items-start gap-2 transition",
                                 isUser ? "justify-end" : "justify-start",
                               )}
                             >
@@ -1775,16 +2025,18 @@ export default function HorokChat({
                               ) : null}
                               <div
                                 className={cn(
-                                  "flex max-w-[85%] items-end gap-2",
-                                  isUser && "flex-row-reverse",
+                                  "flex min-w-0 items-end gap-1.5",
+                                  isUser
+                                    ? "ml-10 max-w-[calc(100%-2.5rem)] flex-row-reverse justify-end"
+                                    : "flex-1",
                                 )}
                               >
                                 <div
                                   className={cn(
-                                    "rounded-3xl px-4 py-3 text-sm leading-5 shadow-sm",
+                                    "min-w-0 max-w-[calc(100%-2.625rem)] overflow-hidden break-words rounded-3xl px-4 py-3 text-sm leading-5 shadow-sm",
                                     isUser
                                       ? platform === "cote"
-                                        ? "rounded-br-lg border border-[#06923E]/20 bg-white text-slate-800 dark:border-[#06923E]/25 dark:bg-slate-950 dark:text-slate-100"
+                                        ? "rounded-br-lg bg-[#06923E] text-white dark:bg-[#06923E] dark:text-white"
                                         : "rounded-br-lg bg-orange-500 text-white dark:bg-orange-500 dark:text-white"
                                       : platform === "cote"
                                         ? "border border-[#06923E]/10 bg-white text-slate-800 dark:border-[#06923E]/20 dark:bg-slate-950 dark:text-slate-100"
@@ -1799,12 +2051,11 @@ export default function HorokChat({
                                       )}
                                     </p>
                                   ) : (
-                                    <MarkdownRenderer
-                                      content={escapeBackticksForChatDisplay(
-                                        text,
-                                      )}
+                                    <AnimatedChatMarkdown
+                                      content={text}
+                                      shouldAnimate={shouldAnimateMessage}
                                       className={cn(
-                                        "text-inherit !leading-5 [&_a]:text-inherit [&_a]:underline [&_blockquote]:!my-1 [&_blockquote]:border-current/20 [&_blockquote]:py-0.5 [&_blockquote]:text-inherit/80 [&_code]:rounded-none [&_code]:bg-transparent [&_code]:px-0 [&_code]:py-0 [&_code]:text-inherit [&_h1]:!mt-1.5 [&_h1]:!mb-1 [&_h1]:text-base [&_h2]:!mt-1.5 [&_h2]:!mb-1 [&_h2]:text-sm [&_h3]:!mt-1 [&_h3]:!mb-0.5 [&_h3]:text-sm [&_img]:!my-1 [&_img]:rounded-2xl [&_ol]:!my-1 [&_ol]:pl-5 [&_p]:!my-0 [&_p]:!leading-5 [&_p+p]:!mt-0.5 [&_pre]:!my-1 [&_table]:!my-1 [&_td]:border-current/15 [&_th]:border-current/15 [&_th]:bg-black/5 [&_ul]:!my-1 [&_ul]:pl-5",
+                                        CHAT_MARKDOWN_CLASS_NAME,
                                         isUser ? "[&_th]:bg-white/15" : "",
                                       )}
                                     />
@@ -1812,7 +2063,7 @@ export default function HorokChat({
                                 </div>
                                 <div
                                   className={cn(
-                                    "flex shrink-0 flex-col gap-0.5",
+                                    "flex w-9 shrink-0 flex-col gap-0.5",
                                     isUser ? "items-end" : "items-start",
                                   )}
                                 >
@@ -1831,7 +2082,7 @@ export default function HorokChat({
                                     )}
                                   </button>
                                   {messageTime ? (
-                                    <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                                    <span className="whitespace-nowrap text-[11px] text-slate-400 dark:text-zinc-500">
                                       {messageTime}
                                     </span>
                                   ) : null}
@@ -1852,7 +2103,7 @@ export default function HorokChat({
                     : null}
 
                   {isLoading ? (
-                    <div className="flex items-start justify-start gap-2">
+                    <div className="flex w-full min-w-0 items-start justify-start gap-2">
                       <Image
                         src="/logo.png"
                         alt="호록 프로필"
@@ -1865,18 +2116,18 @@ export default function HorokChat({
                             : "border-orange-200 bg-white dark:border-orange-400/30",
                         )}
                       />
-                      <div className="flex items-end gap-2">
+                      <div className="flex min-w-0 flex-1 items-end gap-1.5">
                         <div
                           className={cn(
-                            "rounded-3xl rounded-bl-lg border bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:text-zinc-300",
+                            "min-w-0 max-w-[calc(100%-2.625rem)] overflow-hidden break-words rounded-3xl rounded-bl-lg border bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:text-zinc-300",
                             platform === "cote"
                               ? "border-[#06923E]/10 dark:border-[#06923E]/20 dark:bg-slate-950 dark:text-slate-300"
-                              : "border-orange-100 dark:border-orange-400/20",
+                              : "border-orange-100 dark:border-orange-400/20 dark:bg-zinc-900 dark:text-zinc-300",
                           )}
                         >
                           답변을 작성 중입니다...
                         </div>
-                        <span className="shrink-0 text-[11px] text-slate-400 dark:text-zinc-500">
+                        <span className="w-9 shrink-0 whitespace-nowrap text-[11px] text-slate-400 dark:text-zinc-500">
                           {formatMessageTime(new Date().toISOString())}
                         </span>
                       </div>
@@ -2030,7 +2281,7 @@ export default function HorokChat({
         {!isEmbedded ? (
           <button
             type="button"
-            onClick={() => setIsOpen((open) => !open)}
+            onClick={handleFloatingToggle}
             className="pointer-events-auto group relative block size-16 transition hover:-translate-y-0.5 sm:size-[72px]"
             style={
               isOpen && isFloatingPanelLeftOfCenter

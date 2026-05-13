@@ -1,9 +1,10 @@
 "use client";
 
-import { Circle, CircleCheckBig, Settings, X } from "lucide-react";
+import { Circle, CircleCheckBig, Settings, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import AccountSettingsModal from "@/components/mypage/AccountSettingsModal";
@@ -29,14 +30,20 @@ type Notification = {
     | "POST_COMMENT"
     | "COMMENT_REPLY"
     | "POST_LIKE"
+    | "NEW_POST"
+    | "POST_REACTION"
+    | "COMMENT_REACTION"
     | "NEW_FOLLOWER";
   actor_name: string | null;
+  actor_image?: string | null;
   actor_id?: number | null;
   message?: string | null;
   post_id: number | null;
   comment_id: number | null;
   post_path: string | null;
   is_post_deleted: boolean;
+  is_notice_post?: boolean;
+  is_comment_deleted?: boolean;
   is_read: number;
   created_at: string;
 };
@@ -45,7 +52,6 @@ const NOTIFICATIONS_UPDATED_EVENT = "notifications-updated";
 const DRAWER_TRANSITION_MS = 300;
 
 function renderNotificationMessage(n: Notification) {
-  if (n.is_post_deleted) return "삭제된 게시물입니다";
   if (n.message) return n.message.replaceAll("QnA", "문의");
 
   switch (n.type) {
@@ -57,15 +63,69 @@ function renderNotificationMessage(n: Notification) {
       return `${n.actor_name ?? "누군가"}님이 내 댓글에 답글을 남겼습니다`;
     case "POST_LIKE":
       return `${n.actor_name ?? "누군가"}님이 내 게시물을 북마크했습니다`;
+    case "NEW_POST":
+      return `${n.actor_name ?? "누군가"}님이 새 게시글을 작성했습니다`;
+    case "POST_REACTION":
+    case "COMMENT_REACTION":
+      return `${n.actor_name ?? "누군가"}님이 반응했습니다`;
     case "NEW_FOLLOWER":
-      return `${n.actor_name ?? "누군가"}님이 나를 구독했습니다`;
+      return `${n.actor_name ?? "누군가"}님이 나를 팔로잉 했습니다.`;
     default:
       return "새 알림이 있습니다";
   }
 }
 
+function renderEmphasizedNotificationMessage(message: string) {
+  const emphasizedParts: ReactNode[] = [];
+  const isCommentActivityMessage =
+    /게시글에\s*"[^"]+"\s*(댓글|답글|답변)을/.test(message);
+  const pattern =
+    /('[^']+'|"[^"]+"|^(.+?)님|(팔로잉|문의|댓글|답글|답변|북마크|반응))/g;
+  let lastIndex = 0;
+
+  for (const match of message.matchAll(pattern)) {
+    const matchIndex = match.index ?? 0;
+
+    if (matchIndex > lastIndex) {
+      emphasizedParts.push(message.slice(lastIndex, matchIndex));
+    }
+
+    if (match[2]) {
+      emphasizedParts.push(
+        <strong key={`actor-${matchIndex}`} className="font-semibold">
+          {match[2]}
+        </strong>,
+        "님",
+      );
+    } else if (match[3]) {
+      emphasizedParts.push(
+        <strong key={`keyword-${matchIndex}`} className="font-semibold">
+          {match[3]}
+        </strong>,
+      );
+    } else if (isCommentActivityMessage && match[1]?.startsWith("'")) {
+      emphasizedParts.push(match[1]);
+    } else {
+      emphasizedParts.push(
+        <strong key={`quote-${matchIndex}`} className="font-semibold">
+          {match[1]}
+        </strong>,
+      );
+    }
+
+    lastIndex = matchIndex + match[0].length;
+  }
+
+  if (lastIndex < message.length) {
+    emphasizedParts.push(message.slice(lastIndex));
+  }
+
+  return emphasizedParts.length > 0 ? emphasizedParts : message;
+}
+
 export default function MyPageDrawer({ open, onClose }: Props) {
   const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user?.email);
   const pathname = usePathname();
   const platform = getPlatformFromPathname(pathname);
   const isCote = platform === "cote";
@@ -75,6 +135,11 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   const [portalReady, setPortalReady] = useState(false);
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotificationDeleteMode, setIsNotificationDeleteMode] =
+    useState(false);
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState<
+    number[]
+  >([]);
   const [stats, setStats] = useState({
     first: 0,
     second: 0,
@@ -93,24 +158,31 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT));
   };
 
-  const removeNotification = async (notificationId: number) => {
-    const confirmed = window.confirm("정말 삭제하시겠습니까?");
-    if (!confirmed) {
+  const deleteSelectedNotifications = async () => {
+    if (selectedNotificationIds.length === 0) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/notifications/${notificationId}`, {
-        method: "DELETE",
-      });
+      await Promise.all(
+        selectedNotificationIds.map(async (notificationId) => {
+          const response = await fetch(`/api/notifications/${notificationId}`, {
+            method: "DELETE",
+          });
 
-      if (!response.ok) {
-        throw new Error("알림 삭제 실패");
-      }
+          if (!response.ok) {
+            throw new Error("알림 삭제 실패");
+          }
+        }),
+      );
 
       setNotifications((current) =>
-        current.filter((notification) => notification.id !== notificationId),
+        current.filter(
+          (notification) => !selectedNotificationIds.includes(notification.id),
+        ),
       );
+      setSelectedNotificationIds([]);
+      setIsNotificationDeleteMode(false);
       notifyNotificationsUpdated();
     } catch (error) {
       console.error(error);
@@ -185,7 +257,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
 
-    if (isCote) {
+    if (isCote || !isLoggedIn) {
       setDraftPostCount(0);
     } else {
       void countSyncedPostDrafts(getTechPostDraftStorageKey()).then(
@@ -206,7 +278,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
     };
 
     loadStats();
-  }, [isCote, open, platform]);
+  }, [isCote, isLoggedIn, open, platform]);
 
   if (!isVisible || !portalReady) return null;
 
@@ -272,9 +344,9 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           <Image
             src={profile?.image ?? session?.user?.image ?? "/logo.png"}
             alt="profile"
-            width={100}
-            height={100}
-            className="h-[100px] w-[100px] rounded-full object-cover"
+            width={150}
+            height={150}
+            className="h-[150px] w-[150px] rounded-full border border-border object-cover"
           />
           <div className="flex flex-col items-center">
             <p
@@ -307,7 +379,7 @@ export default function MyPageDrawer({ open, onClose }: Props) {
           ].map((label, index) => {
             const value =
               index === 0
-                ? stats.first + (!isCote ? draftPostCount : 0)
+                ? stats.first + (!isCote && isLoggedIn ? draftPostCount : 0)
                 : index === 1
                   ? stats.second
                   : stats.third;
@@ -354,22 +426,84 @@ export default function MyPageDrawer({ open, onClose }: Props) {
         </div>
 
         {!isCote ? (
-          <div className="flex-1 overflow-y-auto px-5 py-4 mx-4 border border-border shadow-md rounded-3xl bg-muted text-foreground">
-            <h3 className="mb-5 text-xl font-semibold">알림</h3>
+          <div className="mx-4 flex min-h-0 flex-1 flex-col rounded-3xl border border-border bg-muted px-4 py-3 text-foreground shadow-md">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-xl font-semibold">알림</h3>
+              {notifications.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label={
+                      isNotificationDeleteMode
+                        ? "선택한 알림 삭제"
+                        : "알림 삭제 모드 켜기"
+                    }
+                    aria-pressed={isNotificationDeleteMode}
+                    onClick={() => {
+                      if (isNotificationDeleteMode) {
+                        void deleteSelectedNotifications();
+                        return;
+                      }
 
-            <ul className="flex flex-col text-sm gap-3">
+                      setSelectedNotificationIds([]);
+                      setIsNotificationDeleteMode(true);
+                    }}
+                    className={cn(
+                      "inline-flex h-8 shrink-0 items-center justify-center rounded-md border transition",
+                      isNotificationDeleteMode
+                        ? "border-red-500 bg-red-500 px-3 text-xs font-semibold text-white hover:bg-red-600"
+                        : "size-8 border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground",
+                      isNotificationDeleteMode &&
+                        selectedNotificationIds.length === 0 &&
+                        "opacity-60",
+                    )}
+                  >
+                    {isNotificationDeleteMode ? (
+                      "삭제"
+                    ) : (
+                      <Trash2 className="size-4" />
+                    )}
+                  </button>
+                  {isNotificationDeleteMode ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedNotificationIds([]);
+                        setIsNotificationDeleteMode(false);
+                      }}
+                      className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-border bg-background px-3 text-xs font-semibold text-muted-foreground transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
+                    >
+                      취소
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto text-sm">
               {notifications.length === 0 && (
-                <li className="text-muted-foreground">알림이 없습니다.</li>
+                <p className="text-muted-foreground">알림이 없습니다.</p>
               )}
 
-              <ul className="flex flex-col gap-2">
+              <ul className="divide-y divide-border/70">
                 {notifications.map((n) => (
-                  <li key={n.id}>
+                  <li key={n.id} className="py-2 first:pt-0 last:pb-0">
                     <div className="group flex items-start gap-2">
                       <button
                         type="button"
-                        className="flex flex-1 items-center gap-2 text-left hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70"
+                        className="flex flex-1 items-start gap-2 text-left text-[15px] leading-[18px] text-muted-foreground hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70 [&_strong]:text-foreground"
                         onClick={async () => {
+                          if (isNotificationDeleteMode) {
+                            setSelectedNotificationIds((current) =>
+                              current.includes(n.id)
+                                ? current.filter(
+                                    (notificationId) => notificationId !== n.id,
+                                  )
+                                : [...current, n.id],
+                            );
+                            return;
+                          }
+
                           if (!n.is_read) {
                             try {
                               const response = await fetch(
@@ -392,6 +526,17 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                             } catch (error) {
                               console.error("알림 읽음 처리 실패", error);
                             }
+                          }
+
+                          if (n.is_post_deleted || n.is_comment_deleted) {
+                            window.alert(
+                              n.is_post_deleted
+                                ? n.is_notice_post
+                                  ? "삭제된 문의입니다."
+                                  : "삭제된 게시물입니다."
+                                : "삭제된 댓글입니다.",
+                            );
+                            return;
                           }
 
                           onClose();
@@ -417,10 +562,8 @@ export default function MyPageDrawer({ open, onClose }: Props) {
 
                           const shouldOpenQnaList =
                             shouldOpenNoticeDetail &&
-                            (n.message ===
-                              "문의에 새로운 질문이 등록되었어요" ||
-                              n.message ===
-                                "QnA에 새로운 질문이 등록되었어요") &&
+                            n.type === "POST_COMMENT" &&
+                            typeof n.comment_id !== "number" &&
                             typeof n.post_id === "number";
 
                           if (shouldOpenQnaList) {
@@ -440,26 +583,23 @@ export default function MyPageDrawer({ open, onClose }: Props) {
 
                           if (
                             (n.type === "POST_COMMENT" ||
-                              n.type === "POST_LIKE") &&
+                              n.type === "COMMENT_REPLY") &&
+                            typeof postPath === "string" &&
+                            typeof n.comment_id === "number"
+                          ) {
+                            router.push(
+                              `${postPath}?commentId=${n.comment_id}`,
+                            );
+                            return;
+                          }
+
+                          if (
+                            n.type === "POST_LIKE" &&
                             typeof n.post_id === "number"
                           ) {
                             router.push(
                               `/mypage?tab=posts&postId=${n.post_id}`,
                             );
-                            return;
-                          }
-
-                          if (n.type === "COMMENT_REPLY") {
-                            const params = new URLSearchParams({
-                              tab: "comments",
-                            });
-                            if (typeof n.comment_id === "number") {
-                              params.set("commentId", String(n.comment_id));
-                            }
-                            if (typeof n.post_id === "number") {
-                              params.set("postId", String(n.post_id));
-                            }
-                            router.push(`/mypage?${params.toString()}`);
                             return;
                           }
 
@@ -473,31 +613,54 @@ export default function MyPageDrawer({ open, onClose }: Props) {
                             router.push(targetPath);
                           }
                         }}
-                        disabled={n.is_post_deleted}
                       >
-                        {n.is_read ? (
-                          <CircleCheckBig color="#4CB975" width={18} />
+                        {isNotificationDeleteMode ? (
+                          selectedNotificationIds.includes(n.id) ? (
+                            <CircleCheckBig
+                              className="mt-[3px] size-[18px] shrink-0"
+                              color="#ef4444"
+                            />
+                          ) : (
+                            <Circle
+                              className="mt-[3px] size-[18px] shrink-0"
+                              color="#ef4444"
+                            />
+                          )
+                        ) : n.is_read ? (
+                          <CircleCheckBig
+                            className="mt-[3px] size-[18px] shrink-0"
+                            color="#4CB975"
+                          />
                         ) : (
-                          <Circle color="#ccc" width={18} />
+                          <Circle
+                            className="mt-[3px] size-[18px] shrink-0"
+                            color="#ccc"
+                          />
                         )}
-                        <span>{renderNotificationMessage(n)}</span>
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="알림 삭제"
-                        className="shrink-0 rounded-sm p-0.5 text-muted-foreground opacity-0 transition-[opacity,color] group-hover:opacity-100 group-focus-within:opacity-100 hover:text-foreground focus-visible:opacity-100"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void removeNotification(n.id);
-                        }}
-                      >
-                        <X className="h-4 w-4" />
+                        <Image
+                          src={n.actor_image ?? "/logo.png"}
+                          alt={`${n.actor_name ?? "알림 발신자"} 프로필`}
+                          width={24}
+                          height={24}
+                          className="size-6 shrink-0 rounded-full border object-cover"
+                        />
+                        <span
+                          className={cn(
+                            "min-w-0",
+                            (n.is_post_deleted || n.is_comment_deleted) &&
+                              "line-through decoration-foreground",
+                          )}
+                        >
+                          {renderEmphasizedNotificationMessage(
+                            renderNotificationMessage(n),
+                          )}
+                        </span>
                       </button>
                     </div>
                   </li>
                 ))}
               </ul>
-            </ul>
+            </div>
           </div>
         ) : (
           <div className="flex-1" />

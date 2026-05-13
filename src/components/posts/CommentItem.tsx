@@ -1,11 +1,13 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Crown, Lock } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { PostReactionSummary } from "@/lib/post-reaction-options";
 import { formatSeoulDateTime } from "@/lib/utils";
 import CommentForm from "./CommentForm";
+import CommentReactionButton from "./CommentReactionButton";
 
 export type CommentNode = {
   id: number;
@@ -19,6 +21,8 @@ export type CommentNode = {
   created_at: string;
   author: string;
   author_image: string | null;
+  author_role?: "USER" | "ADMIN" | null;
+  reactions: PostReactionSummary[];
   replies: CommentNode[];
 };
 
@@ -54,10 +58,7 @@ export default function CommentItem({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFocusedComment, setIsFocusedComment] = useState(false);
   const canManage = comment.user_id === currentUserId && !comment.is_deleted;
-  const showSecretLock =
-    comment.is_secret &&
-    comment.user_id === currentUserId &&
-    !comment.is_deleted;
+  const showSecretLock = comment.is_secret && !comment.is_deleted;
   const canReply =
     showReplyButton &&
     isLoggedIn &&
@@ -65,6 +66,8 @@ export default function CommentItem({
     !comment.is_deleted &&
     (!comment.is_secret || comment.can_view_secret);
   const targetCommentId = Number(searchParams.get("commentId") ?? "");
+  const canReact =
+    isLoggedIn && !comment.is_deleted && comment.can_view_secret && !isEditing;
 
   const replyActionButton = canReply ? (
     <button
@@ -73,7 +76,7 @@ export default function CommentItem({
         setIsReplying((prev) => !prev);
         setError(null);
       }}
-      className="rounded-md border px-3 py-1.5 hover:bg-muted"
+      className="rounded-md border px-3 py-1.5 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
     >
       {isReplying ? replyCloseLabel : replyButtonLabel}
     </button>
@@ -88,7 +91,7 @@ export default function CommentItem({
           setIsEditing((prev) => !prev);
           setError(null);
         }}
-        className="rounded-md border px-3 py-1.5 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-md border px-3 py-1.5 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isEditing ? "닫기" : "수정"}
       </button>
@@ -96,7 +99,7 @@ export default function CommentItem({
         type="button"
         disabled={isDeleting}
         onClick={handleDelete}
-        className="rounded-md border px-3 py-1.5 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-md border border-red-500 bg-red-500 px-3 py-1.5 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isDeleting ? "삭제 중..." : "삭제"}
       </button>
@@ -200,99 +203,120 @@ export default function CommentItem({
   }
 
   return (
-    <div
-      id={`comment-${comment.id}`}
-      className={`scroll-mt-28 rounded-md border p-4 transition-colors ${
-        isFocusedComment ? "border-primary bg-primary/5" : ""
-      }`}
-    >
-      <div className="flex justify-between gap-3 text-sm">
-        <span className="inline-flex min-w-0 items-center gap-2 font-medium">
-          <Image
-            src={comment.author_image ?? "/logo.png"}
-            alt={`${comment.author} 프로필`}
-            width={24}
-            height={24}
-            className="h-6 w-6 shrink-0 rounded-full border object-cover"
-          />
-          <span className="truncate">{comment.author}</span>
-          {showSecretLock ? (
-            <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          ) : null}
-        </span>
-        <span className="text-muted-foreground">
-          {formatSeoulDateTime(comment.created_at)}
-          {comment.is_edited ? " (수정)" : ""}
-        </span>
-      </div>
-
-      {isEditing ? (
-        <div className="mt-3 space-y-3">
-          <textarea
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            rows={4}
-            className="w-full rounded-md border p-3 text-sm"
-          />
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={isSecret}
-              onChange={(event) => setIsSecret(event.target.checked)}
-              className="h-4 w-4"
+    <div id={`comment-${comment.id}`} className="scroll-mt-28">
+      <div
+        className={`rounded-md border p-4 transition-colors ${
+          isFocusedComment ? "border-primary bg-primary/5" : ""
+        }`}
+      >
+        <div className="flex justify-between gap-3 text-sm">
+          <span className="inline-flex min-w-0 items-center gap-2 font-medium">
+            <Image
+              src={comment.author_image ?? "/logo.png"}
+              alt={`${comment.author} 프로필`}
+              width={24}
+              height={24}
+              className="h-6 w-6 shrink-0 rounded-full border object-cover"
             />
-            <span>비밀댓글</span>
-          </label>
-
-          {error ? <p className="text-sm text-red-500">{error}</p> : null}
-
-          <div className="flex justify-end gap-2 text-xs">
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => {
-                setContent(comment.content);
-                setIsSecret(comment.is_secret);
-                setIsEditing(false);
-                setError(null);
-              }}
-              className="rounded-md border px-3 py-1.5 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={handleUpdate}
-              className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting ? "저장 중..." : "수정 저장"}
-            </button>
-          </div>
+            <span className="truncate">{comment.author}</span>
+            {comment.author_role === "ADMIN" ? (
+              <Crown
+                aria-label="관리자"
+                className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-500"
+              />
+            ) : null}
+            {showSecretLock ? (
+              <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            ) : null}
+          </span>
+          <span className="text-muted-foreground">
+            {formatSeoulDateTime(comment.created_at)}
+            {comment.is_edited ? " (수정)" : ""}
+          </span>
         </div>
-      ) : commentActionButtons ? (
-        <div className="mt-2 flex items-end gap-3">
+
+        {isEditing ? (
+          <div className="mt-3 space-y-3">
+            <textarea
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              rows={4}
+              className="w-full rounded-md border p-3 text-sm"
+            />
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={isSecret}
+                onChange={(event) => setIsSecret(event.target.checked)}
+                className="h-4 w-4"
+              />
+              <span>비밀댓글</span>
+            </label>
+
+            {error ? <p className="text-sm text-red-500">{error}</p> : null}
+
+            <div className="flex justify-end gap-2 text-xs">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => {
+                  setContent(comment.content);
+                  setIsSecret(comment.is_secret);
+                  setIsEditing(false);
+                  setError(null);
+                }}
+                className="rounded-md border px-3 py-1.5 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleUpdate}
+                className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? "저장 중..." : "수정 저장"}
+              </button>
+            </div>
+          </div>
+        ) : commentActionButtons ? (
+          <div className="mt-2 flex items-end gap-3">
+            <p
+              className={`min-w-0 flex-1 whitespace-pre-wrap text-base leading-7 ${
+                comment.is_deleted ? "text-muted-foreground" : ""
+              }`}
+            >
+              {comment.is_deleted ? "삭제된 댓글입니다." : comment.content}
+            </p>
+            {commentActionButtons}
+          </div>
+        ) : (
           <p
-            className={`min-w-0 flex-1 whitespace-pre-wrap text-sm ${
+            className={`mt-2 whitespace-pre-wrap text-base leading-7 ${
               comment.is_deleted ? "text-muted-foreground" : ""
             }`}
           >
             {comment.is_deleted ? "삭제된 댓글입니다." : comment.content}
           </p>
-          {commentActionButtons}
+        )}
+
+        {!isEditing && error ? (
+          <p className="mt-3 text-sm text-red-500">{error}</p>
+        ) : null}
+      </div>
+
+      {!isEditing ? (
+        <div className="mt-2 px-1">
+          <CommentReactionButton
+            commentId={comment.id}
+            initialReactions={comment.reactions}
+            disabled={!canReact}
+          />
         </div>
-      ) : (
-        <p
-          className={`mt-2 whitespace-pre-wrap text-sm ${
-            comment.is_deleted ? "text-muted-foreground" : ""
-          }`}
-        >
-          {comment.is_deleted ? "삭제된 댓글입니다." : comment.content}
-        </p>
-      )}
+      ) : null}
 
       {isReplying ? (
-        <div className="ml-4 mt-4">
+        <div className="mt-4 border-l-2 border-primary/20 pl-4">
           <CommentForm
             postId={postId}
             parentId={comment.id}
@@ -303,7 +327,7 @@ export default function CommentItem({
       ) : null}
 
       {comment.replies.length > 0 ? (
-        <ul className="ml-4 mt-4 space-y-3">
+        <ul className="mt-4 space-y-3 border-l-2 border-primary/20 pl-4">
           {comment.replies.map((reply) => (
             <li key={reply.id}>
               <CommentItem
@@ -319,10 +343,6 @@ export default function CommentItem({
             </li>
           ))}
         </ul>
-      ) : null}
-
-      {!isEditing && error ? (
-        <p className="mt-3 text-sm text-red-500">{error}</p>
       ) : null}
     </div>
   );

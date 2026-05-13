@@ -68,7 +68,7 @@ export async function GET(request: Request) {
       created_at: comment.createdAt.toISOString(),
       post_id: Number(comment.postId),
       post_title: comment.post.isDeleted
-        ? "삭제된 게시물입니다"
+        ? "삭제된 게시물입니다."
         : comment.post.title,
       is_post_deleted: comment.post.isDeleted,
       is_notice_post: isNoticeCategoryName(comment.post.category?.name),

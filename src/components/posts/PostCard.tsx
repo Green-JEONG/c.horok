@@ -85,7 +85,7 @@ export default function PostCard({
   const defaultBadge = isUncategorized
     ? null
     : {
-        text: `#${category === "QnA" ? "문의" : category}`,
+        text: `#${category === "QnA" ? "문의" : category.toLocaleLowerCase()}`,
         className: "border-border bg-background text-foreground",
       };
   const primaryBadge = statusBadges[0]

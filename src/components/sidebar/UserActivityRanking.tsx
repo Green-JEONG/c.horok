@@ -43,7 +43,7 @@ export default function UserActivityRanking() {
             <li key={user.userId}>
               <Link
                 href={`/users/${user.userId}`}
-                className="flex items-center gap-2 rounded-lg px-1 py-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                className="flex items-center gap-2 rounded-lg border border-transparent bg-background px-1 py-1 text-muted-foreground transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
               >
                 <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-foreground/80">
                   {user.rank}

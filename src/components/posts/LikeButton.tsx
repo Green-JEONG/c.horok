@@ -21,7 +21,13 @@ export default function LikeButton({
   const [loading, setLoading] = useState(false);
 
   const onToggle = async () => {
-    if (loading || disabled) return;
+    if (loading) return;
+
+    if (disabled) {
+      window.alert("로그인 후 이용 가능합니다.");
+      return;
+    }
+
     setLoading(true);
 
     setLiked((v) => !v);
@@ -42,7 +48,8 @@ export default function LikeButton({
     <button
       type="button"
       onClick={onToggle}
-      disabled={loading || disabled}
+      disabled={loading}
+      aria-disabled={disabled}
       aria-label={liked ? `북마크 취소 ${count}` : `북마크 ${count}`}
       className={`inline-flex items-center gap-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 ${
         liked

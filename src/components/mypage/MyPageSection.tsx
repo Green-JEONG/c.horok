@@ -146,6 +146,7 @@ function getActiveTab(
 export default function MyPageSection() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user?.email);
   const isAdmin = session?.user?.role === "ADMIN";
   const router = useRouter();
   const activeTab = getActiveTab(
@@ -169,9 +170,9 @@ export default function MyPageSection() {
         }
 
         const data = await response.json();
-        const draftCount = await countSyncedPostDrafts(
-          getTechPostDraftStorageKey(),
-        );
+        const draftCount = isLoggedIn
+          ? await countSyncedPostDrafts(getTechPostDraftStorageKey())
+          : 0;
         setStats({
           posts: (typeof data.posts === "number" ? data.posts : 0) + draftCount,
           comments: typeof data.comments === "number" ? data.comments : 0,
@@ -190,7 +191,7 @@ export default function MyPageSection() {
     };
 
     void loadStats();
-  }, [isCategoryView]);
+  }, [isCategoryView, isLoggedIn]);
 
   useEffect(() => {
     const handleFriendCountChange = (event: Event) => {

@@ -5,7 +5,7 @@ import CommentItem, { type CommentNode } from "./CommentItem";
 export default async function CommentList({
   postId,
   headingLabel = "댓글",
-  emptyMessage = "아직 댓글이 없습니다. 첫 댓글을 남겨보세요.",
+  emptyMessage = "아직 댓글이 없습니다.",
   replyButtonLabel = "답글 달기",
   replyCloseLabel = "답글 닫기",
   replyPlaceholder = "대댓글을 작성하세요",

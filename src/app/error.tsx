@@ -12,7 +12,7 @@ export default function AppError({
     <ErrorState
       code={500}
       message="요청을 처리하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
-      action={
+      retryAction={
         <button
           type="button"
           onClick={() => reset()}

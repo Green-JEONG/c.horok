@@ -341,7 +341,8 @@ export default function HeaderSearch() {
                             {post.title}
                           </p>
                           <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                            #{post.category_name} · {post.author_name}
+                            #{post.category_name.toLocaleLowerCase()} ·{" "}
+                            {post.author_name}
                           </p>
                           <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
                             {post.content}

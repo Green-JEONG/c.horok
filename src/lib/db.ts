@@ -419,6 +419,20 @@ export async function findPostById(
     : null;
 }
 
+export async function findPostAccessMetaById(id: number) {
+  const post = await prisma.post.findUnique({
+    where: { id: BigInt(id) },
+    select: {
+      isDeleted: true,
+    },
+  });
+
+  return {
+    exists: Boolean(post),
+    isDeleted: post?.isDeleted ?? false,
+  };
+}
+
 async function searchPostsInternal(
   keyword: string,
   limit: number,

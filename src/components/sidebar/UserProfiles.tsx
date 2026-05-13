@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import LoginModal from "@/components/auth/LoginModal";
 import { Button } from "@/components/ui/button";
 import {
   countSyncedPostDrafts,
@@ -29,6 +30,7 @@ export default function UserProfiles() {
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [isSubscribedHovering, setIsSubscribedHovering] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [draftPostCount, setDraftPostCount] = useState(0);
 
   useEffect(() => {
@@ -153,9 +155,16 @@ export default function UserProfiles() {
       {loading ? (
         <p className="text-sm text-muted-foreground">불러오는 중…</p>
       ) : !profile ? (
-        <p className="text-sm text-muted-foreground">
-          표시할 프로필이 없습니다.
-        </p>
+        <>
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={() => setLoginOpen(true)}
+          >
+            로그인
+          </Button>
+          <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+        </>
       ) : (
         <div className="rounded-xl border bg-background p-4">
           <div className="flex items-center gap-3">
@@ -193,7 +202,12 @@ export default function UserProfiles() {
 
           <div className="mt-3">
             {profile.isSelf ? (
-              <Button asChild size="sm" variant="secondary" className="w-full">
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="w-full border-border bg-background text-muted-foreground transition hover:!border-primary/30 hover:!bg-primary/10 hover:!text-foreground"
+              >
                 <Link href="/mypage">마이페이지</Link>
               </Button>
             ) : status !== "authenticated" ? (

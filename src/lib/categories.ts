@@ -2,7 +2,10 @@ import { normalizeNoticeCategory } from "@/lib/notice-categories";
 import { prisma } from "@/lib/prisma";
 
 function normalizeCategoryName(name: string) {
-  return name.replace(/\s+/g, " ").trim();
+  const normalizedName = name.replace(/\s+/g, " ").trim();
+  const noticeCategory = normalizeNoticeCategory(normalizedName);
+
+  return noticeCategory ?? normalizedName.toLocaleLowerCase();
 }
 
 function slugifyCategoryName(name: string) {

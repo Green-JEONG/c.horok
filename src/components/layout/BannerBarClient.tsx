@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -70,10 +71,30 @@ export default function BannerBarClient({ notices }: BannerBarClientProps) {
   };
 
   return (
-    <div className="w-full bg-primary">
+    <div className="relative w-full bg-primary">
+      {items.length > 1 ? (
+        <button
+          type="button"
+          onClick={goToPrevious}
+          className="absolute left-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-primary-foreground/35 bg-primary-foreground/15 text-primary-foreground shadow-[0_8px_20px_rgba(15,23,42,0.12)] backdrop-blur-sm transition hover:border-primary-foreground/60 hover:bg-primary-foreground/25 sm:left-4"
+          aria-label="이전 배너로 이동"
+        >
+          <ChevronLeft className="size-5" />
+        </button>
+      ) : null}
+      {items.length > 1 ? (
+        <button
+          type="button"
+          onClick={goToNext}
+          className="absolute right-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-primary-foreground/35 bg-primary-foreground/15 text-primary-foreground shadow-[0_8px_20px_rgba(15,23,42,0.12)] backdrop-blur-sm transition hover:border-primary-foreground/60 hover:bg-primary-foreground/25 sm:right-4"
+          aria-label="다음 배너로 이동"
+        >
+          <ChevronRight className="size-5" />
+        </button>
+      ) : null}
       <section
         aria-label="배너 공지"
-        className={`mx-auto max-w-6xl touch-pan-y select-none px-4 py-3 text-center ${
+        className={`mx-auto max-w-6xl touch-pan-y select-none px-14 py-3 text-center sm:px-16 ${
           isDragging ? "cursor-grabbing" : "cursor-grab"
         }`}
         onPointerDown={(event) => {

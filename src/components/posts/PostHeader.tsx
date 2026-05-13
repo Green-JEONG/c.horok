@@ -80,7 +80,7 @@ export default function PostHeader({
           <span>조회 {post.view_count}</span>
           {showCategoryBadge ? (
             <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground">
-              #{post.category_name}
+              #{post.category_name.toLocaleLowerCase()}
             </span>
           ) : null}
         </div>

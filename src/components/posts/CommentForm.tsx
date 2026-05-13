@@ -4,6 +4,11 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
+import {
+  createPostContentImagePath,
+  POST_THUMBNAIL_BUCKET,
+} from "@/lib/post-thumbnails";
+import { supabase } from "@/lib/supabase";
 
 type AnswerEditorTab = "write" | "preview";
 
@@ -26,6 +31,8 @@ const answerMarkdownTools = [
   { label: "표", action: "table" },
   { label: "구분선", action: "divider" },
   { label: "링크", action: "link" },
+  { label: "이미지", action: "image" },
+  { label: "동영상", action: "video" },
 ] as const;
 
 type AnswerMarkdownAction = (typeof answerMarkdownTools)[number]["action"];
@@ -49,9 +56,12 @@ export default function CommentForm({
 }) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const contentImageInputRef = useRef<HTMLInputElement>(null);
+  const contentVideoInputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
   const [isSecret, setIsSecret] = useState(initialIsSecret);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AnswerEditorTab>("write");
 
@@ -196,8 +206,51 @@ export default function CommentForm({
     const end = textarea.selectionEnd;
     const before = content.slice(0, start);
     const after = content.slice(end);
-    const nextContent = `${before}${text}${after}`;
-    const nextCursorPosition = start + text.length;
+    const prefix = before && !before.endsWith("\n") ? "\n\n" : "";
+    const suffix = after && !after.startsWith("\n") ? "\n\n" : "";
+    const nextContent = `${before}${prefix}${text}${suffix}${after}`;
+    const nextCursorPosition = (before + prefix + text).length;
+
+    updateContentWithSelection(nextContent, nextCursorPosition);
+  }
+
+  function handleContentKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) {
+    if (event.key !== "Enter" || event.shiftKey) return;
+
+    const textarea = event.currentTarget;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    if (start !== end) return;
+
+    const lineStart = content.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+    const lineEndIndex = content.indexOf("\n", start);
+    const lineEnd = lineEndIndex === -1 ? content.length : lineEndIndex;
+    const currentLine = content.slice(lineStart, lineEnd);
+    const orderedMatch = currentLine.match(/^(\d+)\.\s(.*)$/);
+
+    if (!orderedMatch) return;
+
+    event.preventDefault();
+
+    const [, currentNumber, currentText] = orderedMatch;
+    const before = content.slice(0, start);
+    const after = content.slice(end);
+
+    if (currentText.trim().length === 0) {
+      const nextContent =
+        content.slice(0, lineStart) +
+        content.slice(lineStart + orderedMatch[0].length);
+      updateContentWithSelection(nextContent, lineStart);
+      return;
+    }
+
+    const nextNumber = Number(currentNumber) + 1;
+    const insertedText = `\n${nextNumber}. `;
+    const nextContent = `${before}${insertedText}${after}`;
+    const nextCursorPosition = start + insertedText.length;
 
     updateContentWithSelection(nextContent, nextCursorPosition);
   }
@@ -260,6 +313,102 @@ export default function CommentForm({
       case "link":
         wrapSelection("[", "](https://)", "링크 텍스트", true);
         break;
+      case "image":
+        contentImageInputRef.current?.click();
+        break;
+      case "video":
+        contentVideoInputRef.current?.click();
+        break;
+    }
+  }
+
+  async function handleContentImageChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+
+    setIsUploadingContentImage(true);
+    setError(null);
+
+    try {
+      const markdownImages: string[] = [];
+
+      for (const file of files) {
+        const nextPath = createPostContentImagePath(file.name);
+        const { error: uploadError } = await supabase.storage
+          .from(POST_THUMBNAIL_BUCKET)
+          .upload(nextPath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from(POST_THUMBNAIL_BUCKET).getPublicUrl(nextPath);
+
+        markdownImages.push(`![${file.name}](${publicUrl})`);
+      }
+
+      insertTextAtCursor(markdownImages.join("\n\n"));
+      event.target.value = "";
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error
+          ? uploadError.message
+          : "본문 이미지 업로드 중 오류가 발생했습니다.";
+      setError(message);
+    } finally {
+      setIsUploadingContentImage(false);
+    }
+  }
+
+  async function handleContentVideoChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+
+    setIsUploadingContentImage(true);
+    setError(null);
+
+    try {
+      const markdownVideos: string[] = [];
+
+      for (const file of files) {
+        const nextPath = createPostContentImagePath(file.name);
+        const { error: uploadError } = await supabase.storage
+          .from(POST_THUMBNAIL_BUCKET)
+          .upload(nextPath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from(POST_THUMBNAIL_BUCKET).getPublicUrl(nextPath);
+
+        markdownVideos.push(`![video](${publicUrl})`);
+      }
+
+      insertTextAtCursor(markdownVideos.join("\n\n"));
+      event.target.value = "";
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error
+          ? uploadError.message
+          : "본문 동영상 업로드 중 오류가 발생했습니다.";
+      setError(message);
+    } finally {
+      setIsUploadingContentImage(false);
     }
   }
 
@@ -286,66 +435,82 @@ export default function CommentForm({
       className={
         isAnswerVariant
           ? "mt-6 rounded-xl border bg-muted/20 p-4"
-          : "mt-6 space-y-2"
+          : "mt-6 rounded-xl border bg-muted/20 p-4"
       }
       onSubmit={handleSubmit}
     >
-      {isAnswerVariant ? (
-        <div className="space-y-3">
-          <div className="flex items-center border-b border-border/70">
-            {renderAnswerTabButton("write", "본문")}
-            {renderAnswerTabButton("preview", "미리보기")}
-          </div>
+      <input
+        ref={contentImageInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        disabled={isUploadingContentImage || isSubmitting}
+        onChange={handleContentImageChange}
+        className="hidden"
+      />
+      <input
+        ref={contentVideoInputRef}
+        type="file"
+        accept="video/*"
+        multiple
+        disabled={isUploadingContentImage || isSubmitting}
+        onChange={handleContentVideoChange}
+        className="hidden"
+      />
 
-          {activeTab === "write" ? (
-            <div className="flex flex-wrap gap-2">
-              {answerMarkdownTools.map((tool) => (
-                <button
-                  key={tool.action}
-                  type="button"
-                  onClick={() => applyAnswerMarkdownTool(tool.action)}
-                  className="rounded-md border border-border/80 bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-                >
-                  {tool.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {activeTab === "preview" ? (
-            <div className="min-h-56 rounded-lg border border-border/80 bg-background px-5 py-4">
-              {content.trim() ? (
-                <MarkdownRenderer
-                  content={content}
-                  className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  답변을 입력하면 여기에 미리보기가 표시됩니다.
-                </p>
-              )}
-            </div>
-          ) : (
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              className="min-h-56 w-full resize-none rounded-lg border border-border/80 bg-background px-5 py-4 text-sm leading-7 outline-none placeholder:text-zinc-400"
-              rows={10}
-              placeholder={placeholder}
-            />
-          )}
+      <div className="space-y-3">
+        <div className="flex items-center border-b border-border/70">
+          {renderAnswerTabButton("write", "본문")}
+          {renderAnswerTabButton("preview", "미리보기")}
         </div>
-      ) : (
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          className="w-full rounded-md border p-3 text-sm"
-          rows={3}
-          placeholder={placeholder}
-        />
-      )}
+
+        {activeTab === "write" ? (
+          <div className="flex flex-wrap gap-2">
+            {answerMarkdownTools.map((tool) => (
+              <button
+                key={tool.action}
+                type="button"
+                onClick={() => applyAnswerMarkdownTool(tool.action)}
+                className="rounded-md border border-border/80 bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isUploadingContentImage || isSubmitting}
+              >
+                {tool.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {activeTab === "preview" ? (
+          <div
+            className={`rounded-lg border border-border/80 bg-background px-5 py-4 ${
+              isAnswerVariant ? "min-h-56" : "min-h-36"
+            }`}
+          >
+            {content.trim() ? (
+              <MarkdownRenderer
+                content={content}
+                className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                댓글을 입력하면 여기에 미리보기가 표시됩니다.
+              </p>
+            )}
+          </div>
+        ) : (
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            onKeyDown={handleContentKeyDown}
+            className={`w-full resize-none rounded-lg border border-border/80 bg-background px-5 py-4 text-sm leading-7 outline-none placeholder:text-zinc-400 ${
+              isAnswerVariant ? "min-h-56" : "min-h-36"
+            }`}
+            rows={isAnswerVariant ? 10 : 5}
+            placeholder={placeholder}
+          />
+        )}
+      </div>
 
       <div
         className={`flex items-center ${showSecretOption ? "justify-between" : "justify-end"} gap-3 ${
@@ -368,14 +533,18 @@ export default function CommentForm({
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingContentImage}
           className={`rounded-md bg-primary text-white disabled:cursor-not-allowed disabled:opacity-60 ${
             isAnswerVariant
               ? "px-5 py-2 text-sm font-medium"
               : "px-4 py-1.5 text-sm"
           }`}
         >
-          {isSubmitting ? `${submitLabel} 중...` : submitLabel}
+          {isUploadingContentImage
+            ? "업로드 중..."
+            : isSubmitting
+              ? `${submitLabel} 중...`
+              : submitLabel}
         </button>
       </div>
 

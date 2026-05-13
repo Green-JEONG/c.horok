@@ -3,7 +3,9 @@
 import ErrorState from "@/components/common/ErrorState";
 import HorokCoteBackgroundPattern from "@/components/horok-cote/HorokCoteBackgroundPattern";
 
-export default function HorokCoteError(_props: {
+export default function HorokCoteError({
+  reset,
+}: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
@@ -18,6 +20,15 @@ export default function HorokCoteError(_props: {
             className="min-h-0 flex-1 px-0 py-0"
             contentClassName="rounded-[28px] bg-white px-6 py-10 dark:bg-[#020617]"
             codeClassName="text-[#06923E] dark:text-[#46c86f]"
+            retryAction={
+              <button
+                type="button"
+                onClick={() => reset()}
+                className="rounded-md bg-[#06923E] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-[#46c86f] dark:text-slate-950"
+              >
+                다시 시도
+              </button>
+            }
           />
         </section>
       </div>

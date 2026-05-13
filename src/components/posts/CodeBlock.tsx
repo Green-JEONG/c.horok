@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
 type Props = {
@@ -44,11 +45,15 @@ export default function CodeBlock({ code, className, children }: Props) {
         <button
           type="button"
           onClick={handleCopy}
-          className="rounded-md border border-border/80 bg-background/90 px-2 py-1 text-sm text-foreground shadow-sm backdrop-blur transition hover:bg-accent"
+          className="flex size-7 items-center justify-center rounded-md border border-border/80 bg-background/90 text-foreground shadow-sm backdrop-blur transition hover:bg-accent"
           aria-label="코드 복사"
           title={copied ? "복사됨" : "코드 복사"}
         >
-          {copied ? "✓" : "⧉"}
+          {copied ? (
+            <Check className="size-3.5" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
         </button>
       </div>
       <pre className="overflow-x-auto p-4 pr-14">

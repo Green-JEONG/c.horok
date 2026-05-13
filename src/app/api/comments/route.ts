@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireDbUserId } from "@/lib/auth-db";
 import { createComment, getCommentById } from "@/lib/comments";
 import { normalizeNoticeCategory } from "@/lib/notice-categories";
+import { createCommentNotificationMessage } from "@/lib/notification-messages";
 import { getPostById } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
 
@@ -56,6 +57,12 @@ export async function POST(req: Request) {
 
     // 2) 알림 생성 (실패해도 댓글은 성공)
     try {
+      const actor = await prisma.user.findUnique({
+        where: { id: BigInt(userId) },
+        select: { name: true, email: true },
+      });
+      const actorName = actor?.name ?? actor?.email ?? null;
+
       if (parentId) {
         // 대댓글 → 부모 댓글 작성자에게
         const parentComment = await getCommentById(Number(parentId));
@@ -66,7 +73,11 @@ export async function POST(req: Request) {
               userId: BigInt(parentComment.user_id),
               actorId: BigInt(userId),
               type: "COMMENT_REPLY",
-              content: "내 댓글에 답글이 달렸어요",
+              content: createCommentNotificationMessage({
+                actorName,
+                content,
+                isReply: true,
+              }),
               postId: BigInt(Number(postId)),
               commentId: BigInt(commentId),
             },
@@ -100,9 +111,11 @@ export async function POST(req: Request) {
               userId: BigInt(postOwnerUserId),
               actorId: BigInt(userId),
               type: "NEW_COMMENT",
-              content: isInquiryPost
-                ? "문의에 답변이 등록되었어요"
-                : "내 게시물에 새로운 댓글이 달렸어요",
+              content: createCommentNotificationMessage({
+                actorName,
+                content,
+                isAnswer: isInquiryPost,
+              }),
               postId: BigInt(Number(postId)),
               commentId: BigInt(commentId),
             },

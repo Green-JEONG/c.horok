@@ -8,7 +8,7 @@ import PostContent from "@/components/posts/PostContent";
 import PostFooter from "@/components/posts/PostFooter";
 import PostViewTracker from "@/components/posts/PostViewTracker";
 import { getDbUserIdFromSession } from "@/lib/auth-db";
-import { findPostById } from "@/lib/db";
+import { findPostAccessMetaById, findPostById } from "@/lib/db";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -29,6 +29,12 @@ export default async function HorokTechLikedPostPage({ params }: Props) {
     includeHiddenForAdmin: session?.user?.role === "ADMIN",
   });
   if (!post) {
+    const accessMeta = await findPostAccessMetaById(postId);
+
+    if (accessMeta.exists && accessMeta.isDeleted) {
+      return <ErrorState code={404} message="삭제된 게시물입니다." />;
+    }
+
     notFound();
   }
 
@@ -44,7 +50,7 @@ export default async function HorokTechLikedPostPage({ params }: Props) {
 
   return (
     <article className="w-full">
-      <PostViewTracker postId={postId} />
+      <PostViewTracker postId={postId} title={post.title} />
       <PostActions
         postId={postId}
         initialTitle={post.title}
@@ -62,11 +68,12 @@ export default async function HorokTechLikedPostPage({ params }: Props) {
       <PostFooter postId={postId} backHref="/horok-tech/likes" />
 
       {post.can_view_secret ? <CommentList postId={postId} /> : null}
-      {session?.user?.email && post.can_view_secret ? (
+      {post.can_view_secret ? (
         <InquiryAnswerComposer
           postId={postId}
           buttonLabel="댓글 작성하기"
           placeholder="댓글을 작성하세요"
+          requiresLogin={!session?.user?.email}
           submitLabel="댓글 등록"
           showSecretOption
         />
@@ -74,11 +81,7 @@ export default async function HorokTechLikedPostPage({ params }: Props) {
         <p className="mt-4 text-sm text-muted-foreground">
           비밀글은 작성자와 관리자만 댓글을 확인할 수 있습니다.
         </p>
-      ) : (
-        <p className="mt-4 text-sm text-muted-foreground">
-          북마크와 댓글 작성은 로그인 후 이용할 수 있습니다.
-        </p>
-      )}
+      ) : null}
     </article>
   );
 }

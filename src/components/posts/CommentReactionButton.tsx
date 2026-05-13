@@ -1,7 +1,6 @@
 "use client";
 
 import { SmilePlus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   POST_REACTION_EMOJIS,
@@ -9,10 +8,9 @@ import {
 } from "@/lib/post-reaction-options";
 
 type Props = {
-  postId: number;
+  commentId: number;
   initialReactions: PostReactionSummary[];
   disabled?: boolean;
-  markCheckingOnAdminReaction?: boolean;
 };
 
 function normalizeReactions(reactions: PostReactionSummary[]) {
@@ -31,13 +29,11 @@ function normalizeReactions(reactions: PostReactionSummary[]) {
   return Array.from(reactionByEmoji.values());
 }
 
-export default function PostReactionButton({
-  postId,
+export default function CommentReactionButton({
+  commentId,
   initialReactions,
   disabled = false,
-  markCheckingOnAdminReaction = false,
 }: Props) {
-  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [reactions, setReactions] = useState(() =>
@@ -64,7 +60,7 @@ export default function PostReactionButton({
     setIsLoading(true);
 
     try {
-      const response = await fetch(`/api/posts/${postId}/reactions`, {
+      const response = await fetch(`/api/comments/${commentId}/reactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -75,20 +71,6 @@ export default function PostReactionButton({
 
       if (response.ok && Array.isArray(payload?.reactions)) {
         setReactions(normalizeReactions(payload.reactions));
-
-        if (markCheckingOnAdminReaction && payload.reacted) {
-          await fetch(`/api/posts/${postId}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ inquiryStatus: "checking" }),
-          });
-        }
-
-        if (markCheckingOnAdminReaction) {
-          router.refresh();
-        }
       }
     } finally {
       setIsLoading(false);
@@ -97,23 +79,26 @@ export default function PostReactionButton({
   }
 
   return (
-    <div ref={containerRef} className="relative flex items-center gap-1.5">
+    <div
+      ref={containerRef}
+      className="relative flex flex-wrap items-center gap-1.5"
+    >
       {reactions.map((reaction) => (
         <button
           key={reaction.emoji}
           type="button"
           disabled={disabled || isLoading}
           onClick={() => toggleReaction(reaction.emoji)}
-          className={`inline-flex h-8 items-center gap-1 rounded-full border px-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
             reaction.reacted
               ? "border-primary bg-primary/10 text-foreground"
               : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
           }`}
           aria-pressed={reaction.reacted}
-          aria-label={`${reaction.emoji} 반응 ${reaction.count}`}
+          aria-label={`${reaction.emoji} 댓글 반응 ${reaction.count}`}
         >
           <span>{reaction.emoji}</span>
-          <span className="text-xs font-semibold">{reaction.count}</span>
+          <span className="text-[11px] font-semibold">{reaction.count}</span>
         </button>
       ))}
 
@@ -122,23 +107,23 @@ export default function PostReactionButton({
           type="button"
           disabled={disabled || isLoading}
           onClick={() => setIsOpen((current) => !current)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label="이모티콘 반응 선택"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="댓글 이모티콘 반응 선택"
           aria-expanded={isOpen}
         >
-          <SmilePlus className="h-4.5 w-4.5" />
+          <SmilePlus className="h-4 w-4" />
         </button>
 
         {isOpen ? (
-          <div className="absolute left-0 top-full z-50 mt-3 flex max-w-[calc(100vw-2rem)] items-center gap-4 overflow-x-auto rounded-md border border-border bg-background px-4 py-3 shadow-[0_12px_28px_rgba(0,0,0,0.18)] dark:bg-zinc-950">
+          <div className="absolute left-0 top-full z-50 mt-2 flex max-w-[calc(100vw-2rem)] items-center gap-3 overflow-x-auto rounded-md border border-border bg-background px-3 py-2 shadow-[0_12px_28px_rgba(0,0,0,0.18)] dark:bg-zinc-950">
             {POST_REACTION_EMOJIS.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 disabled={isLoading}
                 onClick={() => toggleReaction(emoji)}
-                className="text-2xl leading-none transition-transform hover:scale-125 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label={`${emoji} 반응`}
+                className="text-xl leading-none transition-transform hover:scale-125 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={`${emoji} 댓글 반응`}
               >
                 {emoji}
               </button>

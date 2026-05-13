@@ -74,7 +74,7 @@ export default function RecommendedCategories() {
               }}
               className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
             >
-              #{c.name}
+              #{c.name.toLocaleLowerCase()}
             </button>
           ))}
         </div>

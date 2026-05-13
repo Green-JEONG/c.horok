@@ -1,4 +1,5 @@
 export const POST_REACTION_EMOJIS = [
+  "🧡",
   "👀",
   "👍",
   "👎",
@@ -6,7 +7,7 @@ export const POST_REACTION_EMOJIS = [
   "😊",
   "😂",
   "😭",
-  "💡",
+  "⁉️",
 ] as const;
 
 export type PostReactionEmoji = (typeof POST_REACTION_EMOJIS)[number];
