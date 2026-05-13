@@ -134,7 +134,7 @@ export default function PostActions({
   }
 
   const actionSlot = isOwner ? (
-    <div className="flex flex-wrap justify-end gap-2 text-sm">
+    <div className="flex flex-wrap justify-end gap-2 text-xs">
       <button
         type="button"
         disabled={isDeleting || isTogglingHidden}
@@ -142,7 +142,7 @@ export default function PostActions({
           setIsEditing((prev) => !prev);
           setError(null);
         }}
-        className="rounded-md border px-3 py-1 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        className="box-border inline-flex h-7 items-center justify-center rounded-md border px-3 py-1.5 leading-none transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isEditing ? "닫기" : "수정"}
       </button>
@@ -151,7 +151,7 @@ export default function PostActions({
         type="button"
         disabled={isDeleting || isTogglingHidden}
         onClick={handleToggleHidden}
-        className="rounded-md border px-3 py-1 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        className="box-border inline-flex h-7 items-center justify-center rounded-md border px-3 py-1.5 leading-none transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isTogglingHidden
           ? isHidden
@@ -166,7 +166,7 @@ export default function PostActions({
         type="button"
         disabled={isDeleting || isTogglingHidden}
         onClick={handleDelete}
-        className="rounded-md border border-red-500 bg-red-500 px-3 py-1 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+        className="box-border inline-flex h-7 items-center justify-center rounded-md border border-red-500 bg-red-500 px-3 py-1.5 leading-none text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isDeleting ? "삭제 중..." : "삭제"}
       </button>

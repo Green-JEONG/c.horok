@@ -17,6 +17,9 @@ export default function PostHeader({
   titleAddon?: ReactNode;
   isOwner?: boolean;
 }) {
+  const createdDateTime = formatSeoulDateTime(post.created_at);
+  const [, createdDateText = createdDateTime, createdTimeText = ""] =
+    createdDateTime.match(/^(.+) (\d{2}:\d{2}:\d{2})$/) ?? [];
   const showSecretLock = post.is_secret;
   const showHiddenIcon = post.is_hidden;
   const showCategoryBadge =
@@ -28,9 +31,9 @@ export default function PostHeader({
       <Image
         src={post.author_image ?? "/logo.png"}
         alt={`${post.author_name} 프로필`}
-        width={24}
-        height={24}
-        className="h-6 w-6 rounded-full border object-cover"
+        width={28}
+        height={28}
+        className="h-7 w-7 rounded-full border object-cover"
       />
       <span>{post.author_name}</span>
     </>
@@ -38,48 +41,65 @@ export default function PostHeader({
 
   return (
     <header className="mb-3">
-      <h1 className="flex items-center gap-2 text-3xl font-bold leading-tight">
+      <h1 className="flex items-center gap-1 text-3xl font-bold leading-tight">
         <span className="min-w-0">{post.title}</span>
-        <span className="inline-flex shrink-0 items-center gap-2">
-          {showHiddenIcon ? (
-            <EyeOff className="h-6 w-6 shrink-0 text-muted-foreground" />
-          ) : null}
-          {showSecretLock ? (
-            <Lock className="h-6 w-6 shrink-0 text-muted-foreground" />
-          ) : null}
-        </span>
+        {showHiddenIcon || showSecretLock ? (
+          <span className="inline-flex shrink-0 items-center gap-2">
+            {showHiddenIcon ? (
+              <EyeOff className="h-6 w-6 shrink-0 text-muted-foreground" />
+            ) : null}
+            {showSecretLock ? (
+              <Lock className="h-6 w-6 shrink-0 text-muted-foreground" />
+            ) : null}
+          </span>
+        ) : null}
         {titleAddon ? (
-          <span className="ml-auto inline-flex shrink-0 items-center">
+          <span className="-ml-1 inline-flex shrink-0 items-center">
             {titleAddon}
           </span>
         ) : null}
       </h1>
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+        <div className="flex min-h-7 flex-wrap items-center gap-3 text-base leading-7 text-foreground">
           {post.user_id ? (
             <Link
               href={isOwner ? "/horok-tech" : `/users/${post.user_id}`}
-              className="inline-flex items-center gap-2 transition hover:text-foreground"
+              className="inline-flex h-7 items-center gap-2 transition hover:text-foreground"
             >
               {authorProfile}
             </Link>
           ) : (
-            <span className="inline-flex items-center gap-2">
+            <span className="inline-flex h-7 items-center gap-2">
               {authorProfile}
             </span>
           )}
-          <span>·</span>
-          <span>
-            <time>{formatSeoulDateTime(post.created_at)}</time>
-            {post.updated_at.getTime() > post.created_at.getTime()
-              ? " (수정)"
-              : ""}
+          <span className="text-muted-foreground/60">|</span>
+          <span className="inline-flex h-7 items-center">
+            <time dateTime={post.created_at.toISOString()}>
+              {createdDateText}
+            </time>
           </span>
-          <span>·</span>
-          <span>조회 {post.view_count}</span>
+          {createdTimeText ? (
+            <>
+              <span className="text-muted-foreground/60">|</span>
+              <span className="inline-flex h-7 items-center">
+                {createdTimeText}
+              </span>
+            </>
+          ) : null}
+          {post.updated_at.getTime() > post.created_at.getTime() ? (
+            <>
+              <span className="text-muted-foreground/60">|</span>
+              <span className="inline-flex h-7 items-center">(수정)</span>
+            </>
+          ) : null}
+          <span className="text-muted-foreground/60">|</span>
+          <span className="inline-flex h-7 items-center">
+            조회 {post.view_count}
+          </span>
           {showCategoryBadge ? (
-            <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground">
+            <span className="inline-flex h-7 items-center rounded-full border border-border bg-background px-2.5 text-base font-medium text-foreground">
               #{post.category_name.toLocaleLowerCase()}
             </span>
           ) : null}

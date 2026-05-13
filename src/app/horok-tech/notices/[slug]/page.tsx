@@ -2,15 +2,12 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import ErrorState from "@/components/common/ErrorState";
-import CommentItem from "@/components/posts/CommentItem";
 import CommentList from "@/components/posts/CommentList";
-import InquiryAnswerComposer from "@/components/posts/InquiryAnswerComposer";
 import InquiryStatusButton from "@/components/posts/InquiryStatusButton";
 import PostActions from "@/components/posts/PostActions";
 import PostContent from "@/components/posts/PostContent";
 import PostFooter from "@/components/posts/PostFooter";
 import PostViewTracker from "@/components/posts/PostViewTracker";
-import { getAdminAnswersByPost } from "@/lib/comments";
 import {
   INQUIRY_TAG_OPTIONS,
   isPublicNoticeCategory,
@@ -133,16 +130,6 @@ export default async function HorokTechNoticeDetailPage({
     : ["QnA"];
   const isUserNoticeMode = isInquiryNotice;
   const backHref = getSafeNoticeBackHref(from);
-  const adminAnswers = isInquiryNotice
-    ? await getAdminAnswersByPost(notice.id, {
-        viewerUserId:
-          typeof sessionUserId === "number" && !Number.isNaN(sessionUserId)
-            ? sessionUserId
-            : null,
-        postOwnerUserId: notice.userId,
-        isAdmin,
-      })
-    : [];
   const noticePost = {
     id: notice.id,
     title: notice.title,
@@ -214,86 +201,35 @@ export default async function HorokTechNoticeDetailPage({
         markCheckingOnAdminReaction={isInquiryNotice && isAdmin}
       />
       {isInquiryNotice ? (
-        <section className="mt-10">
-          <h3 className="text-lg font-semibold">
-            답변{" "}
-            <span className="text-sm font-medium text-muted-foreground">
-              {adminAnswers.length}
-            </span>
-          </h3>
+        <>
           {!notice.canViewSecret ? (
             <p className="mt-4 text-sm text-muted-foreground">
               비밀글은 작성자와 관리자만 답변을 확인할 수 있습니다.
             </p>
-          ) : (
-            <>
-              {adminAnswers.length > 0 ? (
-                <ul className="mt-4 space-y-4">
-                  {adminAnswers.map((adminAnswer) => (
-                    <li key={adminAnswer.id}>
-                      <CommentItem
-                        comment={{
-                          id: adminAnswer.id,
-                          user_id: adminAnswer.user_id,
-                          parent_id: null,
-                          content: adminAnswer.content,
-                          is_deleted: false,
-                          is_secret: false,
-                          can_view_secret: true,
-                          is_edited: adminAnswer.is_edited,
-                          created_at: adminAnswer.created_at,
-                          author: adminAnswer.author,
-                          author_image: adminAnswer.author_image,
-                          author_role: adminAnswer.author_role,
-                          reactions: adminAnswer.reactions,
-                          replies: [],
-                        }}
-                        postId={notice.id}
-                        currentUserId={
-                          typeof sessionUserId === "number"
-                            ? sessionUserId
-                            : null
-                        }
-                        isLoggedIn={Boolean(session?.user?.email)}
-                        showReplyButton={false}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  아직 등록된 답변이 없습니다.
-                </p>
-              )}
-
-              {isAdmin ? (
-                <InquiryAnswerComposer
-                  postId={notice.id}
-                  buttonLabel={
-                    adminAnswers.length > 0 ? "추가 답변하기" : "답변하기"
-                  }
-                />
-              ) : null}
-            </>
-          )}
-        </section>
+          ) : null}
+          {notice.canViewSecret ? (
+            <CommentList
+              postId={notice.id}
+              headingLabel="답변"
+              emptyMessage="아직 등록된 답변이 없습니다."
+              composerButtonLabel="답변하기"
+              composerPlaceholder="답변을 작성하세요"
+              composerSubmitLabel="답변 등록"
+              showComposer={isAdmin}
+              showComposerSecretOption
+              adminOnly
+              showReplyButton={false}
+            />
+          ) : null}
+        </>
       ) : !isQnaNotice ? (
         <>
-          {notice.canViewSecret ? <CommentList postId={notice.id} /> : null}
-          {notice.canViewSecret ? (
-            <InquiryAnswerComposer
-              postId={notice.id}
-              buttonLabel="댓글 작성하기"
-              placeholder="댓글을 작성하세요"
-              requiresLogin={!session?.user?.email}
-              submitLabel="댓글 등록"
-              showSecretOption
-            />
-          ) : !notice.canViewSecret ? (
+          {!notice.canViewSecret ? (
             <p className="mt-4 text-sm text-muted-foreground">
               비밀글은 작성자와 관리자만 댓글을 확인할 수 있습니다.
             </p>
           ) : null}
+          {notice.canViewSecret ? <CommentList postId={notice.id} /> : null}
         </>
       ) : null}
     </article>

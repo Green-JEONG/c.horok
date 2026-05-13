@@ -1,8 +1,9 @@
 "use client";
 
+import { Eye, EyeOff, Lock, LockOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MarkdownRenderer from "@/components/posts/MarkdownRenderer";
 import {
   createPostContentImagePath,
@@ -42,17 +43,35 @@ export default function CommentForm({
   parentId = null,
   placeholder = "댓글을 작성하세요",
   initialIsSecret = false,
+  initialIsHidden = false,
   submitLabel = "등록",
   variant = "default",
   showSecretOption = true,
+  showHiddenOption = false,
+  framed = true,
+  controlsPlacement = "inside",
+  simpleEditor = false,
+  cardHeader = null,
+  className = "",
+  cancelAction = null,
+  autoFocus = false,
 }: {
   postId: number;
   parentId?: number | null;
   placeholder?: string;
   initialIsSecret?: boolean;
+  initialIsHidden?: boolean;
   submitLabel?: string;
   variant?: "default" | "answer";
   showSecretOption?: boolean;
+  showHiddenOption?: boolean;
+  framed?: boolean;
+  controlsPlacement?: "inside" | "below-card";
+  simpleEditor?: boolean;
+  cardHeader?: ReactNode;
+  className?: string;
+  cancelAction?: ReactNode;
+  autoFocus?: boolean;
 }) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -60,6 +79,7 @@ export default function CommentForm({
   const contentVideoInputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
   const [isSecret, setIsSecret] = useState(initialIsSecret);
+  const [isHidden, setIsHidden] = useState(initialIsHidden);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingContentImage, setIsUploadingContentImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +108,7 @@ export default function CommentForm({
           content: trimmedContent,
           parentId,
           isSecret,
+          isHidden,
         }),
       });
 
@@ -100,6 +121,10 @@ export default function CommentForm({
 
       setContent("");
       setIsSecret(initialIsSecret);
+      setIsHidden(initialIsHidden);
+      requestAnimationFrame(() => {
+        resizeTextarea(textareaRef.current);
+      });
       router.refresh();
     } catch {
       setError("댓글 등록 중 오류가 발생했습니다.");
@@ -109,6 +134,28 @@ export default function CommentForm({
   }
 
   const isAnswerVariant = variant === "answer";
+
+  function resizeTextarea(textarea: HTMLTextAreaElement | null) {
+    if (!textarea || !simpleEditor) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }
+
+  useEffect(() => {
+    if (!autoFocus) return;
+
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      textarea.focus();
+      if (simpleEditor) {
+        textarea.style.height = "auto";
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      }
+    });
+  }, [autoFocus, simpleEditor]);
 
   function updateContentWithSelection(
     nextContent: string,
@@ -430,12 +477,156 @@ export default function CommentForm({
     );
   }
 
+  const editorContent = simpleEditor ? (
+    <textarea
+      ref={textareaRef}
+      value={content}
+      onChange={(event) => {
+        setContent(event.target.value);
+        resizeTextarea(event.currentTarget);
+      }}
+      onKeyDown={handleContentKeyDown}
+      className="block h-7 min-h-7 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-base leading-7 outline-none placeholder:text-zinc-400"
+      rows={1}
+      placeholder={placeholder}
+    />
+  ) : (
+    <div className="space-y-3">
+      <div className="flex items-center border-b border-border/70">
+        {renderAnswerTabButton("write", "본문")}
+        {renderAnswerTabButton("preview", "미리보기")}
+      </div>
+
+      {activeTab === "write" ? (
+        <div className="flex flex-wrap gap-2">
+          {answerMarkdownTools.map((tool) => (
+            <button
+              key={tool.action}
+              type="button"
+              onClick={() => applyAnswerMarkdownTool(tool.action)}
+              className="rounded-md border border-border/80 bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isUploadingContentImage || isSubmitting}
+            >
+              {tool.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {activeTab === "preview" ? (
+        <div
+          className={`rounded-lg border border-border/80 bg-background px-5 py-4 ${
+            isAnswerVariant ? "min-h-56" : "min-h-36"
+          }`}
+        >
+          {content.trim() ? (
+            <MarkdownRenderer
+              content={content}
+              className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              댓글을 입력하면 여기에 미리보기가 표시됩니다.
+            </p>
+          )}
+        </div>
+      ) : (
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          onKeyDown={handleContentKeyDown}
+          className={`w-full resize-none rounded-lg border border-border/80 bg-background px-5 py-4 text-sm leading-7 outline-none placeholder:text-zinc-400 ${
+            isAnswerVariant ? "min-h-56" : "min-h-36"
+          }`}
+          rows={isAnswerVariant ? 10 : 5}
+          placeholder={placeholder}
+        />
+      )}
+    </div>
+  );
+
+  const secretButton = showSecretOption ? (
+    <button
+      type="button"
+      onClick={() => setIsSecret((current) => !current)}
+      className={`box-border inline-flex h-7 min-w-10 items-center justify-center rounded-md border px-3 py-1.5 leading-none transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        isSecret
+          ? "border-primary/40 bg-primary/10 text-foreground"
+          : "text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
+      }`}
+      aria-pressed={isSecret}
+      aria-label={isSecret ? "비밀댓글 해제" : "비밀댓글 설정"}
+      title={isSecret ? "비밀댓글 해제" : "비밀댓글 설정"}
+    >
+      {isSecret ? (
+        <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+      ) : (
+        <LockOpen className="h-3.5 w-3.5" aria-hidden="true" />
+      )}
+    </button>
+  ) : null;
+
+  const hiddenButton = showHiddenOption ? (
+    <button
+      type="button"
+      onClick={() => setIsHidden((current) => !current)}
+      className={`box-border inline-flex h-7 min-w-10 items-center justify-center rounded-md border px-3 py-1.5 leading-none transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        isHidden
+          ? "border-primary/40 bg-primary/10 text-foreground"
+          : "text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
+      }`}
+      aria-pressed={isHidden}
+      aria-label={isHidden ? "댓글 숨김 해제" : "댓글 숨김 설정"}
+      title={isHidden ? "댓글 숨김 해제" : "댓글 숨김 설정"}
+    >
+      {isHidden ? (
+        <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+      ) : (
+        <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+      )}
+    </button>
+  ) : null;
+
+  const formControls = (
+    <div
+      className={`flex items-center justify-end gap-3 text-xs ${
+        isAnswerVariant && controlsPlacement === "inside" ? "mt-3" : ""
+      }`}
+    >
+      <div className="flex justify-end gap-2">
+        {cancelAction}
+        {hiddenButton}
+        {secretButton}
+        <button
+          type="submit"
+          disabled={isSubmitting || isUploadingContentImage}
+          className="box-border inline-flex h-7 min-w-10 items-center justify-center rounded-md bg-primary px-3 py-1.5 leading-none text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isUploadingContentImage
+            ? "업로드 중..."
+            : isSubmitting
+              ? `${submitLabel} 중...`
+              : submitLabel}
+        </button>
+      </div>
+    </div>
+  );
+
+  const errorMessage = error ? (
+    <p className={`text-sm text-red-500 ${isAnswerVariant ? "mt-3" : ""}`}>
+      {error}
+    </p>
+  ) : null;
+
   return (
     <form
       className={
-        isAnswerVariant
-          ? "mt-6 rounded-xl border bg-muted/20 p-4"
-          : "mt-6 rounded-xl border bg-muted/20 p-4"
+        framed
+          ? isAnswerVariant
+            ? `rounded-xl border bg-muted/20 p-4 ${className}`
+            : `rounded-xl border bg-muted/20 p-4 ${className}`
+          : className
       }
       onSubmit={handleSubmit}
     >
@@ -458,101 +649,22 @@ export default function CommentForm({
         className="hidden"
       />
 
-      <div className="space-y-3">
-        <div className="flex items-center border-b border-border/70">
-          {renderAnswerTabButton("write", "본문")}
-          {renderAnswerTabButton("preview", "미리보기")}
-        </div>
-
-        {activeTab === "write" ? (
-          <div className="flex flex-wrap gap-2">
-            {answerMarkdownTools.map((tool) => (
-              <button
-                key={tool.action}
-                type="button"
-                onClick={() => applyAnswerMarkdownTool(tool.action)}
-                className="rounded-md border border-border/80 bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isUploadingContentImage || isSubmitting}
-              >
-                {tool.label}
-              </button>
-            ))}
+      {controlsPlacement === "below-card" ? (
+        <>
+          <div className="rounded-md border bg-background p-4">
+            {cardHeader}
+            {editorContent}
           </div>
-        ) : null}
-
-        {activeTab === "preview" ? (
-          <div
-            className={`rounded-lg border border-border/80 bg-background px-5 py-4 ${
-              isAnswerVariant ? "min-h-56" : "min-h-36"
-            }`}
-          >
-            {content.trim() ? (
-              <MarkdownRenderer
-                content={content}
-                className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                댓글을 입력하면 여기에 미리보기가 표시됩니다.
-              </p>
-            )}
-          </div>
-        ) : (
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            onKeyDown={handleContentKeyDown}
-            className={`w-full resize-none rounded-lg border border-border/80 bg-background px-5 py-4 text-sm leading-7 outline-none placeholder:text-zinc-400 ${
-              isAnswerVariant ? "min-h-56" : "min-h-36"
-            }`}
-            rows={isAnswerVariant ? 10 : 5}
-            placeholder={placeholder}
-          />
-        )}
-      </div>
-
-      <div
-        className={`flex items-center ${showSecretOption ? "justify-between" : "justify-end"} gap-3 ${
-          isAnswerVariant ? "mt-3" : ""
-        }`}
-      >
-        {showSecretOption ? (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={isSecret}
-              onChange={(event) => setIsSecret(event.target.checked)}
-              className="h-4 w-4"
-            />
-            <span>비밀댓글</span>
-          </label>
-        ) : (
-          <div />
-        )}
-
-        <button
-          type="submit"
-          disabled={isSubmitting || isUploadingContentImage}
-          className={`rounded-md bg-primary text-white disabled:cursor-not-allowed disabled:opacity-60 ${
-            isAnswerVariant
-              ? "px-5 py-2 text-sm font-medium"
-              : "px-4 py-1.5 text-sm"
-          }`}
-        >
-          {isUploadingContentImage
-            ? "업로드 중..."
-            : isSubmitting
-              ? `${submitLabel} 중...`
-              : submitLabel}
-        </button>
-      </div>
-
-      {error ? (
-        <p className={`text-sm text-red-500 ${isAnswerVariant ? "mt-3" : ""}`}>
-          {error}
-        </p>
-      ) : null}
+          <div className="mt-2">{formControls}</div>
+          {errorMessage}
+        </>
+      ) : (
+        <>
+          {editorContent}
+          {formControls}
+          {errorMessage}
+        </>
+      )}
     </form>
   );
 }

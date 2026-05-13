@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { markLoginWelcomeToast } from "@/components/layout/LoginWelcomeToast";
 import { validatePassword } from "@/lib/password";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ type AuthStep = "login" | "signup" | "magicLink";
 
 export default function LoginModal({ open, onClose }: Props) {
   const [step, setStep] = useState<AuthStep>("login");
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const platformLabel = pathname?.startsWith("/horok-cote") ? "cote" : "tech";
@@ -100,6 +102,10 @@ export default function LoginModal({ open, onClose }: Props) {
     setNotice(null);
   }, [onClose]);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // ESC 키로 닫기
   useEffect(() => {
     if (!open) return;
@@ -147,7 +153,7 @@ export default function LoginModal({ open, onClose }: Props) {
     }
   }
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   async function handleSignup() {
     if (
@@ -264,8 +270,8 @@ export default function LoginModal({ open, onClose }: Props) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[70]">
+  return createPortal(
+    <div className="fixed inset-0 z-[10000]">
       {/* dim overlay */}
       <button
         type="button"
@@ -589,6 +595,7 @@ export default function LoginModal({ open, onClose }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

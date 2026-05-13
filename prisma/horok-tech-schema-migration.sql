@@ -15,6 +15,10 @@ ALTER TABLE IF EXISTS public.stop_words SET SCHEMA horok_tech;
 
 COMMIT;
 
+ALTER TABLE IF EXISTS horok_tech.comments
+  ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ;
+
 -- Tables intentionally left in public by default:
 -- public.users
 -- public.verification_tokens

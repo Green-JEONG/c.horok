@@ -5,6 +5,7 @@ import {
   getCommentById,
   softDeleteComment,
   updateComment,
+  updateCommentHidden,
 } from "@/lib/comments";
 
 /**
@@ -89,4 +90,49 @@ export async function DELETE(
   await softDeleteComment(commentId);
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * 댓글 숨김 상태 변경 (작성자만 가능)
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const commentId = Number(id);
+
+  if (Number.isNaN(commentId)) {
+    return NextResponse.json(
+      { message: "Invalid comment id" },
+      { status: 400 },
+    );
+  }
+
+  const dbUserId = await getDbUserIdFromSession();
+  if (!dbUserId) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const comment = await getCommentById(commentId);
+  if (!comment) {
+    return NextResponse.json({ message: "Not found" }, { status: 404 });
+  }
+
+  const isOwner = comment.user_id === dbUserId;
+  if (!isOwner) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+  }
+
+  const { isHidden } = await req.json();
+  if (typeof isHidden !== "boolean") {
+    return NextResponse.json({ message: "isHidden required" }, { status: 400 });
+  }
+
+  const updated = await updateCommentHidden({
+    commentId,
+    isHidden,
+  });
+
+  return NextResponse.json(updated);
 }

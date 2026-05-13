@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Circle, CircleCheckBig } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -61,11 +61,7 @@ export default function InquiryStatusButton({
         type="button"
         disabled={!canManage || isUpdating}
         onClick={updateStatus}
-        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 transition-colors disabled:cursor-not-allowed ${
-          isActive
-            ? "border-green-500 bg-green-500 text-white"
-            : "border-muted-foreground/60 bg-background text-transparent hover:border-green-500 hover:text-green-500"
-        }`}
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60"
         aria-pressed={isActive}
         aria-label="문의 답변 완료"
         title={
@@ -76,7 +72,14 @@ export default function InquiryStatusButton({
             : "관리자만 변경할 수 있습니다."
         }
       >
-        <Check className="h-4 w-4 stroke-[3]" />
+        {isActive ? (
+          <CircleCheckBig className="size-7 shrink-0" color="#4CB975" />
+        ) : (
+          <Circle
+            className="size-7 shrink-0"
+            color={canManage ? "#ccc" : "#d4d4d8"}
+          />
+        )}
       </button>
     );
   }

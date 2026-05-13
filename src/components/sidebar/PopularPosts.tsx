@@ -33,7 +33,14 @@ function readRecentPosts() {
     }
 
     const posts = JSON.parse(stored) as RecentPost[];
-    return Array.isArray(posts) ? posts.slice(0, 5) : [];
+    return Array.isArray(posts)
+      ? posts
+          .sort(
+            (a, b) =>
+              new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime(),
+          )
+          .slice(0, 5)
+      : [];
   } catch {
     return [];
   }

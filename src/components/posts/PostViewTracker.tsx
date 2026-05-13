@@ -49,7 +49,12 @@ export default function PostViewTracker({ postId, title, href }: Props) {
       const nextPosts = [
         nextPost,
         ...currentPosts.filter((post) => post.id !== postId),
-      ].slice(0, MAX_RECENT_POSTS);
+      ]
+        .sort(
+          (a, b) =>
+            new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime(),
+        )
+        .slice(0, MAX_RECENT_POSTS);
 
       window.localStorage.setItem(
         RECENT_POSTS_STORAGE_KEY,
