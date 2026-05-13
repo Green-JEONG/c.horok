@@ -44,10 +44,10 @@ type PostListItem = {
 
 function getInquiryStatusLabel(post: PostListItem) {
   if (post.is_resolved) {
-    return "해결 완료";
+    return "답변 완료";
   }
 
-  return post.has_admin_answer ? "확인 중" : "답변 대기";
+  return post.has_admin_answer ? "확인 중" : "접수 완료";
 }
 
 function getInquiryStatusClassName(post: PostListItem) {
@@ -73,6 +73,7 @@ type Props = {
   searchGroupTitleAction?: ReactNode;
   faqSearchGroupTitleAction?: ReactNode;
   noticeTableLabel?: (typeof SEARCH_RESULT_GROUPS)[number]["label"];
+  noticeTableDateWithoutWeekday?: boolean;
   disableInfinite?: boolean;
   responsiveRowLoading?: boolean;
   initialVisibleRowCount?: number;
@@ -136,6 +137,7 @@ export default function PostListInfinite({
   searchGroupTitleAction,
   faqSearchGroupTitleAction,
   noticeTableLabel,
+  noticeTableDateWithoutWeekday = false,
   disableInfinite = false,
   responsiveRowLoading = false,
   initialVisibleRowCount = INITIAL_VISIBLE_ROW_COUNT,
@@ -378,6 +380,13 @@ export default function PostListInfinite({
     groupPosts: PostListItem[],
   ) => {
     const isQnaGroup = label === "문의";
+    const formatNoticeTableDate = (value: Date | string) => {
+      const formatted = formatSeoulDate(value);
+
+      return noticeTableDateWithoutWeekday
+        ? formatted.replace(/\s*\([^)]*\)/, "")
+        : formatted;
+    };
 
     return (
       <div className="overflow-x-auto border-y bg-background">
@@ -448,7 +457,7 @@ export default function PostListInfinite({
                     />
                     <span className="truncate">{post.author_name}</span>
                   </span>
-                  <span>{formatSeoulDate(post.created_at)}</span>
+                  <span>{formatNoticeTableDate(post.created_at)}</span>
                   <span>조회 {post.view_count ?? 0}</span>
                   {isQnaGroup ? (
                     <span
@@ -473,7 +482,7 @@ export default function PostListInfinite({
                 </span>
               </div>
               <span className="text-center text-sm text-muted-foreground">
-                {formatSeoulDate(post.created_at)}
+                {formatNoticeTableDate(post.created_at)}
               </span>
               <span className="text-center text-sm text-muted-foreground">
                 {post.view_count ?? 0}

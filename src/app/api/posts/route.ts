@@ -5,6 +5,10 @@ import {
   isNoticeCategoryName,
   isPublicNoticeCategory,
 } from "@/lib/notice-categories";
+import {
+  createNewInquiryNotificationMessage,
+  createNewPostNotificationMessage,
+} from "@/lib/notification-messages";
 import { parseSortType } from "@/lib/post-sort";
 import { createPost } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
@@ -100,7 +104,10 @@ export async function POST(req: Request) {
             actorId: BigInt(userId),
             postId: BigInt(post.id),
             type: "NEW_COMMENT",
-            content: "문의에 새로운 질문이 등록되었어요",
+            content: createNewInquiryNotificationMessage({
+              actorName: session.user.name ?? session.user.email,
+              postTitle: title,
+            }),
           })),
         });
       }
@@ -156,7 +163,10 @@ export async function POST(req: Request) {
             actorId: BigInt(userId),
             postId: BigInt(post.id),
             type: "NEW_POST",
-            content: "구독한 유저가 새 글을 작성했어요",
+            content: createNewPostNotificationMessage({
+              actorName: session.user.name ?? session.user.email,
+              postTitle: title,
+            }),
           })),
         });
       }

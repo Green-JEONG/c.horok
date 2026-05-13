@@ -1,12 +1,15 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 import GoBackButton from "@/components/common/GoBackButton";
+import RetryButton from "@/components/common/RetryButton";
 import { cn } from "@/lib/utils";
 
 type Props = {
   code: number;
   message: string;
   action?: ReactNode;
+  retryAction?: ReactNode;
+  retryClassName?: string;
   className?: string;
   contentClassName?: string;
   codeClassName?: string;
@@ -17,6 +20,8 @@ export default function ErrorState({
   code,
   message,
   action,
+  retryAction,
+  retryClassName,
   className,
   contentClassName,
   codeClassName,
@@ -53,8 +58,11 @@ export default function ErrorState({
 
         <p className="text-sm text-muted-foreground sm:text-base">{message}</p>
 
-        {!hideDefaultAction || action ? (
+        {!hideDefaultAction || action || retryAction ? (
           <div className="flex items-center justify-center gap-3">
+            {!hideDefaultAction
+              ? (retryAction ?? <RetryButton className={retryClassName} />)
+              : null}
             {action}
             {!hideDefaultAction ? <GoBackButton /> : null}
           </div>

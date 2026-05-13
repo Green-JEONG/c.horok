@@ -67,12 +67,12 @@ export default function InquiryStatusButton({
             : "border-muted-foreground/60 bg-background text-transparent hover:border-green-500 hover:text-green-500"
         }`}
         aria-pressed={isActive}
-        aria-label="문의 해결 완료"
+        aria-label="문의 답변 완료"
         title={
           canManage
             ? isActive
-              ? "해결 완료 취소"
-              : "해결 완료로 변경"
+              ? "답변 완료 취소"
+              : "답변 완료로 변경"
             : "관리자만 변경할 수 있습니다."
         }
       >
@@ -89,7 +89,7 @@ export default function InquiryStatusButton({
       className={`inline-flex h-8 items-center justify-center rounded-md border px-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed ${
         isActive
           ? "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-          : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+          : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
       }`}
       aria-pressed={isActive}
       aria-label="문의 확인 중"

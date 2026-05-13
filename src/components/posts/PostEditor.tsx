@@ -230,7 +230,7 @@ export default function PostEditor({
   }
 
   function normalizeTagValue(value: string) {
-    return value.trim().replace(/^#/, "");
+    return value.trim().replace(/^#/, "").toLocaleLowerCase();
   }
 
   function addTag(rawValue: string) {
@@ -739,7 +739,7 @@ export default function PostEditor({
                   className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition ${
                     isActive
                       ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
                   }`}
                 >
                   {option}
@@ -760,7 +760,7 @@ export default function PostEditor({
                     variant="secondary"
                     className="gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-foreground"
                   >
-                    {tag}
+                    {tag.toLocaleLowerCase()}
                     {categoryLocked ? null : (
                       <button
                         type="button"
@@ -786,7 +786,7 @@ export default function PostEditor({
                   className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition ${
                     isActive
                       ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
                   }`}
                 >
                   {optionLabel}
@@ -798,7 +798,9 @@ export default function PostEditor({
                 id="post-tags"
                 ref={tagInputRef}
                 value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
+                onChange={(e) =>
+                  setTagInput(e.target.value.toLocaleLowerCase())
+                }
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
@@ -876,7 +878,7 @@ export default function PostEditor({
                 key={tool.action}
                 type="button"
                 onClick={() => applyMarkdownTool(tool.action)}
-                className="rounded-md border border-border/80 bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+                className="rounded-md border border-border/80 bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground"
               >
                 {tool.label}
               </button>

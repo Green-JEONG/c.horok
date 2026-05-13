@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
 import { toggleLike } from "@/lib/likes";
+import { createPostBookmarkNotificationMessage } from "@/lib/notification-messages";
 import { getPostById } from "@/lib/posts";
 import { prisma } from "@/lib/prisma";
 
@@ -39,12 +40,20 @@ export async function POST(
   if (result.liked) {
     try {
       if (post && post.user_id !== userId) {
+        const actor = await prisma.user.findUnique({
+          where: { id: BigInt(userId) },
+          select: { name: true, email: true },
+        });
+
         await prisma.notification.create({
           data: {
             userId: BigInt(post.user_id),
             actorId: BigInt(userId),
             type: "POST_LIKE",
-            content: "내 게시물이 북마크되었어요",
+            content: createPostBookmarkNotificationMessage({
+              actorName: actor?.name ?? actor?.email,
+              postTitle: post.title,
+            }),
             postId: BigInt(postId),
           },
         });

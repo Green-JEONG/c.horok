@@ -240,6 +240,7 @@ export default function SearchResultsTabs({
                       ? "문의"
                       : undefined
               }
+              noticeTableDateWithoutWeekday
               gridClassName="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
               emptyMessage="검색 결과가 없습니다."
             />

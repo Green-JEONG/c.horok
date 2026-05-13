@@ -13,6 +13,7 @@ export default function HorokCoteProblemNotFound() {
             className="min-h-0 flex-1 px-0 py-0"
             contentClassName="rounded-[28px] bg-white px-6 py-10 dark:bg-[#020617]"
             codeClassName="text-[#06923E] dark:text-[#46c86f]"
+            retryClassName="bg-[#06923E] text-white dark:bg-[#46c86f] dark:text-slate-950"
           />
         </section>
       </div>

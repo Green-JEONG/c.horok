@@ -205,10 +205,10 @@ export default function MyQnaSection() {
   );
   const getStatusLabel = (post: MyQnaPost) => {
     if (post.is_resolved) {
-      return "해결 완료";
+      return "답변 완료";
     }
 
-    return post.has_admin_answer ? "확인 중" : "답변 대기";
+    return post.has_admin_answer ? "확인 중" : "접수 완료";
   };
   const getStatusClassName = (post: MyQnaPost) => {
     if (post.is_resolved) {

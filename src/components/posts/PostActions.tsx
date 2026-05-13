@@ -142,7 +142,7 @@ export default function PostActions({
           setIsEditing((prev) => !prev);
           setError(null);
         }}
-        className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-md border px-3 py-1 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isEditing ? "닫기" : "수정"}
       </button>
@@ -151,7 +151,7 @@ export default function PostActions({
         type="button"
         disabled={isDeleting || isTogglingHidden}
         onClick={handleToggleHidden}
-        className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-md border px-3 py-1 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isTogglingHidden
           ? isHidden
@@ -166,7 +166,7 @@ export default function PostActions({
         type="button"
         disabled={isDeleting || isTogglingHidden}
         onClick={handleDelete}
-        className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-md border border-red-500 bg-red-500 px-3 py-1 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isDeleting ? "삭제 중..." : "삭제"}
       </button>

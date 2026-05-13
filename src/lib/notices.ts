@@ -143,6 +143,7 @@ export type NoticeBannerItem = {
 export type NoticeAccessMeta = {
   exists: boolean;
   categoryName: NoticeTag | null;
+  isDeleted: boolean;
   isSecret: boolean;
 };
 
@@ -603,7 +604,6 @@ export async function findNoticeAccessMetaById(
   const notice = await prisma.post.findFirst({
     where: {
       id: BigInt(id),
-      isDeleted: false,
       category: {
         is: {
           name: {
@@ -613,6 +613,7 @@ export async function findNoticeAccessMetaById(
       },
     },
     select: {
+      isDeleted: true,
       isSecret: true,
       category: {
         select: {
@@ -626,6 +627,7 @@ export async function findNoticeAccessMetaById(
     return {
       exists: false,
       categoryName: null,
+      isDeleted: false,
       isSecret: false,
     };
   }
@@ -633,6 +635,7 @@ export async function findNoticeAccessMetaById(
   return {
     exists: true,
     categoryName: normalizeNoticeCategory(notice.category?.name),
+    isDeleted: notice.isDeleted,
     isSecret: notice.isSecret,
   };
 }

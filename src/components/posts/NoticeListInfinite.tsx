@@ -99,10 +99,10 @@ function getInquiryStatusLabel(notice: {
   hasAdminAnswer: boolean;
 }) {
   if (notice.isResolved) {
-    return "해결 완료";
+    return "답변 완료";
   }
 
-  return notice.hasAdminAnswer ? "확인 중" : "답변 대기";
+  return notice.hasAdminAnswer ? "확인 중" : "접수 완료";
 }
 
 function getInquiryStatusClassName(notice: {
@@ -360,8 +360,8 @@ export default function NoticeListInfinite({
         <div
           className={`grid min-w-[560px] items-center gap-3 border-b bg-muted/40 px-5 py-3 text-center text-xs font-semibold text-muted-foreground ${
             showStatusColumn
-              ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_76px]"
-              : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
+              ? "min-w-[640px] grid-cols-[40px_minmax(220px,1.6fr)_72px_84px_48px_68px]"
+              : "grid-cols-[40px_minmax(220px,1.6fr)_72px_84px_48px]"
           }`}
         >
           {renderSortableHeader("번호", "number")}
@@ -390,7 +390,7 @@ export default function NoticeListInfinite({
               <span className="shrink-0 text-sm font-semibold text-primary">
                 Q.
               </span>
-              <p className="truncate text-sm font-semibold text-foreground">
+              <p className="min-w-0 whitespace-normal break-words text-sm font-semibold leading-5 text-foreground">
                 {notice.title}
               </p>
               {notice.isLocked ? (
@@ -410,7 +410,7 @@ export default function NoticeListInfinite({
               <span className="hidden shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
                 {noticeNumber}
               </span>
-              <p className="truncate text-sm font-semibold text-foreground">
+              <p className="min-w-0 whitespace-normal break-words text-sm font-semibold leading-5 text-foreground">
                 {notice.title}
               </p>
               {notice.isLocked ? (
@@ -426,8 +426,8 @@ export default function NoticeListInfinite({
             <div
               className={`grid min-w-[560px] items-center gap-3 px-5 py-4 ${
                 showStatusColumn
-                  ? "min-w-[640px] grid-cols-[48px_minmax(0,1fr)_88px_92px_56px_76px]"
-                  : "grid-cols-[48px_minmax(0,1fr)_88px_92px_56px]"
+                  ? "min-w-[640px] grid-cols-[40px_minmax(220px,1.6fr)_72px_84px_48px_68px]"
+                  : "grid-cols-[40px_minmax(220px,1.6fr)_72px_84px_48px]"
               }`}
             >
               <span className="text-center text-sm font-semibold tabular-nums text-muted-foreground">
@@ -615,7 +615,7 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
                 setIsEditing((prev) => !prev);
                 setError(null);
               }}
-              className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md border px-3 py-1 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
               닫기
             </button>
@@ -623,7 +623,7 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
               type="button"
               disabled={isDeleting || isTogglingHidden}
               onClick={handleToggleHidden}
-              className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md border px-3 py-1 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isTogglingHidden ? "숨김 중..." : "숨김"}
             </button>
@@ -631,7 +631,7 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
               type="button"
               disabled={isDeleting || isTogglingHidden}
               onClick={handleDelete}
-              className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md border border-red-500 bg-red-500 px-3 py-1 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isDeleting ? "삭제 중..." : "삭제"}
             </button>
@@ -686,7 +686,7 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
                   setIsEditing((prev) => !prev);
                   setError(null);
                 }}
-                className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md border px-3 py-1 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
               >
                 수정
               </button>
@@ -694,7 +694,7 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
                 type="button"
                 disabled={isDeleting || isTogglingHidden}
                 onClick={handleToggleHidden}
-                className="rounded-md border px-3 py-1 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md border px-3 py-1 transition hover:border-primary/30 hover:bg-primary/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isTogglingHidden ? "숨김 중..." : "숨김"}
               </button>
@@ -702,7 +702,7 @@ function FaqInlineActions({ notice }: { notice: NoticeListItem }) {
                 type="button"
                 disabled={isDeleting || isTogglingHidden}
                 onClick={handleDelete}
-                className="rounded-md border px-3 py-1 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md border border-red-500 bg-red-500 px-3 py-1 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isDeleting ? "삭제 중..." : "삭제"}
               </button>

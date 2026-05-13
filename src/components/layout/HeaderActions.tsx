@@ -107,7 +107,7 @@ export default function HeaderActions() {
       <Button
         variant="ghost"
         size="icon"
-        className="relative h-10 w-10 shrink-0 overflow-visible rounded-full p-0"
+        className="group relative h-10 w-10 shrink-0 overflow-visible rounded-full border border-transparent bg-background p-0 transition hover:bg-primary/10"
         onClick={() => setOpen(true)}
         aria-label="마이페이지 열기"
       >
@@ -120,7 +120,7 @@ export default function HeaderActions() {
           }
           width={30}
           height={30}
-          className="h-full w-full object-contain border rounded-full"
+          className="h-full w-full rounded-full border border-border object-contain transition group-hover:border-primary/30"
         />
         {!isCote && hasUnreadNotifications ? (
           <span className="absolute -right-0.5 top-0 h-2.5 w-2.5 rounded-full bg-red-500 ring-background" />

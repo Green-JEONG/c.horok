@@ -93,6 +93,10 @@ export default async function HorokTechNoticeDetailPage({
   if (!notice) {
     const accessMeta = await findNoticeAccessMetaById(noticeId);
 
+    if (accessMeta.exists && accessMeta.isDeleted) {
+      return <ErrorState code={404} message="삭제된 게시물입니다." />;
+    }
+
     if (accessMeta.exists && accessMeta.isSecret) {
       return (
         <ErrorState
@@ -168,7 +172,11 @@ export default async function HorokTechNoticeDetailPage({
 
   return (
     <article className="w-full">
-      <PostViewTracker postId={noticeId} />
+      <PostViewTracker
+        postId={noticeId}
+        title={notice.title}
+        href={`/horok-tech/notices/${notice.id}`}
+      />
       <PostActions
         postId={notice.id}
         initialTitle={notice.title}
@@ -207,7 +215,12 @@ export default async function HorokTechNoticeDetailPage({
       />
       {isInquiryNotice ? (
         <section className="mt-10">
-          <h3 className="text-lg font-semibold">답변</h3>
+          <h3 className="text-lg font-semibold">
+            답변{" "}
+            <span className="text-sm font-medium text-muted-foreground">
+              {adminAnswers.length}
+            </span>
+          </h3>
           {!notice.canViewSecret ? (
             <p className="mt-4 text-sm text-muted-foreground">
               비밀글은 작성자와 관리자만 답변을 확인할 수 있습니다.
@@ -231,6 +244,8 @@ export default async function HorokTechNoticeDetailPage({
                           created_at: adminAnswer.created_at,
                           author: adminAnswer.author,
                           author_image: adminAnswer.author_image,
+                          author_role: adminAnswer.author_role,
+                          reactions: adminAnswer.reactions,
                           replies: [],
                         }}
                         postId={notice.id}
@@ -265,11 +280,12 @@ export default async function HorokTechNoticeDetailPage({
       ) : !isQnaNotice ? (
         <>
           {notice.canViewSecret ? <CommentList postId={notice.id} /> : null}
-          {session?.user?.email && notice.canViewSecret ? (
+          {notice.canViewSecret ? (
             <InquiryAnswerComposer
               postId={notice.id}
               buttonLabel="댓글 작성하기"
               placeholder="댓글을 작성하세요"
+              requiresLogin={!session?.user?.email}
               submitLabel="댓글 등록"
               showSecretOption
             />
@@ -277,11 +293,7 @@ export default async function HorokTechNoticeDetailPage({
             <p className="mt-4 text-sm text-muted-foreground">
               비밀글은 작성자와 관리자만 댓글을 확인할 수 있습니다.
             </p>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">
-              북마크와 댓글 작성은 로그인 후 이용할 수 있습니다.
-            </p>
-          )}
+          ) : null}
         </>
       ) : null}
     </article>

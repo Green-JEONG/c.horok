@@ -2,12 +2,14 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getUserIdByEmail } from "@/lib/db";
+import { createPostReactionNotificationMessage } from "@/lib/notification-messages";
 import { isPostReactionEmoji } from "@/lib/post-reaction-options";
 import {
   getPostReactionSummary,
   togglePostReaction,
 } from "@/lib/post-reactions";
 import { getPostById } from "@/lib/posts";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _req: NextRequest,
@@ -72,6 +74,31 @@ export async function POST(
 
   const result = await togglePostReaction({ postId, userId, emoji });
   const reactions = await getPostReactionSummary(postId, userId);
+
+  if (result.reacted && post.user_id !== userId) {
+    try {
+      const actor = await prisma.user.findUnique({
+        where: { id: BigInt(userId) },
+        select: { name: true, email: true },
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: BigInt(post.user_id),
+          actorId: BigInt(userId),
+          type: "POST_REACTION",
+          content: createPostReactionNotificationMessage({
+            actorName: actor?.name ?? actor?.email,
+            postTitle: post.title,
+            emoji,
+          }),
+          postId: BigInt(postId),
+        },
+      });
+    } catch (error) {
+      console.error("🔔 게시글 반응 알림 생성 실패", error);
+    }
+  }
 
   return NextResponse.json({ ...result, reactions });
 }

@@ -1,3 +1,5 @@
+import { getCommentReactionSummariesByCommentId } from "@/lib/comment-reactions";
+import type { PostReactionSummary } from "@/lib/post-reaction-options";
 import { prisma } from "@/lib/prisma";
 
 export type CommentRow = {
@@ -13,6 +15,7 @@ export type CommentRow = {
   created_at: string;
   updated_at: string;
   author_image: string | null;
+  reactions: PostReactionSummary[];
 };
 
 export type AdminAnswer = {
@@ -21,6 +24,8 @@ export type AdminAnswer = {
   content: string;
   author: string;
   author_image: string | null;
+  author_role: "USER" | "ADMIN";
+  reactions: PostReactionSummary[];
   created_at: string;
   updated_at: string;
   is_edited: boolean;
@@ -80,7 +85,7 @@ export async function getCommentsByPost(
     orderBy: { createdAt: "asc" },
     include: {
       user: {
-        select: { email: true, name: true, image: true },
+        select: { email: true, name: true, image: true, role: true },
       },
       post: {
         select: { userId: true },
@@ -88,29 +93,31 @@ export async function getCommentsByPost(
     },
   });
 
-  return comments.map((comment) => ({
-    ...mapComment(comment, {
-      viewerUserId: options?.viewerUserId ?? null,
-      isAdmin: options?.isAdmin,
-      postOwnerUserId: Number(comment.post.userId),
-    }),
-    author:
-      comment.isSecret &&
-      !(
-        Number(comment.userId) === options?.viewerUserId ||
-        Number(comment.post.userId) === options?.viewerUserId
-      )
-        ? "비공개"
-        : (comment.user.name ?? comment.user.email),
-    author_image:
-      comment.isSecret &&
-      !(
-        Number(comment.userId) === options?.viewerUserId ||
-        Number(comment.post.userId) === options?.viewerUserId
-      )
-        ? null
-        : (comment.user.image ?? null),
-  }));
+  const reactionSummaries = await getCommentReactionSummariesByCommentId(
+    comments.map((comment) => comment.id),
+    options?.viewerUserId,
+  );
+
+  return comments.map((comment) => {
+    const canViewAuthor =
+      !comment.isSecret ||
+      Number(comment.userId) === options?.viewerUserId ||
+      Number(comment.post.userId) === options?.viewerUserId;
+
+    return {
+      ...mapComment(comment, {
+        viewerUserId: options?.viewerUserId ?? null,
+        isAdmin: options?.isAdmin,
+        postOwnerUserId: Number(comment.post.userId),
+      }),
+      author: canViewAuthor
+        ? (comment.user.name ?? comment.user.email)
+        : "비공개",
+      author_image: canViewAuthor ? (comment.user.image ?? null) : null,
+      author_role: canViewAuthor ? comment.user.role : null,
+      reactions: reactionSummaries.get(Number(comment.id)) ?? [],
+    };
+  });
 }
 
 export async function getAdminAnswersByPost(
@@ -134,10 +141,14 @@ export async function getAdminAnswersByPost(
     orderBy: { createdAt: "asc" },
     include: {
       user: {
-        select: { name: true, email: true, image: true },
+        select: { name: true, email: true, image: true, role: true },
       },
     },
   });
+  const reactionSummaries = await getCommentReactionSummariesByCommentId(
+    comments.map((comment) => comment.id),
+    options?.viewerUserId,
+  );
 
   return comments.map((comment) => {
     const mappedComment = mapComment(comment, options);
@@ -148,6 +159,8 @@ export async function getAdminAnswersByPost(
       content: mappedComment.content,
       author: comment.user.name ?? comment.user.email,
       author_image: comment.user.image ?? null,
+      author_role: comment.user.role,
+      reactions: reactionSummaries.get(Number(comment.id)) ?? [],
       created_at: mappedComment.created_at,
       updated_at: mappedComment.updated_at,
       is_edited: mappedComment.is_edited,

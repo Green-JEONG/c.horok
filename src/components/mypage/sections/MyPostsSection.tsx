@@ -519,7 +519,7 @@ export default function MyPostsSection() {
                       event.stopPropagation();
                       void handleDeleteDraft(post);
                     }}
-                    className="absolute top-2 right-2 z-30 inline-flex h-8 w-8 items-center justify-center text-red-500 transition hover:text-red-600"
+                    className="absolute top-2 right-2 z-30 inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-500 bg-red-500 text-white transition hover:bg-red-600"
                     aria-label="임시저장 글 삭제"
                   >
                     <Trash2 className="h-4 w-4" />
