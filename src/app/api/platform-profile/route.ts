@@ -46,7 +46,7 @@ export async function PATCH(req: Request) {
     const image =
       typeof body?.image === "string" && body.image.trim()
         ? body.image.trim()
-        : null;
+        : undefined;
     const removeImage = body?.removeImage === true;
     const resetImage = body?.resetImage === true;
     const currentPassword =
@@ -161,20 +161,43 @@ export async function PATCH(req: Request) {
       });
     }
 
+    const shouldUpdateImage = resetImage || removeImage || image !== undefined;
     const nextImage = resetImage
       ? (user.oauthImage ?? null)
       : removeImage
         ? null
         : image;
 
+    const userData: {
+      name?: string;
+      image?: string | null;
+    } = {};
+
+    if (name) {
+      userData.name = name;
+    }
+
+    if (shouldUpdateImage) {
+      userData.image = nextImage ?? null;
+    }
+
+    if (Object.keys(userData).length > 0) {
+      await prisma.user.update({
+        where: { id: BigInt(session.user.id) },
+        data: userData,
+      });
+    }
+
     const profile = await updateCurrentPlatformProfile(platform, {
       name: name || undefined,
-      image: nextImage,
+      ...(shouldUpdateImage ? { image: nextImage ?? null } : {}),
     });
 
     return NextResponse.json({
       ok: true,
-      image: profile?.image ?? nextImage,
+      image: shouldUpdateImage
+        ? (profile?.image ?? nextImage ?? null)
+        : undefined,
       name: profile?.name ?? name,
     });
   } catch {

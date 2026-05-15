@@ -131,7 +131,7 @@ export default async function CommentList({
                   } as CSSProperties
                 }
                 className={`relative before:absolute before:-left-6 before:w-0.5 before:bg-[var(--comment-graph-color)] ${
-                  isOnlyComment
+                  isOnlyComment || (!showComposer && index === 0)
                     ? "before:hidden"
                     : index === 0
                       ? "before:-top-6 before:-bottom-6"
@@ -155,6 +155,7 @@ export default async function CommentList({
                   depth={0}
                   graphColor={graphColor}
                   connectFromPrevious={!isOnlyComment && isLastComment}
+                  connectToNext={!showComposer && index === 0 && !isLastComment}
                 />
               </li>
             );

@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import LoginModal from "@/components/auth/LoginModal";
 import { Button } from "@/components/ui/button";
@@ -40,57 +40,67 @@ export default function UserProfiles() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const load = async () => {
-      const selfProfile = session?.user?.id
-        ? await fetch(`/api/users/${session.user.id}/profile`)
-            .then((response) => {
-              if (!response.ok) {
-                throw new Error();
-              }
+  const loadProfile = useCallback(async () => {
+    const selfProfile = session?.user?.id
+      ? await fetch(`/api/users/${session.user.id}/profile`, {
+          cache: "no-store",
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error();
+            }
 
-              return response.json();
-            })
-            .catch(() => ({
-              id: Number(session.user.id),
-              name: session.user.name ?? null,
-              image: session.user.image ?? null,
-              followerCount: 0,
-              postCount: 0,
-              isSelf: true,
-              isFriend: false,
-            }))
-        : null;
+            return response.json();
+          })
+          .catch(() => ({
+            id: Number(session.user.id),
+            name: session.user.name ?? null,
+            image: session.user.image ?? null,
+            followerCount: 0,
+            postCount: 0,
+            isSelf: true,
+            isFriend: false,
+          }))
+      : null;
 
-      const userPageMatch = pathname.match(/^\/users\/(\d+)$/);
+    const userPageMatch = pathname.match(/^\/users\/(\d+)$/);
 
-      if (userPageMatch) {
-        try {
-          setLoading(true);
+    if (userPageMatch) {
+      try {
+        setLoading(true);
 
-          const response = await fetch(
-            `/api/users/${userPageMatch[1]}/profile`,
-          );
-          if (!response.ok) {
-            throw new Error();
-          }
-
-          const data = await response.json();
-          setProfile(data.isSelf ? selfProfile : data);
-        } catch {
-          setProfile(selfProfile);
-        } finally {
-          setLoading(false);
+        const response = await fetch(`/api/users/${userPageMatch[1]}/profile`, {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error();
         }
-        return;
+
+        const data = await response.json();
+        setProfile(data.isSelf ? selfProfile : data);
+      } catch {
+        setProfile(selfProfile);
+      } finally {
+        setLoading(false);
       }
+      return;
+    }
 
-      setProfile(selfProfile);
-      setLoading(false);
-    };
-
-    load();
+    setProfile(selfProfile);
+    setLoading(false);
   }, [pathname, session]);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  useEffect(() => {
+    window.addEventListener("profile-updated", loadProfile);
+
+    return () => {
+      window.removeEventListener("profile-updated", loadProfile);
+    };
+  }, [loadProfile]);
 
   useEffect(() => {
     void countSyncedPostDrafts(getTechPostDraftStorageKey()).then(

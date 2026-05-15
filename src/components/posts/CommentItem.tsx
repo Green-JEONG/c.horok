@@ -51,6 +51,7 @@ export default function CommentItem({
   depth = 0,
   graphColor = "#f97316",
   connectFromPrevious = false,
+  connectToNext = false,
 }: {
   comment: CommentNode;
   postId: number;
@@ -66,6 +67,7 @@ export default function CommentItem({
   depth?: number;
   graphColor?: string;
   connectFromPrevious?: boolean;
+  connectToNext?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -292,7 +294,7 @@ export default function CommentItem({
         {connectFromPrevious ? (
           <span className="absolute -left-[25px] -top-6 h-[calc(50%+1.5rem)] w-0.5 bg-[var(--comment-graph-color)]" />
         ) : null}
-        {hasGraphChildren ? (
+        {hasGraphChildren || connectToNext ? (
           <span className="absolute -left-[25px] top-1/2 bottom-0 w-0.5 bg-[var(--comment-graph-color)]" />
         ) : null}
         <span className="absolute top-1/2 z-10 -left-[30px] size-3 -translate-y-1/2 rounded-full border-2 border-[var(--comment-graph-color)] bg-[var(--comment-graph-color)]" />
@@ -423,7 +425,7 @@ export default function CommentItem({
         </div>
       ) : (
         <div className="relative mt-2 flex items-center justify-between gap-3">
-          {hasGraphChildren ? (
+          {hasGraphChildren || connectToNext ? (
             <span className="absolute -left-6 -top-3 -bottom-px w-0.5 bg-[var(--comment-graph-color)]" />
           ) : null}
           <CommentReactionButton

@@ -29,6 +29,19 @@ async function getCurrentPlatformAuthUser(platform: PlatformProfileKind) {
   };
 }
 
+async function syncUserProfileName(userId: bigint, name?: string | null) {
+  const normalizedName = name?.trim();
+
+  if (!normalizedName) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { name: normalizedName },
+  });
+}
+
 async function ensureHorokCoteSchema() {
   if (!horokCoteSchemaPromise) {
     horokCoteSchemaPromise = prisma
@@ -217,6 +230,7 @@ export async function getCurrentPlatformProfile(platform: PlatformProfileKind) {
         avatarUrl: true,
       },
     });
+    await syncUserProfileName(currentUser.userId, member?.nickname);
 
     return {
       platform,
@@ -235,6 +249,7 @@ export async function getCurrentPlatformProfile(platform: PlatformProfileKind) {
       avatarUrl: true,
     },
   });
+  await syncUserProfileName(currentUser.userId, member?.displayName);
 
   return {
     platform,
@@ -305,6 +320,17 @@ export async function checkPlatformNicknameAvailability(
 ) {
   const excludeId =
     excludeUserId && /^\d+$/.test(excludeUserId) ? BigInt(excludeUserId) : null;
+  const user = await prisma.user.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      ...(excludeId ? { NOT: { id: excludeId } } : {}),
+    },
+    select: { id: true },
+  });
+
+  if (user) {
+    return { available: false, message: "이미 사용 중인 닉네임입니다." };
+  }
 
   if (platform === "cote") {
     const member = await prisma.coteMember.findFirst({

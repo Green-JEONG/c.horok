@@ -196,6 +196,8 @@ export function createAuthConfig(platform: AuthPlatform): NextAuthConfig {
       session({ session, token }) {
         if (session.user) {
           session.user.id = (token.userId ?? token.sub) as string;
+          session.user.name =
+            typeof token.name === "string" ? token.name : null;
           session.user.role = token.role as "USER" | "ADMIN";
           session.user.provider = token.provider as
             | "credentials"

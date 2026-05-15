@@ -511,6 +511,8 @@ export default function HorokChat({
     pointerOffsetX: number;
     pointerOffsetY: number;
   } | null>(null);
+  const dragStartPointRef = useRef<{ x: number; y: number } | null>(null);
+  const hasDraggedFloatingRef = useRef(false);
   const resizeStateRef = useRef<{
     direction: ResizeDirection;
     startWidth: number;
@@ -773,6 +775,13 @@ export default function HorokChat({
 
     function handleMouseMove(event: MouseEvent) {
       if (dragStateRef.current) {
+        if (dragStartPointRef.current) {
+          const movedX = event.clientX - dragStartPointRef.current.x;
+          const movedY = event.clientY - dragStartPointRef.current.y;
+          hasDraggedFloatingRef.current =
+            hasDraggedFloatingRef.current || Math.hypot(movedX, movedY) > 4;
+        }
+
         const containerLeft =
           event.clientX - dragStateRef.current.pointerOffsetX;
         const containerTop =
@@ -852,6 +861,7 @@ export default function HorokChat({
 
     function handleMouseUp() {
       dragStateRef.current = null;
+      dragStartPointRef.current = null;
       resizeStateRef.current = null;
     }
 
@@ -1512,6 +1522,11 @@ export default function HorokChat({
       pointerOffsetX: event.clientX - floatingPosition.x,
       pointerOffsetY: event.clientY - floatingPosition.y,
     };
+    dragStartPointRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+    hasDraggedFloatingRef.current = false;
   }
 
   function handleFloatingResizeStart(
@@ -1537,6 +1552,11 @@ export default function HorokChat({
   }
 
   function handleFloatingToggle() {
+    if (hasDraggedFloatingRef.current) {
+      hasDraggedFloatingRef.current = false;
+      return;
+    }
+
     const nextOpen = !isOpen;
 
     if (nextOpen && sessionStatus === "authenticated" && !problem) {
@@ -2281,6 +2301,11 @@ export default function HorokChat({
         {!isEmbedded ? (
           <button
             type="button"
+            onMouseDown={(event) => {
+              if (!isOpen) {
+                handleFloatingDragStart(event);
+              }
+            }}
             onClick={handleFloatingToggle}
             className="pointer-events-auto group relative block size-16 transition hover:-translate-y-0.5 sm:size-[72px]"
             style={
