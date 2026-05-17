@@ -386,7 +386,63 @@ export default function HorokCoteWorkspace({
       return;
     }
 
-    const findDropTarget = (event: PointerEvent): PanelDropTarget | null => {
+    let scrollAnimationFrame: number | null = null;
+    let isScrolling = false;
+    let currentScrollDirection: "left" | "right" | null = null;
+    let previousSnapType = "";
+    let previousScrollBehavior = "";
+    const lastPointerPos = { clientX: 0, clientY: 0 };
+
+    const EDGE_THRESHOLD = 60;
+    const SCROLL_SPEED = 15;
+
+    const startScrolling = (direction: "left" | "right", viewport: HTMLDivElement) => {
+      if (currentScrollDirection === direction) return;
+      currentScrollDirection = direction;
+      
+      if (!isScrolling) {
+        isScrolling = true;
+        previousSnapType = viewport.style.scrollSnapType;
+        previousScrollBehavior = viewport.style.scrollBehavior;
+        viewport.style.scrollSnapType = "none";
+        viewport.style.scrollBehavior = "auto";
+
+        const scroll = () => {
+          if (!isScrolling) return;
+          const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
+          
+          if (currentScrollDirection === "left" && viewport.scrollLeft > 0) {
+            viewport.scrollBy({ left: -SCROLL_SPEED, behavior: "auto" });
+          } else if (currentScrollDirection === "right" && viewport.scrollLeft < maxScrollLeft) {
+            viewport.scrollBy({ left: SCROLL_SPEED, behavior: "auto" });
+          }
+          
+          updateDropTarget(findDropTarget(lastPointerPos));
+          scrollAnimationFrame = window.requestAnimationFrame(scroll);
+        };
+        scrollAnimationFrame = window.requestAnimationFrame(scroll);
+      }
+    };
+
+    const stopScrolling = () => {
+      if (!isScrolling) return;
+      
+      if (scrollAnimationFrame !== null) {
+        window.cancelAnimationFrame(scrollAnimationFrame);
+        scrollAnimationFrame = null;
+      }
+      
+      const viewport = mobileViewportRef.current;
+      if (viewport) {
+        viewport.style.scrollSnapType = previousSnapType;
+        viewport.style.scrollBehavior = previousScrollBehavior;
+      }
+      
+      isScrolling = false;
+      currentScrollDirection = null;
+    };
+
+    const findDropTarget = (event: { clientX: number; clientY: number }): PanelDropTarget | null => {
       const sourcePanelId = movingPanelRef.current;
 
       if (!sourcePanelId) {
@@ -445,11 +501,29 @@ export default function HorokCoteWorkspace({
     };
 
     const handlePointerMove = (event: PointerEvent) => {
+      lastPointerPos.clientX = event.clientX;
+      lastPointerPos.clientY = event.clientY;
+
       movePanelPreview(event.clientX, event.clientY);
       updateDropTarget(findDropTarget(event));
+
+      const viewport = mobileViewportRef.current;
+      if (viewport && viewport.clientWidth > 0) {
+        const rect = viewport.getBoundingClientRect();
+        const relativeX = event.clientX - rect.left;
+
+        if (relativeX < EDGE_THRESHOLD) {
+          startScrolling("left", viewport);
+        } else if (relativeX > rect.width - EDGE_THRESHOLD) {
+          startScrolling("right", viewport);
+        } else {
+          stopScrolling();
+        }
+      }
     };
 
     const handlePointerUp = (event: PointerEvent) => {
+      stopScrolling();
       const sourcePanelId = movingPanelRef.current;
       const nextDropTarget = findDropTarget(event);
       movingPanelRef.current = null;
@@ -472,14 +546,35 @@ export default function HorokCoteWorkspace({
         return;
       }
 
-      setPanelOrder((currentOrder) =>
-        movePanelOrder(
-          currentOrder,
-          sourcePanelId,
-          nextDropTarget.panelId,
-          nextDropTarget.insertAfterTarget,
-        ),
+      const nextOrder = movePanelOrder(
+        panelOrderRef.current,
+        sourcePanelId,
+        nextDropTarget.panelId,
+        nextDropTarget.insertAfterTarget,
       );
+
+      if (!isDesktop) {
+        const currentSizes = mobileSizes;
+        const collapsedPanels = currentSizes.map((size) => size <= 0);
+        const nextVisiblePanelIds = nextOrder.filter((_, index) => !collapsedPanels[index]);
+        const visibleIndex = nextVisiblePanelIds.indexOf(sourcePanelId);
+
+        if (visibleIndex >= 0) {
+          const visiblePanelCount = Math.max(1, nextVisiblePanelIds.length);
+          const mobilePageCount = isTablet ? (visiblePanelCount <= 2 ? 1 : 2) : visiblePanelCount;
+          const hiddenPanelCount = collapsedPanels.filter(Boolean).length;
+          
+          const targetPageIndex = isTablet
+            ? hiddenPanelCount > 0
+              ? 0
+              : clamp(visibleIndex - 1, 0, mobilePageCount - 1)
+            : visibleIndex;
+
+          pendingMobilePageScrollRef.current = targetPageIndex;
+        }
+      }
+
+      setPanelOrder(nextOrder);
       cleanupPanelPreview();
     };
 
@@ -487,6 +582,7 @@ export default function HorokCoteWorkspace({
     window.addEventListener("pointerup", handlePointerUp);
 
     return () => {
+      stopScrolling();
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
       setPanelDropTarget(null);
@@ -662,64 +758,84 @@ export default function HorokCoteWorkspace({
   }
 
   function handleTogglePanel(panelIndex: number) {
-    const sizes = isDesktop ? desktopSizes : mobileSizes;
-    const nextSizes = [...sizes];
-    const panelSize = nextSizes[panelIndex];
+    const activeSizes = isDesktop ? desktopSizes : mobileSizes;
+    const isHiding = activeSizes[panelIndex] > 0;
 
-    if (panelSize > 0) {
-      const hasHiddenPanel = nextSizes.some(
+    if (isHiding) {
+      const hasHiddenPanel = activeSizes.some(
         (size, index) => index !== panelIndex && size <= 0,
       );
 
       if (hasHiddenPanel) {
         return;
       }
+    }
 
-      const recipientIndex = findLargestOpenPanelIndex(nextSizes, panelIndex);
+    setDesktopSizes((currentDesktopSizes) => {
+      const nextSizes = [...currentDesktopSizes];
+      const panelSize = nextSizes[panelIndex];
 
-      if (recipientIndex === undefined) {
-        return;
+      if (isHiding) {
+        if (panelSize <= 0) return nextSizes;
+        const recipientIndex = findLargestOpenPanelIndex(nextSizes, panelIndex);
+        if (recipientIndex === undefined) return nextSizes;
+        nextSizes[panelIndex] = 0;
+        nextSizes[recipientIndex] += panelSize;
+        return nextSizes;
       }
 
-      nextSizes[panelIndex] = 0;
-      nextSizes[recipientIndex] += panelSize;
-    } else {
-      const defaultSizes = isDesktop
-        ? DESKTOP_DEFAULT_SIZES
-        : MOBILE_DEFAULT_SIZES;
+      if (panelSize > 0) return nextSizes;
+      const defaultSizes = DESKTOP_DEFAULT_SIZES;
       const donorIndex = findLargestOpenPanelIndex(nextSizes, panelIndex);
-
-      if (donorIndex === undefined) {
-        return;
-      }
-
+      if (donorIndex === undefined) return nextSizes;
       const donorSize = nextSizes[donorIndex];
-
       const minSizeRatio =
-        containerMainSize > 0
-          ? Math.min(minimumPanelSize / containerMainSize, 0.45)
-          : 0;
+        isDesktop && containerMainSize > 0
+          ? Math.min(DESKTOP_PANEL_MIN_SIZE / containerMainSize, 0.45)
+          : 0.2;
       const availableSize = donorSize - minSizeRatio;
-
-      if (availableSize <= 0) {
-        return;
-      }
-
+      if (availableSize <= 0) return nextSizes;
       const restoredSize = Math.max(
         minSizeRatio,
         Math.min(defaultSizes[panelIndex], availableSize),
       );
-
       nextSizes[panelIndex] = restoredSize;
       nextSizes[donorIndex] -= restoredSize;
-    }
+      return nextSizes;
+    });
 
-    if (isDesktop) {
-      setDesktopSizes(nextSizes);
-      return;
-    }
+    setMobileSizes((currentMobileSizes) => {
+      const nextSizes = [...currentMobileSizes];
+      const panelSize = nextSizes[panelIndex];
 
-    setMobileSizes(nextSizes);
+      if (isHiding) {
+        if (panelSize <= 0) return nextSizes;
+        const recipientIndex = findLargestOpenPanelIndex(nextSizes, panelIndex);
+        if (recipientIndex === undefined) return nextSizes;
+        nextSizes[panelIndex] = 0;
+        nextSizes[recipientIndex] += panelSize;
+        return nextSizes;
+      }
+
+      if (panelSize > 0) return nextSizes;
+      const defaultSizes = MOBILE_DEFAULT_SIZES;
+      const donorIndex = findLargestOpenPanelIndex(nextSizes, panelIndex);
+      if (donorIndex === undefined) return nextSizes;
+      const donorSize = nextSizes[donorIndex];
+      const minSizeRatio =
+        !isDesktop && containerMainSize > 0
+          ? Math.min(MOBILE_PANEL_MIN_SIZE / containerMainSize, 0.45)
+          : 0.2;
+      const availableSize = donorSize - minSizeRatio;
+      if (availableSize <= 0) return nextSizes;
+      const restoredSize = Math.max(
+        minSizeRatio,
+        Math.min(defaultSizes[panelIndex], availableSize),
+      );
+      nextSizes[panelIndex] = restoredSize;
+      nextSizes[donorIndex] -= restoredSize;
+      return nextSizes;
+    });
   }
 
   useLayoutEffect(() => {

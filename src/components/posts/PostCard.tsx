@@ -114,6 +114,7 @@ export default function PostCard({
           src={normalizedThumbnail ?? "/thumbnails.png"}
           alt={title}
           fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           loading={thumbnailLoading}
           unoptimized={!isDefaultThumbnail}
           className={isDefaultThumbnail ? "object-contain p-8" : "object-cover"}

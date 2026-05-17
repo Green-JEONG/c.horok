@@ -128,7 +128,7 @@ export default function MyPostPreviewGrid({
             comments={post.comments_count}
             views={post.view_count}
             createdAt={new Date(post.created_at)}
-            thumbnailLoading={index === 0 ? "eager" : "lazy"}
+            thumbnailLoading={index < 6 ? "eager" : "lazy"}
             isHidden={post.is_hidden}
             isSecret={post.is_secret}
             isDraft={post.is_draft}

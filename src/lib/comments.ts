@@ -55,8 +55,7 @@ function mapComment(
   const canViewSecret =
     !comment.isSecret ||
     commentUserId === options?.viewerUserId ||
-    options?.postOwnerUserId === options?.viewerUserId ||
-    Boolean(options?.isAdmin);
+    options?.postOwnerUserId === options?.viewerUserId;
 
   return {
     id: Number(comment.id),
@@ -83,17 +82,18 @@ export async function getCommentsByPost(
   },
 ) {
   const comments = await prisma.comment.findMany({
-    where: options?.isAdmin
-      ? { postId: BigInt(postId) }
-      : {
-          postId: BigInt(postId),
-          OR: [
-            { isHidden: false },
-            ...(options?.viewerUserId
-              ? [{ userId: BigInt(options.viewerUserId) }]
-              : []),
-          ],
-        },
+    where: {
+      postId: BigInt(postId),
+      OR: [
+        { isHidden: false },
+        ...(options?.viewerUserId
+          ? [
+              { userId: BigInt(options.viewerUserId) },
+              { post: { userId: BigInt(options.viewerUserId) } },
+            ]
+          : []),
+      ],
+    },
     orderBy: { createdAt: "desc" },
     include: {
       user: {
@@ -114,8 +114,7 @@ export async function getCommentsByPost(
     const canViewAuthor =
       !comment.isSecret ||
       Number(comment.userId) === options?.viewerUserId ||
-      Number(comment.post.userId) === options?.viewerUserId ||
-      options?.isAdmin;
+      Number(comment.post.userId) === options?.viewerUserId;
 
     return {
       ...mapComment(comment, {
