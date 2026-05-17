@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNicknameAvailability } from "@/components/auth/useNicknameAvailability";
@@ -31,8 +31,9 @@ export default function AccountSettingsModal({
   onSaved,
 }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
   const platform = getPlatformFromPathname(pathname);
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const { profile, refresh } = usePlatformProfile(open);
   const isSocialAccount =
     session?.user?.provider === "github" ||
@@ -345,6 +346,7 @@ export default function AccountSettingsModal({
     try {
       type UpdateUserResponse = {
         image?: string | null;
+        name?: string | null;
         message?: string;
       };
 
@@ -386,8 +388,14 @@ export default function AccountSettingsModal({
       setSavedImageUrl(nextImageUrl);
       setImagePath(getProfileImageStoragePathFromPublicUrl(nextImageUrl));
       setResetImageRequested(false);
+      await updateSession({
+        name: data.name ?? name,
+        image: nextImageUrl,
+      });
       await refresh();
       await onSaved?.();
+      window.dispatchEvent(new Event("profile-updated"));
+      router.refresh();
 
       setMessage("저장되었습니다.");
       onClose();

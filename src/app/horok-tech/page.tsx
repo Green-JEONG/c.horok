@@ -48,7 +48,7 @@ export default async function HorokTechPage({
           </Button>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {randomPosts.map((post) => (
+          {randomPosts.map((post, index) => (
             <PostCard
               key={post.id}
               id={post.id}
@@ -63,6 +63,7 @@ export default async function HorokTechPage({
               comments={post.comments_count}
               views={post.view_count}
               createdAt={post.created_at}
+              thumbnailLoading={index === 0 ? "eager" : "lazy"}
             />
           ))}
         </div>

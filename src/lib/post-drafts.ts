@@ -198,13 +198,9 @@ export async function loadSyncedPostDrafts(storageKey: string) {
     return localDrafts;
   }
 
-  if (localDrafts.length > 0) {
-    await Promise.allSettled(
-      localDrafts.map((draft) => saveRemotePostDraft(storageKey, draft)),
-    );
-  }
+  clearPostDraft(storageKey);
 
-  return mergeDrafts(remoteDrafts, localDrafts);
+  return mergeDrafts(remoteDrafts, []);
 }
 
 async function saveRemotePostDraft(
@@ -242,7 +238,13 @@ export async function saveSyncedPostDraft(
     () => null,
   );
 
-  return remoteDraft ?? localDraft;
+  if (!remoteDraft) {
+    return localDraft;
+  }
+
+  clearPostDraft(storageKey, localDraft.id);
+
+  return remoteDraft;
 }
 
 export async function clearSyncedPostDraft(

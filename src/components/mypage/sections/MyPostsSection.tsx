@@ -477,7 +477,7 @@ export default function MyPostsSection() {
       ) : (
         <>
           <div className={POST_GRID_CLASS_NAME}>
-            {visiblePosts.map((post) => (
+            {visiblePosts.map((post, index) => (
               <div
                 key={post.id}
                 id={post.id > 0 ? `mypage-post-${post.id}` : undefined}
@@ -501,6 +501,7 @@ export default function MyPostsSection() {
                   isDraft={post.is_draft}
                   hrefOverride={post.href_override}
                   showCategoryBadge={!post.is_draft}
+                  thumbnailLoading={index === 0 ? "eager" : "lazy"}
                   className={
                     highlightedPostId === post.id
                       ? "border-primary bg-primary/5"

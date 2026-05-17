@@ -44,6 +44,7 @@ type Props = {
   postRouteSection?: "feeds" | "likes";
   hrefOverride?: string;
   className?: string;
+  thumbnailLoading?: "eager" | "lazy";
 };
 
 export default function PostCard({
@@ -70,6 +71,7 @@ export default function PostCard({
   postRouteSection = "feeds",
   hrefOverride,
   className = "",
+  thumbnailLoading = "lazy",
 }: Props) {
   const isNotice = ["공지", "FAQ", "QnA"].includes(category);
   const isUncategorized = !category || category === "미분류";
@@ -112,6 +114,7 @@ export default function PostCard({
           src={normalizedThumbnail ?? "/thumbnails.png"}
           alt={title}
           fill
+          loading={thumbnailLoading}
           unoptimized={!isDefaultThumbnail}
           className={isDefaultThumbnail ? "object-contain p-8" : "object-cover"}
         />

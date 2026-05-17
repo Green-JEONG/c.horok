@@ -293,6 +293,69 @@ export default function PostListInfinite({
     syncSortWithSearchParams,
   ]);
 
+  const reloadFirstPage = useCallback(async () => {
+    if (responsivePageSize === null) {
+      return;
+    }
+
+    const url = new URL(endpoint, window.location.origin);
+    const requestLimit = responsiveRowLoading
+      ? Math.max(
+          responsivePageSize * initialVisibleRowCount,
+          loadedServerPostCountRef.current || initialPosts.length,
+        )
+      : PAGE_SIZE;
+
+    if (syncSortWithSearchParams) {
+      const currentParams = new URLSearchParams(searchParamsString);
+
+      for (const [key, value] of currentParams.entries()) {
+        url.searchParams.set(key, value);
+      }
+      url.searchParams.set("sort", sort);
+    }
+
+    if (responsiveRowLoading) {
+      url.searchParams.set("limit", String(requestLimit));
+      url.searchParams.set("offset", "0");
+    } else {
+      url.searchParams.set("page", "1");
+    }
+
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    const data = readPostsFromPayload(await res.json(), responseKey);
+
+    setPosts(data);
+    setPage(data.length > 0 ? 2 : 1);
+    loadedServerPostCountRef.current = data.length;
+    setHasMore(!disableInfinite && data.length >= requestLimit);
+    setHasLoadedOnce(true);
+    fetchingRef.current = false;
+  }, [
+    disableInfinite,
+    endpoint,
+    initialPosts.length,
+    initialVisibleRowCount,
+    responseKey,
+    responsivePageSize,
+    responsiveRowLoading,
+    searchParamsString,
+    sort,
+    syncSortWithSearchParams,
+  ]);
+
+  useEffect(() => {
+    const handleProfileUpdated = () => {
+      void reloadFirstPage();
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+    };
+  }, [reloadFirstPage]);
+
   useEffect(() => {
     if (
       !disableInfinite &&
@@ -353,7 +416,7 @@ export default function PostListInfinite({
       })).filter((group) => group.posts.length > 0)
     : [];
 
-  const renderPostCard = (post: PostListItem) => (
+  const renderPostCard = (post: PostListItem, eagerThumbnail = false) => (
     <PostCard
       key={post.id}
       id={post.id}
@@ -372,6 +435,7 @@ export default function PostListInfinite({
       isSecret={post.is_secret}
       canViewSecret={post.can_view_secret}
       postRouteSection={postRouteSection}
+      thumbnailLoading={eagerThumbnail ? "eager" : "lazy"}
     />
   );
 
@@ -538,7 +602,9 @@ export default function PostListInfinite({
                 renderSearchNoticeTable(group.label, group.posts)
               ) : (
                 <div className={gridClassName}>
-                  {group.posts.map((post) => renderPostCard(post))}
+                  {group.posts.map((post, index) =>
+                    renderPostCard(post, index === 0),
+                  )}
                 </div>
               )}
             </section>
@@ -546,7 +612,7 @@ export default function PostListInfinite({
         </div>
       ) : posts.length > 0 ? (
         <div className={gridClassName}>
-          {posts.map((post) => renderPostCard(post))}
+          {posts.map((post, index) => renderPostCard(post, index === 0))}
         </div>
       ) : null}
 

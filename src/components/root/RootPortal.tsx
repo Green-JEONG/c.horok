@@ -51,7 +51,7 @@ const services = [
     tabColor: "bg-[#5383e9]",
     title: "horok\nshop",
     label: "호록 ",
-    accent: "쇼핑몰",
+    accent: "굿즈",
     accentClassName: "text-[#5c8fff]",
     bubbleText: [
       "개발자의 일상에 영감과 즐거움을 더하는",
@@ -76,9 +76,9 @@ export default function RootPortal() {
   const bubbleLines = activeService?.bubbleText ?? defaultBubbleText;
 
   return (
-    <main className="min-h-dvh bg-[#f7f7f7] px-4 py-10 text-black sm:px-8 lg:px-12">
-      <div className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-[1200px] flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] sm:min-h-0">
-        <div className="flex h-16 items-center bg-[#3d4d57] px-[4.2%] sm:h-20 lg:h-24">
+    <main className="flex h-dvh overflow-hidden bg-[#f7f7f7] p-2 text-black sm:p-3 md:p-4 lg:p-6 xl:p-8">
+      <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]">
+        <div className="flex h-16 shrink-0 items-center bg-[#3d4d57] px-4 sm:h-20 sm:px-6 lg:h-24 lg:px-8">
           <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
             <span className="h-4 w-4 rounded-full bg-[#fa5f56] sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
             <span className="h-4 w-4 rounded-full bg-[#ffd329] sm:h-6 sm:w-6 lg:h-8 lg:w-8" />
@@ -86,8 +86,8 @@ export default function RootPortal() {
           </div>
         </div>
 
-        <div className="flex-1 bg-[linear-gradient(180deg,#ffffff_0%,#ffffff_60%,#dff0e7_100%)] p-4 sm:p-6 lg:p-8">
-          <div className="relative aspect-[16/26] w-full min-[480px]:aspect-[16/22] sm:aspect-[16/11.5] lg:aspect-[16/10]">
+        <div className="min-h-0 flex-1 overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#ffffff_60%,#dff0e7_100%)] p-4 sm:p-6 lg:p-8">
+          <div className="relative mx-auto h-full w-full lg:max-w-[calc(160dvh-21rem)] xl:max-w-[calc(160dvh-22.5rem)]">
             <div className="absolute inset-0">
               <div className="absolute left-[3%] top-[6%] z-0 w-[31%] sm:w-[37%]">
                 <Image
@@ -109,7 +109,7 @@ export default function RootPortal() {
                         안녕하세요!
                       </p>
                     )}
-                    <h1 className="text-[1.25rem] font-normal leading-[1.12] min-[480px]:text-[1.55rem] sm:text-[2.1rem] lg:text-[2.5rem]">
+                    <h1 className="text-[1.25rem] font-normal leading-[1.12] sm:text-[2.1rem] lg:text-[2.5rem]">
                       {activeService ? (
                         <>
                           <strong className="font-black">
@@ -127,7 +127,7 @@ export default function RootPortal() {
                       )}
                     </h1>
                   </div>
-                  <p className="text-[0.88rem] leading-[1.34] text-black/85 min-[480px]:text-[0.98rem] sm:text-[1.05rem] lg:text-[1.12rem]">
+                  <p className="text-[0.88rem] leading-[1.34] text-black/85 sm:text-[1.05rem] lg:text-[1.12rem]">
                     {bubbleLines.map((line) => (
                       <span key={line}>
                         {line}
@@ -138,7 +138,7 @@ export default function RootPortal() {
                 </div>
               </div>
 
-              <section className="absolute bottom-[4%] left-[7%] right-[7%] z-10 grid grid-cols-2 gap-x-[12%] gap-y-[10%] min-[480px]:bottom-[3%] sm:bottom-0 sm:left-[6%] sm:right-[6%] sm:grid-cols-4 sm:gap-[4.2%] lg:bottom-[3%]">
+              <section className="absolute bottom-0 left-[7%] right-[7%] z-10 grid grid-cols-2 gap-x-[12%] gap-y-6 sm:left-[6%] sm:right-[6%] sm:gap-y-8 md:gap-y-10 lg:grid-cols-4 lg:gap-[4.2%]">
                 {services.map((service) => {
                   const isActive = activeServiceHref === service.href;
 
@@ -150,7 +150,7 @@ export default function RootPortal() {
                       onMouseLeave={() => setActiveServiceHref(null)}
                       onFocus={() => setActiveServiceHref(service.href)}
                       onBlur={() => setActiveServiceHref(null)}
-                      className="group flex flex-col items-center text-center"
+                      className="group flex w-full max-w-[220px] flex-col items-center justify-self-center text-center sm:max-w-[240px] md:max-w-[260px] lg:max-w-none"
                     >
                       <div
                         className={`relative w-full pt-[10%] transition duration-300 ${
@@ -178,13 +178,13 @@ export default function RootPortal() {
                               : "group:hover:-translate-y-1 group:hover:shadow-[0_14px_24px_rgba(15,23,42,0.14)]"
                           }`}
                         >
-                          <p className="whitespace-pre-line text-base font-black leading-[1.08] tracking-[0.14em] text-black sm:text-2xl sm:tracking-[0.16em] lg:text-[2.2rem]">
+                          <p className="whitespace-pre-line text-[2.1rem] font-black leading-[1.08] tracking-[0.14em] text-black lg:text-[2.2rem] lg:tracking-[0.16em]">
                             {service.title}
                           </p>
                         </div>
                       </div>
                       <p
-                        className={`mt-[5%] text-base font-medium tracking-tight text-black transition duration-300 sm:mt-[4%] sm:text-xl lg:text-[1.8rem] ${
+                        className={`mt-[5%] text-[2rem] font-medium tracking-tight text-black transition duration-300 sm:mt-[4%] lg:text-[1.8rem] ${
                           isActive ? "translate-y-1 scale-[1.02]" : ""
                         }`}
                       >
