@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { buildVisibleCommentCountWhere } from "@/lib/comment-counts";
 import { ALL_NOTICE_TAG_OPTIONS } from "@/lib/notice-categories";
 import { getPostReactionCountsByPostId } from "@/lib/post-reactions";
 import { DEFAULT_SORT, type SortType } from "@/lib/post-sort";
@@ -355,7 +356,7 @@ export async function findPostsPaged(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(options?.viewerUserId),
           },
         },
       },
@@ -404,7 +405,9 @@ export async function findPostById(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(
+              options?.includeHiddenForUserId,
+            ),
           },
         },
       },
@@ -469,7 +472,7 @@ async function searchPostsInternal(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(),
           },
         },
       },

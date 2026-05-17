@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { buildVisibleCommentCountWhere } from "@/lib/comment-counts";
 import { getUserIdByEmail } from "@/lib/db";
 import { getPostReactionCountsByPostId } from "@/lib/post-reactions";
 import { parsePostSearchTarget } from "@/lib/post-search-target";
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
         _count: {
           select: {
             likes: true,
-            comments: { where: { isDeleted: false } },
+            comments: { where: buildVisibleCommentCountWhere(userId) },
           },
         },
       },

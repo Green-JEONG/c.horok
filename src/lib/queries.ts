@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { buildVisibleCommentCountWhere } from "@/lib/comment-counts";
 import {
   ALL_NOTICE_TAG_OPTIONS,
   getNoticeCategoryQueryNames,
@@ -383,7 +384,7 @@ export async function searchPosts(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(options?.viewerUserId),
           },
         },
       },
@@ -689,7 +690,7 @@ export async function getPostsByCategorySlug(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(options?.viewerUserId),
           },
         },
       },
@@ -841,7 +842,7 @@ export async function getUserPosts(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(options?.viewerUserId),
           },
         },
       },
@@ -1011,7 +1012,7 @@ export async function getMyQnaPosts(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(userId),
           },
         },
       },
@@ -1182,7 +1183,7 @@ export async function getLikedPosts(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(userId),
           },
         },
       },
@@ -1298,11 +1299,12 @@ export async function getRandomPosts(
     include: {
       user: { select: { name: true, image: true } },
       category: { select: { name: true } },
+      views: { select: { viewCount: true } },
       _count: {
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(options?.viewerUserId),
           },
         },
       },

@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { ensureCategoryByName } from "@/lib/categories";
+import { buildVisibleCommentCountWhere } from "@/lib/comment-counts";
 import {
   ALL_NOTICE_TAG_OPTIONS,
   getNoticeCategoryQueryNames,
@@ -296,7 +297,7 @@ export async function findNotices(
         select: {
           likes: true,
           comments: {
-            where: { isDeleted: false },
+            where: buildVisibleCommentCountWhere(options?.viewerUserId),
           },
         },
       },
@@ -530,7 +531,9 @@ export async function findNoticeById(
           select: {
             likes: true,
             comments: {
-              where: { isDeleted: false },
+              where: buildVisibleCommentCountWhere(
+                options?.includeHiddenForUserId,
+              ),
             },
           },
         },

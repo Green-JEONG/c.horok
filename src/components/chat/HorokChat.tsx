@@ -455,9 +455,14 @@ function getVisibleMessages(
   sessionStatus: "authenticated" | "loading" | "unauthenticated",
   activeThreadId: string | null,
   fallbackMessages: ChatUIMessage[],
+  hasLoadedChatState: boolean,
 ): ChatUIMessage[] {
   if (sessionStatus !== "authenticated") {
     return messages.length > 0 ? messages : fallbackMessages;
+  }
+
+  if (!hasLoadedChatState && messages.length === 0) {
+    return [];
   }
 
   if (!activeThreadId) {
@@ -478,6 +483,10 @@ export default function HorokChat({
     () => buildInitialMessages(problem),
     [problem],
   );
+  const chatInitialMessages = useMemo(
+    () => (sessionStatus === "unauthenticated" ? initialMessages : []),
+    [initialMessages, sessionStatus],
+  );
   const isEmbedded = variant === "embedded";
   const hasCloseButton = !isEmbedded;
   const [isOpen, setIsOpen] = useState(false);
@@ -485,6 +494,7 @@ export default function HorokChat({
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threads, setThreads] = useState<ChatThreadSummary[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [hasLoadedChatState, setHasLoadedChatState] = useState(false);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
   const [view, setView] = useState<"chat" | "threads">("chat");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -535,7 +545,7 @@ export default function HorokChat({
     error,
     clearError,
   } = useChat({
-    messages: initialMessages,
+    messages: chatInitialMessages,
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest: ({ messages: nextMessages }) => ({
@@ -552,14 +562,19 @@ export default function HorokChat({
 
   const visibleMessages = useMemo(
     () =>
-      getVisibleMessages(messages, sessionStatus, threadId, initialMessages),
-    [initialMessages, messages, sessionStatus, threadId],
+      getVisibleMessages(
+        messages,
+        sessionStatus,
+        threadId,
+        initialMessages,
+        hasLoadedChatState,
+      ),
+    [hasLoadedChatState, initialMessages, messages, sessionStatus, threadId],
   );
+  const isAssistantResponding =
+    status === "submitted" || status === "streaming";
   const isLoading =
-    status === "submitted" ||
-    status === "streaming" ||
-    isHistoryLoading ||
-    isCreatingThread;
+    isAssistantResponding || isHistoryLoading || isCreatingThread;
   const hasMessages = useMemo(
     () =>
       visibleMessages.some(
@@ -982,6 +997,7 @@ export default function HorokChat({
         applyActiveThread(null);
         setThreads([]);
         setMessages(initialMessages);
+        setHasLoadedChatState(true);
         return null;
       }
 
@@ -1021,6 +1037,7 @@ export default function HorokChat({
         setThreads(uniqueThreads);
         applyActiveThread(data.activeThreadId);
         setMessages(data.activeThreadId ? data.messages : []);
+        setHasLoadedChatState(true);
         return {
           ...data,
           threads: uniqueThreads,
@@ -1030,6 +1047,7 @@ export default function HorokChat({
         setThreads([]);
         applyActiveThread(null);
         setMessages([]);
+        setHasLoadedChatState(true);
         return null;
       } finally {
         setIsHistoryLoading(false);
@@ -1047,6 +1065,7 @@ export default function HorokChat({
       applyActiveThread(null);
       setThreads([]);
       setMessages(initialMessages);
+      setHasLoadedChatState(true);
       setView("chat");
       return;
     }
@@ -2008,7 +2027,9 @@ export default function HorokChat({
                         const shouldAnimateMessage =
                           !isUser &&
                           !isSearchMatch &&
-                          index === visibleMessages.length - 1;
+                          index === visibleMessages.length - 1 &&
+                          isAssistantResponding &&
+                          !message.createdAt;
 
                         return (
                           <div key={message.id} className="space-y-3">
@@ -2122,7 +2143,7 @@ export default function HorokChat({
                       })
                     : null}
 
-                  {isLoading ? (
+                  {isAssistantResponding ? (
                     <div className="flex w-full min-w-0 items-start justify-start gap-2">
                       <Image
                         src="/logo.png"

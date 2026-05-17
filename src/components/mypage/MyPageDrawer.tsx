@@ -123,6 +123,42 @@ function renderEmphasizedNotificationMessage(message: string) {
   return emphasizedParts.length > 0 ? emphasizedParts : message;
 }
 
+function getNotificationDateKey(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function formatNotificationDateBadge(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(date);
+}
+
+function formatNotificationTime(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
 export default function MyPageDrawer({ open, onClose }: Props) {
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user?.email);
@@ -480,185 +516,205 @@ export default function MyPageDrawer({ open, onClose }: Props) {
               ) : null}
             </div>
 
-            <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto text-sm">
+            <div className="scrollbar-orange min-h-0 flex-1 overflow-y-auto pr-2 text-sm">
               {notifications.length === 0 && (
                 <p className="text-muted-foreground">알림이 없습니다.</p>
               )}
 
-              <ul className="divide-y divide-border/70">
-                {notifications.map((n) => (
-                  <li key={n.id} className="py-2 first:pt-0 last:pb-0">
-                    <div className="group flex items-start gap-2">
-                      <button
-                        type="button"
-                        className="flex flex-1 items-start gap-2 text-left text-[15px] leading-[18px] text-muted-foreground hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70 [&_strong]:text-foreground"
-                        onClick={async () => {
-                          if (isNotificationDeleteMode) {
-                            setSelectedNotificationIds((current) =>
-                              current.includes(n.id)
-                                ? current.filter(
-                                    (notificationId) => notificationId !== n.id,
-                                  )
-                                : [...current, n.id],
-                            );
-                            return;
-                          }
+              <ul className="space-y-2">
+                {notifications.map((n, index) => {
+                  const previousNotification = notifications[index - 1];
+                  const showDateBadge =
+                    !previousNotification ||
+                    getNotificationDateKey(previousNotification.created_at) !==
+                      getNotificationDateKey(n.created_at);
 
-                          if (!n.is_read) {
-                            try {
-                              const response = await fetch(
-                                `/api/notifications/${n.id}/read`,
-                                {
-                                  method: "PATCH",
-                                },
+                  return (
+                    <li key={n.id} className="space-y-2">
+                      {showDateBadge ? (
+                        <div className="flex justify-center">
+                          <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm ring-1 ring-border">
+                            {formatNotificationDateBadge(n.created_at)}
+                          </span>
+                        </div>
+                      ) : null}
+
+                      <div className="group flex items-start gap-2">
+                        <button
+                          type="button"
+                          className="flex flex-1 items-start gap-2 text-left text-[15px] leading-[18px] text-muted-foreground hover:underline disabled:cursor-default disabled:no-underline disabled:opacity-70 [&_strong]:text-foreground"
+                          onClick={async () => {
+                            if (isNotificationDeleteMode) {
+                              setSelectedNotificationIds((current) =>
+                                current.includes(n.id)
+                                  ? current.filter(
+                                      (notificationId) =>
+                                        notificationId !== n.id,
+                                    )
+                                  : [...current, n.id],
                               );
+                              return;
+                            }
 
-                              if (response.ok) {
-                                setNotifications((current) =>
-                                  current.map((notification) =>
-                                    notification.id === n.id
-                                      ? { ...notification, is_read: 1 }
-                                      : notification,
-                                  ),
+                            if (!n.is_read) {
+                              try {
+                                const response = await fetch(
+                                  `/api/notifications/${n.id}/read`,
+                                  {
+                                    method: "PATCH",
+                                  },
                                 );
-                                notifyNotificationsUpdated();
+
+                                if (response.ok) {
+                                  setNotifications((current) =>
+                                    current.map((notification) =>
+                                      notification.id === n.id
+                                        ? { ...notification, is_read: 1 }
+                                        : notification,
+                                    ),
+                                  );
+                                  notifyNotificationsUpdated();
+                                }
+                              } catch (error) {
+                                console.error("알림 읽음 처리 실패", error);
                               }
-                            } catch (error) {
-                              console.error("알림 읽음 처리 실패", error);
                             }
-                          }
 
-                          if (n.is_post_deleted || n.is_comment_deleted) {
-                            window.alert(
-                              n.is_post_deleted
-                                ? n.is_notice_post
-                                  ? "삭제된 문의입니다."
-                                  : "삭제된 게시물입니다."
-                                : "삭제된 댓글입니다.",
-                            );
-                            return;
-                          }
-
-                          onClose();
-                          if (
-                            n.type === "NEW_FOLLOWER" ||
-                            n.type === "FRIEND_REQUEST"
-                          ) {
-                            const params = new URLSearchParams({
-                              tab: "friends",
-                              friendType: "followers",
-                            });
-                            if (typeof n.actor_id === "number") {
-                              params.set("friendId", String(n.actor_id));
+                            if (n.is_post_deleted || n.is_comment_deleted) {
+                              window.alert(
+                                n.is_post_deleted
+                                  ? n.is_notice_post
+                                    ? "삭제된 문의입니다."
+                                    : "삭제된 게시물입니다."
+                                  : "삭제된 댓글입니다.",
+                              );
+                              return;
                             }
-                            router.push(`/mypage?${params.toString()}`);
-                            return;
-                          }
 
-                          const postPath = n.post_path;
-                          const shouldOpenNoticeDetail =
-                            typeof postPath === "string" &&
-                            postPath.startsWith("/horok-tech/notices/");
+                            onClose();
+                            if (
+                              n.type === "NEW_FOLLOWER" ||
+                              n.type === "FRIEND_REQUEST"
+                            ) {
+                              const params = new URLSearchParams({
+                                tab: "friends",
+                                friendType: "followers",
+                              });
+                              if (typeof n.actor_id === "number") {
+                                params.set("friendId", String(n.actor_id));
+                              }
+                              router.push(`/mypage?${params.toString()}`);
+                              return;
+                            }
 
-                          const shouldOpenQnaList =
-                            shouldOpenNoticeDetail &&
-                            n.type === "POST_COMMENT" &&
-                            typeof n.comment_id !== "number" &&
-                            typeof n.post_id === "number";
+                            const postPath = n.post_path;
+                            const shouldOpenNoticeDetail =
+                              typeof postPath === "string" &&
+                              postPath.startsWith("/horok-tech/notices/");
 
-                          if (shouldOpenQnaList) {
-                            router.push(
-                              `/horok-tech/notices?category=QnA&target=${n.post_id}`,
-                            );
-                            return;
-                          }
+                            const shouldOpenQnaList =
+                              shouldOpenNoticeDetail &&
+                              n.type === "POST_COMMENT" &&
+                              typeof n.comment_id !== "number" &&
+                              typeof n.post_id === "number";
 
-                          if (shouldOpenNoticeDetail && !n.is_post_deleted) {
-                            const targetPath = n.comment_id
-                              ? `${postPath}?commentId=${n.comment_id}`
-                              : postPath;
-                            router.push(targetPath);
-                            return;
-                          }
+                            if (shouldOpenQnaList) {
+                              router.push(
+                                `/horok-tech/notices?category=QnA&target=${n.post_id}`,
+                              );
+                              return;
+                            }
 
-                          if (
-                            (n.type === "POST_COMMENT" ||
-                              n.type === "COMMENT_REPLY") &&
-                            typeof postPath === "string" &&
-                            typeof n.comment_id === "number"
-                          ) {
-                            router.push(
-                              `${postPath}?commentId=${n.comment_id}`,
-                            );
-                            return;
-                          }
+                            if (shouldOpenNoticeDetail && !n.is_post_deleted) {
+                              const targetPath = n.comment_id
+                                ? `${postPath}?commentId=${n.comment_id}`
+                                : postPath;
+                              router.push(targetPath);
+                              return;
+                            }
 
-                          if (
-                            n.type === "POST_LIKE" &&
-                            typeof n.post_id === "number"
-                          ) {
-                            router.push(
-                              `/mypage?tab=posts&postId=${n.post_id}`,
-                            );
-                            return;
-                          }
+                            if (
+                              (n.type === "POST_COMMENT" ||
+                                n.type === "COMMENT_REPLY") &&
+                              typeof postPath === "string" &&
+                              typeof n.comment_id === "number"
+                            ) {
+                              router.push(
+                                `${postPath}?commentId=${n.comment_id}`,
+                              );
+                              return;
+                            }
 
-                          if (
-                            typeof postPath === "string" &&
-                            !n.is_post_deleted
-                          ) {
-                            const targetPath = n.comment_id
-                              ? `${postPath}?commentId=${n.comment_id}`
-                              : postPath;
-                            router.push(targetPath);
-                          }
-                        }}
-                      >
-                        {isNotificationDeleteMode ? (
-                          selectedNotificationIds.includes(n.id) ? (
+                            if (
+                              n.type === "POST_LIKE" &&
+                              typeof n.post_id === "number"
+                            ) {
+                              router.push(
+                                `/mypage?tab=posts&postId=${n.post_id}`,
+                              );
+                              return;
+                            }
+
+                            if (
+                              typeof postPath === "string" &&
+                              !n.is_post_deleted
+                            ) {
+                              const targetPath = n.comment_id
+                                ? `${postPath}?commentId=${n.comment_id}`
+                                : postPath;
+                              router.push(targetPath);
+                            }
+                          }}
+                        >
+                          {isNotificationDeleteMode ? (
+                            selectedNotificationIds.includes(n.id) ? (
+                              <CircleCheckBig
+                                className="mt-[3px] size-[18px] shrink-0"
+                                color="#ef4444"
+                              />
+                            ) : (
+                              <Circle
+                                className="mt-[3px] size-[18px] shrink-0"
+                                color="#ef4444"
+                              />
+                            )
+                          ) : n.is_read ? (
                             <CircleCheckBig
                               className="mt-[3px] size-[18px] shrink-0"
-                              color="#ef4444"
+                              color="#4CB975"
                             />
                           ) : (
                             <Circle
                               className="mt-[3px] size-[18px] shrink-0"
-                              color="#ef4444"
+                              color="#ccc"
                             />
-                          )
-                        ) : n.is_read ? (
-                          <CircleCheckBig
-                            className="mt-[3px] size-[18px] shrink-0"
-                            color="#4CB975"
-                          />
-                        ) : (
-                          <Circle
-                            className="mt-[3px] size-[18px] shrink-0"
-                            color="#ccc"
-                          />
-                        )}
-                        <Image
-                          src={n.actor_image ?? "/logo.png"}
-                          alt={`${n.actor_name ?? "알림 발신자"} 프로필`}
-                          width={24}
-                          height={24}
-                          className="size-6 shrink-0 rounded-full border object-cover"
-                        />
-                        <span
-                          className={cn(
-                            "min-w-0",
-                            (n.is_post_deleted || n.is_comment_deleted) &&
-                              "line-through decoration-foreground",
                           )}
-                        >
-                          {renderEmphasizedNotificationMessage(
-                            renderNotificationMessage(n),
-                          )}
-                        </span>
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                          <Image
+                            src={n.actor_image ?? "/logo.png"}
+                            alt={`${n.actor_name ?? "알림 발신자"} 프로필`}
+                            width={24}
+                            height={24}
+                            className="size-6 shrink-0 rounded-full border object-cover"
+                          />
+                          <span
+                            className={cn(
+                              "min-w-0 flex-1",
+                              (n.is_post_deleted || n.is_comment_deleted) &&
+                                "line-through decoration-foreground",
+                            )}
+                          >
+                            {renderEmphasizedNotificationMessage(
+                              renderNotificationMessage(n),
+                            )}
+                          </span>
+                          <span className="mt-0.5 shrink-0 whitespace-nowrap text-[11px] leading-none text-muted-foreground/75">
+                            {formatNotificationTime(n.created_at)}
+                          </span>
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>
