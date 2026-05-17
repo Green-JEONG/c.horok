@@ -11,6 +11,26 @@ import { getRandomPosts } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
+function getPreviewVisibilityClassName(index: number) {
+  if (index < 4) {
+    return "";
+  }
+
+  if (index < 6) {
+    return "hidden sm:block";
+  }
+
+  if (index < 8) {
+    return "hidden lg:block";
+  }
+
+  if (index < 10) {
+    return "hidden xl:block";
+  }
+
+  return "hidden";
+}
+
 export const metadata: Metadata = {
   title: "호록 기술 블로그 | horok-tech",
   description: "호록 기술 블로그 메인 페이지",
@@ -28,7 +48,7 @@ export default async function HorokTechPage({
   const session = await auth();
   const viewerUserId =
     typeof session?.user?.id === "string" ? Number(session.user.id) : null;
-  const randomPosts = await getRandomPosts(6, {
+  const randomPosts = await getRandomPosts(10, {
     viewerUserId:
       typeof viewerUserId === "number" && !Number.isNaN(viewerUserId)
         ? viewerUserId
@@ -49,22 +69,23 @@ export default async function HorokTechPage({
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {randomPosts.map((post, index) => (
-            <PostCard
-              key={post.id}
-              id={post.id}
-              title={post.title}
-              description={post.content}
-              thumbnail={post.thumbnail}
-              category={post.category_name}
-              author={post.author_name}
-              authorImage={post.author_image}
-              likes={post.likes_count}
-              reactions={post.reactions_count}
-              comments={post.comments_count}
-              views={post.view_count}
-              createdAt={post.created_at}
-              thumbnailLoading={index === 0 ? "eager" : "lazy"}
-            />
+            <div key={post.id} className={getPreviewVisibilityClassName(index)}>
+              <PostCard
+                id={post.id}
+                title={post.title}
+                description={post.content}
+                thumbnail={post.thumbnail}
+                category={post.category_name}
+                author={post.author_name}
+                authorImage={post.author_image}
+                likes={post.likes_count}
+                reactions={post.reactions_count}
+                comments={post.comments_count}
+                views={post.view_count}
+                createdAt={post.created_at}
+                thumbnailLoading={index === 0 ? "eager" : "lazy"}
+              />
+            </div>
           ))}
         </div>
       </section>
