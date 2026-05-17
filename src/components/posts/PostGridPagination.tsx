@@ -33,7 +33,7 @@ export default function PostGridPagination({ posts }: { posts: PostItem[] }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {pagedPosts.map((post) => (
+        {pagedPosts.map((post, index) => (
           <PostCard
             key={post.id}
             id={post.id}
@@ -51,6 +51,7 @@ export default function PostGridPagination({ posts }: { posts: PostItem[] }) {
             isHidden={post.is_hidden}
             isSecret={post.is_secret}
             canViewSecret={post.can_view_secret}
+            thumbnailLoading={index === 0 ? "eager" : "lazy"}
           />
         ))}
       </div>

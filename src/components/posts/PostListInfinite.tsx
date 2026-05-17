@@ -416,7 +416,7 @@ export default function PostListInfinite({
       })).filter((group) => group.posts.length > 0)
     : [];
 
-  const renderPostCard = (post: PostListItem) => (
+  const renderPostCard = (post: PostListItem, eagerThumbnail = false) => (
     <PostCard
       key={post.id}
       id={post.id}
@@ -435,6 +435,7 @@ export default function PostListInfinite({
       isSecret={post.is_secret}
       canViewSecret={post.can_view_secret}
       postRouteSection={postRouteSection}
+      thumbnailLoading={eagerThumbnail ? "eager" : "lazy"}
     />
   );
 
@@ -601,7 +602,9 @@ export default function PostListInfinite({
                 renderSearchNoticeTable(group.label, group.posts)
               ) : (
                 <div className={gridClassName}>
-                  {group.posts.map((post) => renderPostCard(post))}
+                  {group.posts.map((post, index) =>
+                    renderPostCard(post, index === 0),
+                  )}
                 </div>
               )}
             </section>
@@ -609,7 +612,7 @@ export default function PostListInfinite({
         </div>
       ) : posts.length > 0 ? (
         <div className={gridClassName}>
-          {posts.map((post) => renderPostCard(post))}
+          {posts.map((post, index) => renderPostCard(post, index === 0))}
         </div>
       ) : null}
 

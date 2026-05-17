@@ -36,7 +36,7 @@ export default function HorokCoteProblemHeader({
             href="/horok-cote"
             className="flex shrink-0 items-center gap-1.5 font-bold text-slate-950 transition hover:opacity-80 dark:text-slate-50"
           >
-            <Image src="/logo.png" alt="horok-cote" width={36} height={24} />
+            <Image src="/logo.png" alt="horok-cote" width={36} height={36} />
             <span className="flex flex-col items-center text-sm leading-none">
               <span>horok</span>
               <span>cote</span>
