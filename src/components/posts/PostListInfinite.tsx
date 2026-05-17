@@ -603,7 +603,7 @@ export default function PostListInfinite({
               ) : (
                 <div className={gridClassName}>
                   {group.posts.map((post, index) =>
-                    renderPostCard(post, index === 0),
+                    renderPostCard(post, index < 6),
                   )}
                 </div>
               )}
@@ -612,7 +612,7 @@ export default function PostListInfinite({
         </div>
       ) : posts.length > 0 ? (
         <div className={gridClassName}>
-          {posts.map((post, index) => renderPostCard(post, index === 0))}
+          {posts.map((post, index) => renderPostCard(post, index < 6))}
         </div>
       ) : null}
 

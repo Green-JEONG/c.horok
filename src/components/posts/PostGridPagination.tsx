@@ -51,7 +51,7 @@ export default function PostGridPagination({ posts }: { posts: PostItem[] }) {
             isHidden={post.is_hidden}
             isSecret={post.is_secret}
             canViewSecret={post.can_view_secret}
-            thumbnailLoading={index === 0 ? "eager" : "lazy"}
+            thumbnailLoading={index < 6 ? "eager" : "lazy"}
           />
         ))}
       </div>

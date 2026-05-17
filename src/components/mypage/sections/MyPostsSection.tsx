@@ -501,7 +501,7 @@ export default function MyPostsSection() {
                   isDraft={post.is_draft}
                   hrefOverride={post.href_override}
                   showCategoryBadge={!post.is_draft}
-                  thumbnailLoading={index === 0 ? "eager" : "lazy"}
+                  thumbnailLoading={index < 6 ? "eager" : "lazy"}
                   className={
                     highlightedPostId === post.id
                       ? "border-primary bg-primary/5"

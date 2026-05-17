@@ -318,10 +318,20 @@ export default function NoticeListInfinite({
       <button
         type="button"
         onClick={() => updateSort(nextSortKey)}
-        className="inline-flex min-w-0 items-center justify-center gap-1 rounded-sm px-1 py-0.5 transition-colors hover:text-foreground"
+        className={`inline-flex min-w-0 items-center justify-center rounded-sm py-0.5 transition-colors hover:text-foreground ${
+          nextSortKey === "number" ? "gap-0.5" : "gap-1 px-1"
+        }`}
         aria-label={`${label} ${nextSortOrder === "asc" ? "오름차순" : "내림차순"} 정렬`}
       >
-        <span className="truncate">{label}</span>
+        <span
+          className={
+            nextSortKey === "number"
+              ? "whitespace-nowrap tracking-tighter"
+              : "truncate"
+          }
+        >
+          {label}
+        </span>
         <SortIcon
           aria-hidden="true"
           className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground/70"}`}

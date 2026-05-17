@@ -83,7 +83,8 @@ export default async function HorokTechPage({
                 comments={post.comments_count}
                 views={post.view_count}
                 createdAt={post.created_at}
-                thumbnailLoading={index === 0 ? "eager" : "lazy"}
+                postRouteSection="feeds"
+                thumbnailLoading={index < 6 ? "eager" : "lazy"}
               />
             </div>
           ))}
